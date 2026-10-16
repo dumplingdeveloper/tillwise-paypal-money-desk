@@ -1,0 +1,32 @@
+{
+  "projectName": "WooCommerce Voice Operations Agent",
+  "tagline": "A store-owner voice agent with transparent MCP tool execution",
+  "github": "<repo-url placeholder>",
+  "subtitleBandHeight": 140,
+  "tailMs": 1400,
+  "steps": [
+    { "action": "goto", "url": "/", "waitUntil": "networkidle" },
+    { "action": "caption", "text": "Devpost demo pipeline: local browser recording plus licensed local TTS." },
+    { "action": "pause", "ms": 2400 },
+    { "action": "say", "voice": "NARRATOR", "text": "This demo shows a store owner using a voice first operations agent for a WooCommerce shop." },
+    { "action": "pause", "ms": 5200 },
+    { "action": "type", "selector": "#command", "text": "What changed in my store today, and what should I do next?", "delayMs": 52 },
+    { "action": "say", "voice": "OWNER", "text": "What changed in my store today, and what should I do next?" },
+    { "action": "pause", "ms": 3400 },
+    { "action": "click", "selector": "#send" },
+    { "action": "waitFor", "selector": "#log-1.show", "timeout": 5000 },
+    { "action": "caption", "text": "The under-the-hood panel exposes the planned skill and MCP calls." },
+    { "action": "pause", "ms": 2400 },
+    { "action": "say", "voice": "NARRATOR", "text": "The simulator records the user interface and the under the hood MCP trace at the same time." },
+    { "action": "pause", "ms": 6000 },
+    { "action": "waitFor", "selector": "#log-4.show", "timeout": 5000 },
+    { "action": "waitFor", "selector": "#card-action.show", "timeout": 6000 },
+    { "action": "scrollTo", "selector": "#card-action", "block": "center", "waitMs": 900 },
+    { "action": "say", "voice": "ASSISTANT", "text": "Sales are up eighteen percent today. Restock medium hoodies, draft a thank you coupon, and review two delayed orders." },
+    { "action": "pause", "ms": 7600 },
+    { "action": "caption", "text": "The same scene file can later target the real simulator on 127.0.0.1." },
+    { "action": "pause", "ms": 2400 },
+    { "action": "say", "voice": "NARRATOR", "text": "Because the scene is declarative, the pipeline can point at the real local simulator later without changing the renderer." },
+    { "action": "pause", "ms": 7800 }
+  ]
+}

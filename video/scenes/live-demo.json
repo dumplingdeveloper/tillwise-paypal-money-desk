@@ -1,0 +1,94 @@
+{
+  "projectName": "Tillwise Store Agent",
+  "tagline": "Voice-led WooCommerce operations with MCP transparency and owner confirmation",
+  "github": "https://github.com/yuxinshiu63/tillwise-store-agent",
+  "subtitleBandHeight": 140,
+  "dynamicWordsPerAsk": 34,
+  "tailMs": 1600,
+  "selectors": {
+    "input": "#text",
+    "send": "#send",
+    "confirm": ".confirm:not(.hidden)",
+    "hood": "#hoodToggle"
+  },
+  "steps": [
+    {
+      "action": "goto",
+      "url": "/live-contract.html?demo=1&delayMs=6000",
+      "waitUntil": "networkidle"
+    },
+    {
+      "action": "say",
+      "voice": "NARRATOR",
+      "text": "This is an unofficial Alexa plus experience simulator. A Copilot SDK agent talks to a local WooCommerce test store through the Tillwise MCP server."
+    },
+    {
+      "action": "pause",
+      "ms": 800
+    },
+    {
+      "action": "ask",
+      "text": "Good morning, how's the shop doing today?",
+      "voice": "OWNER",
+      "timeout": 60000
+    },
+    {
+      "action": "ask",
+      "text": "Put all mugs 15% off until Sunday.",
+      "voice": "OWNER",
+      "timeout": 60000
+    },
+    {
+      "action": "confirm",
+      "text": "Yes.",
+      "timeout": 60000
+    },
+    {
+      "action": "ask",
+      "text": "Actually, undo that.",
+      "voice": "OWNER",
+      "timeout": 60000
+    },
+    {
+      "action": "confirm",
+      "text": "Yes.",
+      "timeout": 60000
+    },
+    {
+      "action": "ask",
+      "text": "Put the candles 70% off.",
+      "voice": "OWNER",
+      "timeout": 60000
+    },
+    {
+      "action": "ask",
+      "text": "What's running low?",
+      "voice": "OWNER",
+      "timeout": 60000
+    },
+    {
+      "action": "openHood",
+      "selector": "#hoodToggle",
+      "waitMs": 800
+    },
+    {
+      "action": "say",
+      "voice": "NARRATOR",
+      "text": "Under the hood: every MCP tool call, the protocol version both sides agreed on, the Agent Skills the model loaded, and the owner confirmation gate in front of every price change."
+    },
+    {
+      "action": "pause",
+      "ms": 1400
+    },
+    {
+      "action": "say",
+      "voice": "NARRATOR",
+      "text": "Tillwise Store Agent. Plain-English briefings, previewed price changes, and one-word undo, with the owner in control."
+    },
+    {
+      "action": "pause",
+      "ms": 1000
+    }
+  ],
+  "maxSilenceMs": 1500
+}

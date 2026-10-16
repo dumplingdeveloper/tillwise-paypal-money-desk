@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tillwise Live Contract Stub</title>
+<style>
+:root{--bg:#07111f;--panel:#0c1830;--line:#24405f;--text:#eef7ff;--muted:#9fb4cb;--cyan:#38d9ff;--mint:#70f0b6;--violet:#a78bfa;--warn:#fbbf24}*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden;background:radial-gradient(circle at 10% 0%,#1d3a7a 0,#07111f 38%,#040812 100%);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.app{height:100vh;display:grid;grid-template-columns:1.02fr .98fr;gap:24px;padding:30px}.main,.hood{min-height:0;background:rgba(12,24,48,.82);border:1px solid rgba(125,211,252,.22);border-radius:30px;padding:28px;box-shadow:0 24px 90px rgba(0,0,0,.35);position:relative;overflow:hidden}.main{display:flex;flex-direction:column}.eyebrow{display:inline-flex;width:max-content;gap:10px;align-items:center;border:1px solid rgba(112,240,182,.35);background:rgba(20,83,45,.22);color:#bbf7d0;padding:9px 14px;border-radius:999px;font-size:13px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}.eyebrow span{width:10px;height:10px;border-radius:50%;background:var(--mint);box-shadow:0 0 18px var(--mint)}h1{font-size:43px;line-height:1.02;margin:22px 0 8px}.sub{font-size:19px;line-height:1.36;color:#c9d8e8;margin:0 0 18px}.ringWrap{display:grid;place-items:center;height:190px}.ring{width:142px;height:142px;border-radius:50%;padding:9px;background:conic-gradient(var(--cyan),var(--violet),var(--mint),var(--cyan));transition:.2s}.ring>div{height:100%;border-radius:50%;display:grid;place-items:center;background:#091426;font-size:42px}.ring.listening{filter:drop-shadow(0 0 34px rgba(56,217,255,.7));animation:pulse 1.4s ease-in-out infinite}.ring.speaking{animation:spin 1.8s linear infinite;filter:drop-shadow(0 0 42px rgba(112,240,182,.75))}.chat{flex:1;min-height:0;overflow:auto;display:grid;align-content:start;gap:12px;padding-right:6px}.msg{max-width:82%;border:1px solid rgba(148,204,255,.18);background:rgba(7,17,31,.85);padding:14px 16px;border-radius:18px;color:#e7f1ff;font-size:18px;line-height:1.32}.msg.owner{justify-self:end;background:rgba(30,58,138,.72)}.msg.assistant{justify-self:start}.msg.host{justify-self:start;border-color:rgba(251,191,36,.35);background:rgba(120,80,12,.35)}.controls{display:flex;gap:12px;margin-top:16px}.controls input{flex:1;background:#07111f;border:1px solid #29415f;border-radius:16px;color:white;font-size:20px;padding:16px 18px}.controls button,#hoodToggle{border:0;border-radius:16px;background:linear-gradient(135deg,#22d3ee,#8b5cf6);color:white;font-size:19px;font-weight:900;padding:0 24px;cursor:pointer}.confirm{margin-top:12px;border:1px solid rgba(251,191,36,.45);background:rgba(120,80,12,.28);padding:14px 16px;border-radius:18px;color:#fde68a;font-size:18px}.hidden{display:none}.cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}.card{background:rgba(15,31,55,.96);border:1px solid rgba(148,204,255,.22);border-radius:20px;padding:16px;min-height:98px}.card h3{margin:0 0 7px;color:#bfdbfe}.card p{margin:0;color:#dbeafe;line-height:1.3}.hood{display:flex;flex-direction:column}.hood h2{margin:0 0 8px;font-size:32px}.hood p{margin:0 0 16px;color:var(--muted);font-size:18px;line-height:1.35}.hood.collapsed .trace{display:none}.trace{display:grid;gap:11px;overflow:auto}.event{border-left:5px solid var(--cyan);background:rgba(7,17,31,.82);border-radius:14px;padding:12px 14px;font-family:"SFMono-Regular",Consolas,monospace;color:#dbeafe;font-size:16px}.event strong{color:#70f0b6}.topline{display:flex;justify-content:space-between;gap:16px;align-items:start}#hoodToggle{height:46px;font-size:16px;padding:0 18px}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{50%{transform:scale(1.06)}}
+</style>
+</head>
+<body>
+<div class="app">
+  <section class="main">
+    <div class="eyebrow"><span></span> Unofficial Alexa+ experience simulator</div>
+    <h1>WooCommerce owner agent</h1>
+    <p class="sub">A local demo page that follows the live recorder contract: events, confirmations, tools and speak hooks.</p>
+    <div class="ringWrap"><div id="ring" class="ring"><div>✦</div></div></div>
+    <div id="chat" class="chat"></div>
+    <div id="confirm" class="confirm hidden">Confirmation needed</div>
+    <div class="cards" id="cards"></div>
+    <div class="controls"><input id="text" aria-label="Message" placeholder="Ask the store agent…"><button id="send">Send</button></div>
+  </section>
+  <aside id="hood" class="hood">
+    <div class="topline"><div><h2>Under the hood</h2><p>MCP tool activity and owner-confirmation gates.</p></div><button id="hoodToggle">Toggle trace</button></div>
+    <div class="trace" id="trace"></div>
+  </aside>
+</div>
+<script>
+const params = new URLSearchParams(location.search);
+const artificialDelayMs = Number(params.get('delayMs') || 0);
+window.__tillwise = { events: [] };
+const ring = document.getElementById('ring'), chat = document.getElementById('chat'), trace = document.getElementById('trace'), cards = document.getElementById('cards'), input = document.getElementById('text'), confirmBox = document.getElementById('confirm');
+let pending = null;
+const now = () => Math.round(performance.now());
+function event(type, data){ const e={time:now(), type, data}; window.__tillwise.events.push(e); return e; }
+function log(name, detail){ const el=document.createElement('div'); el.className='event'; el.innerHTML=`<strong>${name}</strong> ${detail}`; trace.prepend(el); }
+function msg(role,text){ const el=document.createElement('div'); el.className=`msg ${role}`; el.textContent=text; chat.appendChild(el); chat.scrollTop=chat.scrollHeight; event('message',{role,text}); }
+function card(title,text){ const el=document.createElement('article'); el.className='card'; el.innerHTML=`<h3>${title}</h3><p>${text}</p>`; cards.prepend(el); }
+async function speak(role,text){ ring.className='ring speaking'; if (window.__tillwiseSpeak) await window.__tillwiseSpeak({role,text}); else await new Promise(r=>setTimeout(r, Math.max(1200, text.split(/\s+/).length*360))); ring.className='ring'; }
+async function assistant(text,title='Assistant card'){ if (artificialDelayMs) await new Promise(r=>setTimeout(r, artificialDelayMs)); msg('assistant',text); event('final',{text}); card(title,text); await speak('assistant',text); }
+async function hostQuestion(message, kind){ if (artificialDelayMs) await new Promise(r=>setTimeout(r, artificialDelayMs)); pending = kind; confirmBox.textContent = message; confirmBox.classList.remove('hidden'); msg('host', message); event('permission',{message,kind}); await speak('host', message); }
+async function tools(names){ for(const name of names){ event('tool_start',{name}); log('tool_start',name); await new Promise(r=>setTimeout(r,220)); event('tool_end',{name,status:'ok'}); log('tool_end',`${name} status=ok`); } }
+async function handle(text){ msg('owner',text); ring.className='ring listening'; const t=text.toLowerCase();
+ if(pending){ const kind=pending; pending=null; confirmBox.classList.add('hidden'); event('permission_resolved',{kind,answer:text}); await tools(['woocommerce.apply_change','audit.write_owner_confirmation']); if(kind==='mugs') await assistant('Done. All mugs are fifteen percent off until Sunday, and I logged the owner confirmation.','Promotion scheduled'); else await assistant('Done. I undid the mug promotion and restored the previous prices.','Promotion undone'); return; }
+ if(t.includes('morning')){ await tools(['woocommerce.get_orders','woocommerce.get_inventory','analytics.compare_today']); await assistant('Good morning. The shop is up eighteen percent today. Mugs and candles are moving fastest, with two delayed orders to review.','Morning summary'); return; }
+ if(t.includes('mugs') && t.includes('15')){ await tools(['catalog.find_products','promotion.preview_discount']); await hostQuestion('Please confirm: apply a fifteen percent mug discount until Sunday?', 'mugs'); return; }
+ if(t.includes('undo')){ await tools(['audit.find_last_change','promotion.preview_rollback']); await hostQuestion('Please confirm: undo the last mug promotion and restore previous prices?', 'undo'); return; }
+ if(t.includes('candles') && t.includes('70')){ await tools(['catalog.find_products','policy.discount_guardrail']); await assistant('I cannot apply a seventy percent discount to candles without a safer campaign plan. That exceeds the configured margin guardrail, so no change was made.','Guardrail refusal'); return; }
+ if(t.includes('running low')){ await tools(['woocommerce.get_inventory','supplier.check_reorder_points']); await assistant('Three items are running low: vanilla candles, blue mugs, and medium Falcon hoodies. The candle reorder is the most urgent.','Inventory watch'); return; }
+ await assistant('I can summarize sales, prepare owner-confirmed promotions, undo recent changes, and check inventory.'); }
+document.getElementById('send').addEventListener('click',()=>{ const text=input.value.trim(); if(!text) return; input.value=''; handle(text).catch(err=>{console.error(err); assistant('The demo stub hit an error: '+err.message);}); });
+input.addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('send').click(); });
+document.getElementById('hoodToggle').addEventListener('click',()=>document.getElementById('hood').classList.toggle('collapsed'));
+</script>
+</body>
+</html>

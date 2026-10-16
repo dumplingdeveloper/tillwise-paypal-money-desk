@@ -1,0 +1,21 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Tillwise Alexa+ Simulator</title><link rel="stylesheet" href="/styles.css"/></head><body>
+<main class="app">
+  <section class="left">
+    <p class="eyebrow">Alexa+ experience simulator (unofficial demo)</p>
+    <div id="ring" class="ring idle" aria-hidden="true"><span></span></div>
+    <div id="state" class="state">idle</div>
+    <h1>Tillwise Store Agent</h1>
+    <div id="transcript" class="transcript" aria-live="polite"></div>
+    <div class="controls"><button id="talk">Hold to talk</button><input id="text" aria-label="Message" placeholder="Good morning, how's the shop doing today?"/><button id="send">Send</button></div>
+  </section>
+  <section class="right">
+    <div class="right-tabs"><button id="cardsTab" type="button">Cards</button><button id="hoodToggle" type="button">Under the hood</button></div>
+    <div id="confirm" class="confirm hidden" aria-live="assertive"></div>
+    <div id="cardsPane" class="pane active"><div id="cards" class="cards"></div></div>
+    <div id="hoodPane" class="pane">
+      <div id="hoodHeader" class="hood-grid"></div>
+      <ol id="timeline" class="timeline"></ol>
+    </div>
+  </section>
+</main>
+<script type="module" src="/app.js"></script></body></html>

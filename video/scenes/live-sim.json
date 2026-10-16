@@ -1,0 +1,110 @@
+{
+  "projectName": "Tillwise Store Agent",
+  "tagline": "Voice-led WooCommerce operations with MCP transparency and owner confirmation",
+  "github": "https://github.com/yuxinshiu63/tillwise-store-agent",
+  "subtitleBandHeight": 140,
+  "dynamicWordsPerAsk": 28,
+  "tailMs": 1600,
+  "selectors": {
+    "input": "#text",
+    "send": "#send",
+    "confirm": ".confirm:not(.hidden)",
+    "hood": "#hoodToggle"
+  },
+  "steps": [
+    {
+      "action": "goto",
+      "url": "/?demo=1",
+      "waitUntil": "load"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#hoodHeader > div:first-child > span.label",
+      "state": "attached",
+      "timeout": 30000
+    },
+    {
+      "action": "say",
+      "voice": "NARRATOR",
+      "text": "This is an unofficial Alexa plus experience simulator. A Copilot SDK agent talks to a local WooCommerce test store through the Tillwise MCP server."
+    },
+    {
+      "action": "pause",
+      "ms": 800
+    },
+    {
+      "action": "ask",
+      "text": "Good morning, how's the shop doing today?",
+      "voice": "OWNER",
+      "timeout": 60000
+    },
+    {
+      "action": "ask",
+      "text": "Put all mugs 15% off until Sunday.",
+      "voice": "OWNER",
+      "timeout": 60000
+    },
+    {
+      "action": "confirm",
+      "text": "Yes.",
+      "timeout": 60000
+    },
+    {
+      "action": "say",
+      "voice": "NARRATOR",
+      "text": "Price changes are previewed first, and the host asks the owner before anything in the store changes."
+    },
+    {
+      "action": "ask",
+      "text": "Actually, undo that.",
+      "voice": "OWNER",
+      "timeout": 60000
+    },
+    {
+      "action": "confirm",
+      "text": "Yes.",
+      "timeout": 60000
+    },
+    {
+      "action": "ask",
+      "text": "Put the candles 70% off.",
+      "voice": "OWNER",
+      "timeout": 60000
+    },
+    {
+      "action": "say",
+      "voice": "NARRATOR",
+      "text": "That 50 percent limit is enforced by the WordPress plugin, not by the prompt."
+    },
+    {
+      "action": "ask",
+      "text": "What's running low?",
+      "voice": "OWNER",
+      "timeout": 60000
+    },
+    {
+      "action": "openHood",
+      "selector": "#hoodToggle",
+      "waitMs": 800
+    },
+    {
+      "action": "say",
+      "voice": "NARRATOR",
+      "text": "Under the hood: each MCP tool call, the negotiated protocol version, the Agent Skills the model loaded, and every owner confirmation."
+    },
+    {
+      "action": "pause",
+      "ms": 1400
+    },
+    {
+      "action": "say",
+      "voice": "NARRATOR",
+      "text": "Tillwise Store Agent. Plain-English briefings, previewed price changes, and undo by voice, with the owner in control."
+    },
+    {
+      "action": "pause",
+      "ms": 1000
+    }
+  ],
+  "maxSilenceMs": 1500
+}

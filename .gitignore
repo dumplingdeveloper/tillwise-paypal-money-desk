@@ -1,0 +1,23 @@
+.env
+mcp-server/.env
+mcp-server/dist/
+mcp-server/node_modules/
+.DS_Store
+alexa-sim/.copilot-sdk-state/
+alexa-sim/.copilot-sdk-state-live/
+alexa-sim/.copilot-sdk-state-benchmark/
+alexa-sim/.copilot-sdk-state-no-builtins/
+alexa-sim/.copilot-sdk-state*/
+alexa-sim/.env
+alexa-sim/dist/
+alexa-sim/node_modules/
+alexa-sim/mcp-server.log
+alexa-sim/mcp-server.pid
+alexa-sim/*.log
+alexa-sim/*.pid
+video/node_modules/
+video/out/
+video/.cache/
+oss/
+# Internal hackathon notes (Devpost drafts, rules excerpts, checklists)
+submission/

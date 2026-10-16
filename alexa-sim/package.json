@@ -1,0 +1,26 @@
+{
+  "name": "tillwise-alexa-sim",
+  "version": "0.1.0",
+  "description": "Unofficial Alexa+ experience simulator for Tillwise Store Agent.",
+  "type": "module",
+  "license": "GPL-2.0-or-later",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test dist/test/*.test.js",
+    "test:live": "npm run build && LIVE_LLM=1 node --test dist/test/live.test.js",
+    "test:e2e": "npm run build && node --test dist/test/e2e.test.js",
+    "start": "node dist/src/server.js",
+    "demo": "npm run build && node dist/src/demo.js",
+    "benchmark:models": "npm run build && LIVE_LLM=1 node --test dist/test/modelBenchmark.test.js",
+    "test:reliability": "npm run build && RELIABILITY_E2E=1 node --test dist/test/reliability.test.js"
+  },
+  "dependencies": {
+    "@github/copilot-sdk": "1.0.15"
+  },
+  "devDependencies": {
+    "@types/node": "26.0.0",
+    "playwright-core": "1.55.1",
+    "typescript": "5.9.3"
+  }
+}

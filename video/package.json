@@ -1,0 +1,18 @@
+{
+  "name": "hackathon-demo-video-pipeline",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "tts": "node scripts/tts.js",
+    "record": "node scripts/record.js",
+    "compose": "node scripts/compose.js",
+    "video": "node scripts/video.js",
+    "record:live": "node scripts/record-live.js"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "3.8.0",
+    "kokoro-js": "1.2.1",
+    "playwright-core": "1.56.1"
+  }
+}

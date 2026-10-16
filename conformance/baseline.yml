@@ -1,0 +1,36 @@
+# Expected failures for the official MCP conformance suite
+# (@modelcontextprotocol/conformance 0.1.16, --spec-version 2025-11-25).
+# Used by scripts/conformance.sh via --expected-failures. The suite exits 1 on any
+# failure not listed here, and also when a listed scenario starts passing.
+# Measured 2026-09-29 against mcp-server (TS SDK 1.31.0): 9 scenarios passed, 22 failed.
+server:
+  # Capabilities this server does not declare (the server answers -32601 Method not found).
+  # Upstream: https://github.com/modelcontextprotocol/conformance/issues/516
+  - completion-complete
+  - logging-set-level
+  - tools-call-with-logging
+  - prompts-list
+  - prompts-get-simple
+  - prompts-get-with-args
+  - prompts-get-embedded-resource
+  - prompts-get-with-image
+  - resources-subscribe
+  - resources-unsubscribe
+
+  # These scenarios call the suite's own fixture tools, which a store server does not have,
+  # so there is no sampling, elicitation or progress request to observe.
+  - tools-call-sampling
+  - tools-call-elicitation
+  - elicitation-sep1034-defaults
+  - elicitation-sep1330-enums
+  - tools-call-with-progress
+
+  # Fixture tools and resources (test_* tools, test:// URIs) that only the suite's
+  # reference server provides.
+  - tools-call-image
+  - tools-call-audio
+  - tools-call-embedded-resource
+  - tools-call-mixed-content
+  - resources-read-text
+  - resources-read-binary
+  - resources-templates-read
