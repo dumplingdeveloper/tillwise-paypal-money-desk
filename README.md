@@ -89,7 +89,11 @@ Open the printed `http://127.0.0.1:4179` URL in Chrome. The UI supports push-to-
 
 ### AG Studio Money Desk
 
-Open `http://127.0.0.1:4179/money-desk.html` after starting the simulator. The page embeds AG Studio 3.0.0 in edit mode, uses three Tillwise custom widgets (refund-rate tile, unpaid-invoice scoreboard, dispute-deadline countdown), and configures a Studio Agent Framework harness with a read-only Money agent. Money-moving PayPal tools are not exposed to Studio.
+Open `http://127.0.0.1:4179/money-desk.html` after starting the simulator and the MCP server. The page embeds AG Studio 3.0.0 in edit mode. Its data comes from the read-only MCP tool `paypal_ledger_export`. The canvas holds built-in value, column-chart and grid widgets, plus three Tillwise custom widgets: a refund-rate tile, a "who still owes" scoreboard and a dispute-deadline countdown.
+
+The AI panel's agent is a `clientToolRunner`. Its rounds go to `/api/studio-agent/run`, where a GitHub Copilot SDK session decides which Studio tools to call. Studio runs those tools in the browser and sends the results back to the session.
+
+The agent only has Studio tools and read-only PayPal tools; no money-moving tool is exposed to Studio. See `docs/M2_AG_STUDIO_EVIDENCE.md`. The live acceptance test is `cd alexa-sim && npm run build && LIVE_LLM=1 EXPECTED_GITHUB_LOGIN=<login> SIM_PORT=4189 node --test dist/test/moneyDeskLive.test.js`.
 
 AG Studio is a commercial product. This repo includes `ag-studio@3.0.0` for local hackathon testing only; no AG Studio license key is committed. If a trial key is provided later, keep it in the environment as `AG_STUDIO_LICENSE_KEY`.
 
