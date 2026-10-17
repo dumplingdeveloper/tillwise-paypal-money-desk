@@ -278,13 +278,11 @@ export class CopilotAgentRuntime {
     return conversation ? conversation.broker.decide(confirmationId, approved) : false;
   }
 
-  async runStudioMoneyAgent(prompt: string, rows: unknown[]): Promise<{ text: string; liveTurns: number }> {
+  /** Bare SDK session for the AG Studio Money Desk agent (studioBridge.ts): no MCP servers, no skills, no built-in tools. */
+  async createStudioSession(config: Record<string, unknown>) {
     if (!this.client) await this.start();
-    const session = await this.client!.createSession({
-      clientName: 'tillwise-ag-studio-money-agent',
-      model: process.env.COPILOT_MODEL || 'gpt-6-luna',
+    return this.client!.createSession({
       workingDirectory: PROJECT_ROOT,
-      availableTools: new ToolSet(),
       enableSessionTelemetry: false,
       skipEmbeddingRetrieval: true,
       embeddingCacheStorage: 'in-memory',
@@ -296,21 +294,13 @@ export class CopilotAgentRuntime {
       manageScheduleEnabled: false,
       memory: { enabled: false },
       toolSearch: { enabled: false },
+      infiniteSessions: { enabled: false },
       includedBuiltinSkills: [],
       skipCustomInstructions: true,
       enableConfigDiscovery: false,
-      systemMessage: {
-        mode: 'customize',
-        content: 'You are the Tillwise Money agent inside AG Studio. Use only the PayPal money desk rows supplied in the user message. Never request or describe money-moving tools. Return concise JSON-friendly prose naming exactly three safe dashboard widgets to build: refund-rate tile, unpaid invoice scoreboard, and dispute deadline countdown.',
-        sections: { environment_context: { action: 'remove' } },
-      },
       createSessionFsProvider: () => createNodeSessionFsProvider(),
-    });
-    try {
-      const result = await session.sendAndWait({ prompt: `${prompt}\nRows:\n${JSON.stringify(rows).slice(0, 12000)}` }, 60000);
-      return { text: finalFromSendResult(result).text, liveTurns: 1 };
-    } finally {
-      await session.disconnect().catch(() => {});
-    }
+      ...config,
+    } as SessionConfig);
   }
+
 }

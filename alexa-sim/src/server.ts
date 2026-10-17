@@ -3,12 +3,16 @@ import { createReadStream, existsSync } from 'node:fs';
 import { dirname, extname, join, normalize } from 'node:path';
 import { createRequire } from 'node:module';
 import { CopilotAgentRuntime } from './copilotAgent.js';
+import { loadAllEnvFiles } from './env.js';
 import { PUBLIC_DIR } from './config.js';
 import { cardFromStructured } from './cards.js';
 import { classifyConfirmationReply } from './permissionGate.js';
-import { buildAgentWidgets, demoMoneyDeskRows } from './moneyDesk.js';
+import { loadMoneyDeskLedger, MONEY_DESK_SOURCES } from './moneyDesk.js';
+import { PayPalMcpReadClient, READ_ONLY_PAYPAL_TOOLS } from './paypalMcp.js';
+import { StudioBridge, createCopilotSessionFactory, type SessionFactory, type StudioRoundRequest } from './studioBridge.js';
 
 const runtime = new CopilotAgentRuntime();
+const paypalRead = new PayPalMcpReadClient();
 const sseClients = new Map<string, Set<ServerResponse>>();
 const require = createRequire(import.meta.url);
 const agStudioRoot = join(dirname(require.resolve('ag-studio')), '..', '..');
@@ -60,22 +64,43 @@ function serveVendor(req: IncomingMessage, res: ServerResponse) {
   return true;
 }
 
-export async function startSimulator(host = process.env.SIM_HOST || '127.0.0.1', port = Number(process.env.SIM_PORT || 4179)) {
-  await runtime.start();
+export type SimulatorOptions = {
+  /** Test-only: replaces the Copilot SDK session behind the Studio agent bridge. Never used by the app itself. */
+  studioSessionFactory?: SessionFactory;
+  /** Test-only: skip starting the Copilot SDK client (only valid together with studioSessionFactory). */
+  skipRuntimeStart?: boolean;
+};
+
+export async function startSimulator(host = process.env.SIM_HOST || '127.0.0.1', port = Number(process.env.SIM_PORT || 4179), options: SimulatorOptions = {}) {
+  if (!(options.skipRuntimeStart && options.studioSessionFactory)) await runtime.start();
+  else loadAllEnvFiles();
+  const studioBridge = new StudioBridge({ createSession: options.studioSessionFactory || createCopilotSessionFactory(runtime), paypal: paypalRead });
+  const sweeper = setInterval(() => { studioBridge.sweep().catch(() => {}); }, 60_000);
+  sweeper.unref();
   const server = http.createServer(async (req, res) => {
     try {
       if (!checkHostOrigin(req, host, port)) return json(res, 403, { error: 'Forbidden' });
       const url = new URL(req.url || '/', `http://${host}:${port}`);
       if (req.method === 'GET' && url.pathname === '/api/money-desk-data') {
-        const rows = demoMoneyDeskRows();
-        return json(res, 200, { rows, widgets: buildAgentWidgets(rows), readOnlyTools: ['paypal_money_briefing', 'paypal_disputes_list', 'paypal_dispute_get'] });
+        // Rows come from the MCP server's read-only paypal_ledger_export tool, never from this file.
+        const { ledger, source } = await loadMoneyDeskLedger(paypalRead);
+        return json(res, 200, { ledger, source, sources: MONEY_DESK_SOURCES, licenseKey: process.env.AG_STUDIO_LICENSE_KEY || null, agent: { model: studioBridge.model, readOnlyPayPalTools: READ_ONLY_PAYPAL_TOOLS } });
       }
-      if (req.method === 'POST' && url.pathname === '/api/studio-agent/widgets') {
-        const body = await readJson(req);
-        const rows = Array.isArray(body.rows) ? body.rows as ReturnType<typeof demoMoneyDeskRows> : demoMoneyDeskRows();
-        const live = process.env.MONEY_DESK_LIVE_AGENT === '1' ? await runtime.runStudioMoneyAgent(String(body.prompt || 'Build PayPal money desk widgets.'), rows) : null;
-        const widgets = buildAgentWidgets(rows);
-        return json(res, 200, { ok: true, liveTurns: live?.liveTurns || 0, liveSummary: live?.text || '', mode: live ? 'live-copilot-sdk-money-agent' : 'scripted-copilot-compatible-harness', widgets, readOnlyTools: ['paypal_money_briefing', 'paypal_disputes_list', 'paypal_dispute_get'], forbiddenTools: ['paypal_refund_apply', 'paypal_invoice_create_apply', 'paypal_invoice_send_apply', 'paypal_tracking_add_apply', 'paypal_dispute_accept_claim_apply'] });
+      if (req.method === 'POST' && url.pathname === '/api/studio-agent/run') {
+        const body = await readJson(req, 4 * 1024 * 1024);
+        const abort = new AbortController();
+        res.on('close', () => { if (!res.writableEnded) abort.abort(); });
+        res.writeHead(200, { 'content-type': 'application/x-ndjson', 'cache-control': 'no-cache' });
+        for await (const event of studioBridge.runRound(body as unknown as StudioRoundRequest, abort.signal)) {
+          if (res.writableEnded || res.destroyed) break;
+          res.write(`${JSON.stringify(event)}\n`);
+        }
+        res.end();
+        return;
+      }
+      if (req.method === 'GET' && url.pathname === '/api/studio-agent/log') {
+        const threadId = url.searchParams.get('threadId');
+        return json(res, 200, threadId ? studioBridge.threadLog(threadId) : studioBridge.summary());
       }
       if (req.method === 'GET' && url.pathname === '/api/status') return json(res, 200, { login: runtime.authLogin, model: process.env.COPILOT_MODEL || 'gpt-6-luna', models: runtime.models.map((m) => (m as { id?: string; name?: string }).id || (m as { name?: string }).name).filter(Boolean) });
       if (req.method === 'POST' && url.pathname === '/api/conversations') {
@@ -125,7 +150,8 @@ export async function startSimulator(host = process.env.SIM_HOST || '127.0.0.1',
   });
   await new Promise<void>((resolve) => server.listen(port, host, resolve));
   console.log(`Alexa+ simulator listening on http://${host}:${port}`);
-  return { server, runtime };
+  server.on('close', () => { clearInterval(sweeper); studioBridge.close().catch(() => {}); });
+  return { server, runtime, studioBridge, paypalRead };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) startSimulator().catch((error) => { console.error(error); process.exit(1); });

@@ -1,42 +1,58 @@
-export type MoneyDeskRow = {
-  id: string;
-  kind: 'capture' | 'refund' | 'invoice' | 'dispute' | 'tracking' | 'audit';
-  customer: string;
-  segment: 'Retail' | 'Wholesale' | 'At risk';
-  amount: number;
-  currency: string;
-  status: string;
-  orderId?: number;
-  paypalObjectId: string;
-  ageDays: number;
-  dueDays?: number;
-  updatedAt: string;
-};
+import type { PayPalReadClient } from './paypalMcp.js';
 
-export type MoneyDeskWidget = { id: string; type: string; title: string; prompt: string; status: 'pass' | 'fail'; summary: string };
+type Row = Record<string, string | number | boolean | null>;
+export type LedgerTables = { captures: Row[]; refunds: Row[]; invoices: Row[]; disputes: Row[]; tracking: Row[] };
+export type MoneyDeskLedger = LedgerTables & { mode: string; generated_at: string; anchor_date: string; currency: string; counts: Record<string, number>; notes?: string[] };
 
-export function demoMoneyDeskRows(now = new Date('2026-10-17T12:00:00+01:00')): MoneyDeskRow[] {
-  const day = 86_400_000;
-  const iso = (daysAgo: number) => new Date(now.getTime() - daysAgo * day).toISOString();
-  return [
-    { id: 'txn-1001', kind: 'capture', customer: 'Aoife Retail', segment: 'Retail', amount: 39, currency: 'EUR', status: 'COMPLETED', orderId: 136, paypalObjectId: 'MOCKCAPTURE136', ageDays: 1, updatedAt: iso(1) },
-    { id: 'rfnd-1002', kind: 'refund', customer: 'Aoife Retail', segment: 'Retail', amount: -5, currency: 'EUR', status: 'COMPLETED', orderId: 136, paypalObjectId: 'MOCK-RFND-1002', ageDays: 0, updatedAt: iso(0) },
-    { id: 'inv-1003', kind: 'invoice', customer: 'Dublin Pantry', segment: 'Wholesale', amount: 480, currency: 'EUR', status: 'SENT', paypalObjectId: 'INV2-MOCK-1003', ageDays: 4, dueDays: 6, updatedAt: iso(4) },
-    { id: 'inv-1004', kind: 'invoice', customer: 'Cork Office Co', segment: 'Wholesale', amount: 220, currency: 'EUR', status: 'OVERDUE', paypalObjectId: 'INV2-MOCK-1004', ageDays: 11, dueDays: -1, updatedAt: iso(11) },
-    { id: 'disp-1005', kind: 'dispute', customer: 'Liam Buyer', segment: 'At risk', amount: -18, currency: 'EUR', status: 'WAITING_FOR_SELLER_RESPONSE', orderId: 122, paypalObjectId: 'PP-D-MOCK-1', ageDays: 2, dueDays: 5, updatedAt: iso(2) },
-    { id: 'track-1006', kind: 'tracking', customer: 'Nora Retail', segment: 'Retail', amount: 0, currency: 'EUR', status: 'SHIPPED', orderId: 135, paypalObjectId: 'MOCKCAPTURE135-1Z999', ageDays: 0, updatedAt: iso(0) },
-  ];
+type FieldDef = { id: string; name?: string; description?: string; format: string; formatOptions?: Record<string, unknown>; hide?: boolean };
+export type StudioSourceDef = { id: string; name: string; description: string; fields: FieldDef[] };
+
+const EUR = { format: 'currencyFormat', formatOptions: { format: '€#,##0.00' } };
+const text = (id: string, description: string, name?: string): FieldDef => ({ id, description, format: 'textFormat', ...(name ? { name } : {}) });
+const euro = (id: string, description: string, name?: string): FieldDef => ({ id, description, ...EUR, ...(name ? { name } : {}) });
+const int = (id: string, description: string, name?: string): FieldDef => ({ id, description, format: 'integerFormat', ...(name ? { name } : {}) });
+const date = (id: string, description: string, name?: string): FieldDef => ({ id, description, format: 'dateFormat', ...(name ? { name } : {}) });
+
+/** Studio table/field metadata for the ledger. Descriptions are AI-facing (AG Studio passes them to the agent via the schema). */
+export const MONEY_DESK_SOURCES: StudioSourceDef[] = [
+  { id: 'captures', name: 'PayPal captures', description: 'One row per completed PayPal capture (money received). Revenue = sum of gross.', fields: [
+    text('capture_id', 'PayPal capture id', 'Capture ID'), int('order_id', 'WooCommerce order number', 'Order'), date('date', 'Capture date', 'Date'),
+    text('customer', 'Payer / customer name', 'Customer'), text('segment', 'Customer segment: Retail, Wholesale or Subscription', 'Segment'),
+    euro('gross', 'Gross amount captured in EUR (revenue)', 'Gross'), euro('fee', 'PayPal fee in EUR', 'Fee'), euro('net', 'Net amount after fee in EUR', 'Net'), text('status', 'Capture status', 'Status'),
+  ] },
+  { id: 'refunds', name: 'PayPal refunds', description: 'One row per PayPal refund issued against a capture. Refund rate = refunded amount / captured gross for the same period.', fields: [
+    text('refund_id', 'PayPal refund id', 'Refund ID'), text('capture_id', 'Refunded capture id', 'Capture ID'), int('order_id', 'WooCommerce order number', 'Order'), date('date', 'Refund date', 'Date'),
+    text('customer', 'Customer name', 'Customer'), text('segment', 'Customer segment', 'Segment'), euro('amount', 'Refunded amount in EUR', 'Refund amount'), text('reason', 'Refund reason', 'Reason'), text('status', 'Refund status', 'Status'),
+  ] },
+  { id: 'invoices', name: 'PayPal invoices', description: 'PayPal invoices. Money still owed = amount_due on invoices with status SENT, UNPAID or PARTIALLY_PAID; overdue when past due_date. DRAFT and PAID owe nothing.', fields: [
+    text('invoice_id', 'PayPal invoice id', 'Invoice ID'), text('invoice_number', 'Invoice number', 'Invoice #'), text('customer', 'Billed customer', 'Customer'), text('segment', 'Customer segment', 'Segment'),
+    text('recipient_email', 'Recipient email', 'Email'), text('status', 'PayPal invoice status: DRAFT, SENT, UNPAID, PARTIALLY_PAID, PAID', 'Status'), date('issue_date', 'Issue date', 'Issued'), date('due_date', 'Payment due date', 'Due'),
+    euro('amount', 'Invoice total in EUR', 'Total'), euro('amount_paid', 'Amount already paid in EUR', 'Paid'), euro('amount_due', 'Amount still owed in EUR', 'Amount due'), int('days_overdue', 'Days past the due date (0 if not overdue)', 'Days overdue'),
+    { id: 'overdue', description: 'True when unpaid and past the due date', format: 'booleanFormat', name: 'Overdue' },
+  ] },
+  { id: 'disputes', name: 'PayPal disputes', description: 'PayPal disputes. Disputes WAITING_FOR_SELLER_RESPONSE must be answered before seller_response_due_date.', fields: [
+    text('dispute_id', 'PayPal dispute id', 'Dispute ID'), int('order_id', 'WooCommerce order number', 'Order'), text('customer', 'Customer name', 'Customer'), text('segment', 'Customer segment', 'Segment'),
+    text('reason', 'PayPal dispute reason', 'Reason'), text('status', 'Dispute status', 'Status'), euro('amount', 'Disputed amount in EUR', 'Amount'), date('created_date', 'Date opened', 'Opened'),
+    { id: 'seller_response_due_date', description: 'Deadline for the seller response', format: 'dateTimeFormat', name: 'Response due' }, int('days_to_respond', 'Whole days left to respond', 'Days to respond'),
+  ] },
+  { id: 'tracking', name: 'PayPal shipment tracking', description: 'Shipment tracking attached to PayPal captures.', fields: [
+    text('tracking_id', 'PayPal tracker id', 'Tracker ID'), int('order_id', 'WooCommerce order number', 'Order'), text('customer', 'Customer name', 'Customer'),
+    text('carrier', 'Carrier', 'Carrier'), text('tracking_number', 'Tracking number', 'Tracking #'), text('status', 'Shipment status', 'Status'), date('shipped_date', 'Ship date', 'Shipped'),
+  ] },
+];
+
+function pickRows(rows: unknown, fields: FieldDef[]): Row[] {
+  if (!Array.isArray(rows)) return [];
+  return rows.map((row) => Object.fromEntries(fields.map((f) => [f.id, (row as Row)[f.id] ?? null])));
 }
 
-export function buildAgentWidgets(rows: MoneyDeskRow[]): MoneyDeskWidget[] {
-  const refunds = rows.filter((row) => row.kind === 'refund');
-  const captures = rows.filter((row) => row.kind === 'capture');
-  const overdue = rows.filter((row) => row.kind === 'invoice' && row.status === 'OVERDUE');
-  const disputes = rows.filter((row) => row.kind === 'dispute');
-  const refundRate = captures.length ? Math.round((refunds.length / captures.length) * 100) : 0;
-  return [
-    { id: 'refund-rate', type: 'refundRateTile', title: 'Refund-rate tile', prompt: 'Show refund rate and suspicious refund pressure.', status: 'pass', summary: `${refundRate}% refund-rate from ${refunds.length} refund and ${captures.length} capture rows.` },
-    { id: 'who-owes', type: 'unpaidInvoiceScoreboard', title: 'Who still owes', prompt: 'Build a friendly scoreboard of unpaid invoices.', status: 'pass', summary: `${overdue.length} overdue invoice customer: ${overdue.map((row) => row.customer).join(', ') || 'none'}.` },
-    { id: 'dispute-deadline', type: 'disputeDeadlineCountdown', title: 'Dispute deadline countdown', prompt: 'Highlight dispute response deadlines.', status: 'pass', summary: `${disputes.length} open dispute needing seller response.` },
-  ];
+/** Projects the MCP `paypal_ledger_export` payload onto the Studio tables. No rows are invented here. */
+export function ledgerToTables(data: Record<string, unknown>): MoneyDeskLedger {
+  const tables = Object.fromEntries(MONEY_DESK_SOURCES.map((source) => [source.id, pickRows(data[source.id], source.fields)])) as LedgerTables;
+  return { ...tables, mode: String(data.mode || 'unknown'), generated_at: String(data.generated_at || ''), anchor_date: String(data.anchor_date || ''), currency: String(data.currency || 'EUR'), counts: (data.counts as Record<string, number>) || {}, ...(Array.isArray(data.notes) ? { notes: data.notes as string[] } : {}) };
+}
+
+export async function loadMoneyDeskLedger(client: PayPalReadClient, days = 45) {
+  const result = await client.callReadOnly('paypal_ledger_export', { days });
+  return { ledger: ledgerToTables(result.data), source: { tool: 'paypal_ledger_export', via: 'mcp', speech: result.speech } };
 }

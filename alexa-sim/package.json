@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@github/copilot-sdk": "1.0.15",
+    "@modelcontextprotocol/sdk": "1.31.0",
     "ag-grid-community": "^36.2.0",
     "ag-studio": "^3.0.0",
     "ag-studio-react": "^3.0.0"
