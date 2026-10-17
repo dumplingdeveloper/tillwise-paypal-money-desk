@@ -35,7 +35,7 @@ test('LIVE model MCP tool benchmark', { timeout: 360000 }, async (t) => {
         skipCustomInstructions: true,
         availableTools: buildToolSet(),
         toolSearch: { enabled: false },
-        mcpServers: { [MCP_SERVER_KEY]: { type: 'http', url: process.env.MCP_URL || 'http://127.0.0.1:3337/mcp', headers, tools: ['*'], timeout: 60000 } },
+        mcpServers: { [MCP_SERVER_KEY]: { type: 'http', url: process.env.MCP_URL || 'http://127.0.0.1:3338/mcp', headers, tools: ['*'], timeout: 60000 } },
         onPermissionRequest: createPermissionHandler(broker),
         createSessionFsProvider: () => createNodeSessionFsProvider(),
         systemMessage: { mode: 'append', content: 'Use Tillwise MCP tools. Answer briefly.' },

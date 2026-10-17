@@ -39,7 +39,7 @@ set -a && source .env && set +a
 npm start
 ```
 
-The MCP endpoint is `http://127.0.0.1:3337/mcp`. The seed script writes `.env` and `mcp-server/.env` with a local WordPress Application Password for `shopmanager`.
+The MCP endpoint is `http://127.0.0.1:3338/mcp`. The seed script writes `.env` and `mcp-server/.env` with a local WordPress Application Password for `shopmanager`.
 
 ## Tools
 
@@ -67,7 +67,7 @@ npm install
 npm run demo
 ```
 
-Open the printed `http://127.0.0.1:4178` URL in Chrome. The UI supports push-to-talk with the Web Speech API (`webkitSpeechRecognition`) and a text fallback. It speaks final answers with `speechSynthesis`, renders structured MCP results as cards, and shows a collapsible MCP timeline with protocol version `2025-11-25`.
+Open the printed `http://127.0.0.1:4179` URL in Chrome. The UI supports push-to-talk with the Web Speech API (`webkitSpeechRecognition`) and a text fallback. It speaks final answers with `speechSynthesis`, renders structured MCP results as cards, and shows a collapsible MCP timeline with protocol version `2025-11-25`.
 
 The simulator uses the GitHub Copilot SDK (`@github/copilot-sdk`) in `copilot-cli` mode with the logged-in Copilot CLI user by default. That mode keeps keytar (the OS keychain) available, so a stored Copilot CLI login is used; `empty` mode disables keytar and can fall back to a different `gh` account. Instead of a stored login, you can set `COPILOT_GITHUB_TOKEN` to a fine-grained `github_pat_` token that has the Copilot Requests permission. Classic `ghp_` tokens are rejected. Either way, the account needs GitHub Copilot access.
 

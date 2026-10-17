@@ -9,7 +9,7 @@ import { PROJECT_ROOT, SCREENSHOT_DIR } from '../src/config.js';
 test('LIVE natural demo reliability three runs', { timeout: 900000 }, async (t) => {
   if (process.env.RELIABILITY_E2E !== '1') { t.skip('Set RELIABILITY_E2E=1 to run three live natural demo runs.'); return; }
   if (!existsSync(SCREENSHOT_DIR)) mkdirSync(SCREENSHOT_DIR, { recursive: true });
-  const port = Number(process.env.SIM_PORT || 4178);
+  const port = Number(process.env.SIM_PORT || 4179);
   const started = await startSimulator('127.0.0.1', port);
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   const rows: string[] = ['run,step,latency_ms,score,finals_per_turn,skills_invoked,final_text'];

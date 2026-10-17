@@ -124,10 +124,10 @@ test('login gate requires expected login unless explicitly allowed', () => {
 });
 
 test('simulator Host Origin and JSON content-type checks', () => {
-  assert.equal(checkHostOrigin({ headers: { host: '127.0.0.1:4178' } }, '127.0.0.1', 4178), true);
-  assert.equal(checkHostOrigin({ headers: { host: 'evil.test:4178' } }, '127.0.0.1', 4178), false);
-  assert.equal(checkHostOrigin({ headers: { host: '127.0.0.1:4178', origin: 'http://127.0.0.1:4178' } }, '127.0.0.1', 4178), true);
-  assert.equal(checkHostOrigin({ headers: { host: '127.0.0.1:4178', origin: 'http://evil.test' } }, '127.0.0.1', 4178), false);
+  assert.equal(checkHostOrigin({ headers: { host: '127.0.0.1:4179' } }, '127.0.0.1', 4179), true);
+  assert.equal(checkHostOrigin({ headers: { host: 'evil.test:4179' } }, '127.0.0.1', 4179), false);
+  assert.equal(checkHostOrigin({ headers: { host: '127.0.0.1:4179', origin: 'http://127.0.0.1:4179' } }, '127.0.0.1', 4179), true);
+  assert.equal(checkHostOrigin({ headers: { host: '127.0.0.1:4179', origin: 'http://evil.test' } }, '127.0.0.1', 4179), false);
   assert.equal(isJsonContentType('application/json; charset=utf-8'), true);
   assert.equal(isJsonContentType('text/plain'), false);
 });

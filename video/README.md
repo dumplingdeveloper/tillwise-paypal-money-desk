@@ -28,7 +28,7 @@ npm run video -- --dry-run --scene scenes/example.json --url http://127.0.0.1:41
 npm run video -- --scene scenes/example.json --url http://127.0.0.1:4177/ --subtitle-band-height 140
 
 # Preflight, reset, record, and compose the real simulator when it is running.
-npm run record:live -- --url http://127.0.0.1:4178
+npm run record:live -- --url http://127.0.0.1:4179
 ```
 
 ## Outputs

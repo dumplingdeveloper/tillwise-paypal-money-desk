@@ -47,7 +47,7 @@ type McpStatus = { sessions?: Array<{ clientInfo?: { name?: string; version?: st
 
 async function fetchMcpStatus(headers: Record<string, string>) {
   try {
-    const mcpUrl = process.env.MCP_URL || 'http://127.0.0.1:3337/mcp';
+    const mcpUrl = process.env.MCP_URL || 'http://127.0.0.1:3338/mcp';
     const statusUrl = mcpUrl.replace(/\/mcp$/, '/status');
     const response = await fetch(statusUrl, { headers });
     if (!response.ok) return null;
@@ -150,7 +150,7 @@ export function buildSessionConfig(params: {
     clientName: 'tillwise-alexa-sim',
     model: process.env.COPILOT_MODEL || 'gpt-6-luna',
     workingDirectory: PROJECT_ROOT,
-    mcpServers: { [MCP_SERVER_KEY]: { type: 'http', url: process.env.MCP_URL || 'http://127.0.0.1:3337/mcp', headers: params.headers, tools: ['*'], timeout: 60000 } },
+    mcpServers: { [MCP_SERVER_KEY]: { type: 'http', url: process.env.MCP_URL || 'http://127.0.0.1:3338/mcp', headers: params.headers, tools: ['*'], timeout: 60000 } },
     skillDirectories: [SKILLS_DIR],
     enableSkills: true,
     availableTools: buildToolSet(),
@@ -256,7 +256,7 @@ export class CopilotAgentRuntime {
     this.conversations.set(id, conversation);
     const mcpData = { clientInfo: latestMcpSession?.clientInfo, requestedProtocolVersion: latestMcpSession?.requestedProtocolVersion, negotiatedProtocolVersion: latestMcpSession?.negotiatedProtocolVersion };
     if (latestMcpSession) console.log('MCP negotiated:', JSON.stringify(mcpData));
-    push({ type: 'conversation_started', data: { id, tools: MCP_ALLOWLIST, login: this.authLogin, skills, model: process.env.COPILOT_MODEL || 'gpt-6-luna', mcpUrl: process.env.MCP_URL || 'http://127.0.0.1:3337/mcp', protocolVersion: latestMcpSession?.negotiatedProtocolVersion || 'unknown', mcpClient: latestMcpSession?.clientInfo } });
+    push({ type: 'conversation_started', data: { id, tools: MCP_ALLOWLIST, login: this.authLogin, skills, model: process.env.COPILOT_MODEL || 'gpt-6-luna', mcpUrl: process.env.MCP_URL || 'http://127.0.0.1:3338/mcp', protocolVersion: latestMcpSession?.negotiatedProtocolVersion || 'unknown', mcpClient: latestMcpSession?.clientInfo } });
     push({ type: 'mcp_status', data: mcpData });
     return conversation;
   }

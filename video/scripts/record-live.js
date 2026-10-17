@@ -11,7 +11,7 @@ function run(cmd, args, options = {}) {
 
 async function main() {
   const args = parseArgs();
-  const baseUrl = String(args.url || 'http://127.0.0.1:4178').replace(/\/$/, '');
+  const baseUrl = String(args.url || 'http://127.0.0.1:4179').replace(/\/$/, '');
   const scene = args.scene || 'scenes/live-sim.json';
   console.log(`Preflight GET ${baseUrl}`);
   let res;

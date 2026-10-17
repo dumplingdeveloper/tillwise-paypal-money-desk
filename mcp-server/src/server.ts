@@ -63,8 +63,8 @@ function initializeRequest(body: unknown): { params?: { protocolVersion?: string
 
 export async function startHttpServer(env: Env = process.env) {
   const host = env.MCP_HOST || '127.0.0.1';
-  const port = Number(env.MCP_PORT || '3337');
-  const wp = new WpAbilityClient(env.WP_BASE_URL || 'http://127.0.0.1:8097', env.WP_USERNAME || 'shopmanager', env.WP_APPLICATION_PASSWORD || '');
+  const port = Number(env.MCP_PORT || '3338');
+  const wp = new WpAbilityClient(env.WP_BASE_URL || 'http://127.0.0.1:8098', env.WP_USERNAME || 'shopmanager', env.WP_APPLICATION_PASSWORD || '');
   const transports = new Map<string, StreamableHTTPServerTransport>();
   const sessions = new Map<string, NegotiatedSession>();
 

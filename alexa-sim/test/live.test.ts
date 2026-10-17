@@ -62,7 +62,7 @@ test('LIVE shell request cannot run a built-in tool', { timeout: 120000 }, async
       skipCustomInstructions: true,
       availableTools: buildToolSet(),
       toolSearch: { enabled: false },
-      mcpServers: { [MCP_SERVER_KEY]: { type: 'http', url: process.env.MCP_URL || 'http://127.0.0.1:3337/mcp', headers, tools: ['*'], timeout: 60000 } },
+      mcpServers: { [MCP_SERVER_KEY]: { type: 'http', url: process.env.MCP_URL || 'http://127.0.0.1:3338/mcp', headers, tools: ['*'], timeout: 60000 } },
       onPermissionRequest: createPermissionHandler(new ConfirmationBroker()),
       createSessionFsProvider: () => createNodeSessionFsProvider(),
       systemMessage: { mode: 'append', content: 'You can use only Tillwise MCP tools. If asked to run shell commands, refuse briefly.' },

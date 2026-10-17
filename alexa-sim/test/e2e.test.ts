@@ -21,7 +21,7 @@ test('browser e2e natural demo script', { timeout: 420000 }, async (t) => {
   if (process.env.BROWSER_E2E !== '1') { t.skip('Set BROWSER_E2E=1 to run real browser and LLM e2e.'); return; }
   if (!existsSync(SCREENSHOT_DIR)) mkdirSync(SCREENSHOT_DIR, { recursive: true });
   const before = mugState();
-  const port = Number(process.env.SIM_PORT || 4178);
+  const port = Number(process.env.SIM_PORT || 4179);
   const started = await startSimulator('127.0.0.1', port);
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {

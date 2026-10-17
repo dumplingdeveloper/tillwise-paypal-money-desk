@@ -17,7 +17,7 @@ function request(port: string, headers: Record<string, string> = {}) {
 
 test('DNS rebinding protection rejects non-allowed Host and Origin', { timeout: 30000 }, async () => {
   const port = String(3500 + Math.floor(Math.random() * 100));
-  const started = await startHttpServer({ MCP_HOST: '127.0.0.1', MCP_PORT: port, WP_BASE_URL: 'http://127.0.0.1:8097', WP_USERNAME: 'x', WP_APPLICATION_PASSWORD: 'x' });
+  const started = await startHttpServer({ MCP_HOST: '127.0.0.1', MCP_PORT: port, WP_BASE_URL: 'http://127.0.0.1:8098', WP_USERNAME: 'x', WP_APPLICATION_PASSWORD: 'x' });
   try {
     assert.equal((await request(port, { Host: 'evil.example' })).status, 403);
     assert.equal((await request(port, { Origin: 'http://evil.example' })).status, 403);
@@ -29,7 +29,7 @@ test('DNS rebinding protection rejects non-allowed Host and Origin', { timeout: 
 
 test('optional bearer token rejects missing or wrong tokens', { timeout: 30000 }, async () => {
   const port = String(3600 + Math.floor(Math.random() * 100));
-  const started = await startHttpServer({ MCP_HOST: '127.0.0.1', MCP_PORT: port, MCP_AUTH_TOKEN: 'secret', WP_BASE_URL: 'http://127.0.0.1:8097', WP_USERNAME: 'x', WP_APPLICATION_PASSWORD: 'x' });
+  const started = await startHttpServer({ MCP_HOST: '127.0.0.1', MCP_PORT: port, MCP_AUTH_TOKEN: 'secret', WP_BASE_URL: 'http://127.0.0.1:8098', WP_USERNAME: 'x', WP_APPLICATION_PASSWORD: 'x' });
   try {
     assert.equal((await request(port)).status, 401);
     assert.equal((await request(port, { authorization: 'Bearer wrong' })).status, 401);

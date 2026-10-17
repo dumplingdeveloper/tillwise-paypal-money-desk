@@ -47,7 +47,7 @@ function serveStatic(req: IncomingMessage, res: ServerResponse) {
   return true;
 }
 
-export async function startSimulator(host = process.env.SIM_HOST || '127.0.0.1', port = Number(process.env.SIM_PORT || 4178)) {
+export async function startSimulator(host = process.env.SIM_HOST || '127.0.0.1', port = Number(process.env.SIM_PORT || 4179)) {
   await runtime.start();
   const server = http.createServer(async (req, res) => {
     try {
