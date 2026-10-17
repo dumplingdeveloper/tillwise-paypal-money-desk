@@ -14,7 +14,7 @@ function readEnv(path) {
 }
 const repoEnv = readEnv(new URL('../.env', import.meta.url));
 const sandboxEnv = readEnv(join(homedir(), '.config', 'tillwise', 'paypal-sandbox.env'));
-const mode = sandboxEnv.PAYPAL_CLIENT_ID && sandboxEnv.PAYPAL_CLIENT_SECRET ? 'live' : 'mock';
+const mode = sandboxEnv.PAYPAL_CLIENT_ID && sandboxEnv.PAYPAL_CLIENT_SECRET ? 'sandbox' : 'mock';
 
 async function callAbility(name, input = {}) {
   const base = repoEnv.WP_BASE_URL || 'http://127.0.0.1:8098';
@@ -31,5 +31,5 @@ if (mode === 'mock') {
   const seeded = await callAbility('paypal-seed-demo');
   console.log(JSON.stringify({ mode, seeded: seeded.data }, null, 2));
 } else {
-  console.log(JSON.stringify({ mode, live: 'UNVERIFIED: credentials are present; browserless card order seeding is intentionally not attempted until sandbox cards/capabilities are verified.' }, null, 2));
+  console.log(JSON.stringify({ mode, sandbox: 'UNVERIFIED: credentials are present; browserless card order seeding is intentionally not attempted until sandbox cards/capabilities are verified.' }, null, 2));
 }

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { CopilotClient } from '@github/copilot-sdk';
+import { CopilotClient, ToolSet } from '@github/copilot-sdk';
 import type { CopilotSession, ModelInfo, SessionConfig, SessionEvent } from '@github/copilot-sdk';
 import { buildToolSet, MCP_ALLOWLIST, MCP_SERVER_KEY, PROJECT_ROOT, SKILLS_DIR } from './config.js';
 import { ConfirmationBroker, createPermissionHandler, type ConfirmationView } from './permissionGate.js';
@@ -276,5 +276,41 @@ export class CopilotAgentRuntime {
   confirm(id: string, confirmationId: string, approved: boolean): boolean {
     const conversation = this.conversations.get(id);
     return conversation ? conversation.broker.decide(confirmationId, approved) : false;
+  }
+
+  async runStudioMoneyAgent(prompt: string, rows: unknown[]): Promise<{ text: string; liveTurns: number }> {
+    if (!this.client) await this.start();
+    const session = await this.client!.createSession({
+      clientName: 'tillwise-ag-studio-money-agent',
+      model: process.env.COPILOT_MODEL || 'gpt-6-luna',
+      workingDirectory: PROJECT_ROOT,
+      availableTools: new ToolSet(),
+      enableSessionTelemetry: false,
+      skipEmbeddingRetrieval: true,
+      embeddingCacheStorage: 'in-memory',
+      enableOnDemandInstructionDiscovery: false,
+      enableFileHooks: false,
+      enableHostGitOperations: false,
+      enableSessionStore: false,
+      coauthorEnabled: false,
+      manageScheduleEnabled: false,
+      memory: { enabled: false },
+      toolSearch: { enabled: false },
+      includedBuiltinSkills: [],
+      skipCustomInstructions: true,
+      enableConfigDiscovery: false,
+      systemMessage: {
+        mode: 'customize',
+        content: 'You are the Tillwise Money agent inside AG Studio. Use only the PayPal money desk rows supplied in the user message. Never request or describe money-moving tools. Return concise JSON-friendly prose naming exactly three safe dashboard widgets to build: refund-rate tile, unpaid invoice scoreboard, and dispute deadline countdown.',
+        sections: { environment_context: { action: 'remove' } },
+      },
+      createSessionFsProvider: () => createNodeSessionFsProvider(),
+    });
+    try {
+      const result = await session.sendAndWait({ prompt: `${prompt}\nRows:\n${JSON.stringify(rows).slice(0, 12000)}` }, 60000);
+      return { text: finalFromSendResult(result).text, liveTurns: 1 };
+    } finally {
+      await session.disconnect().catch(() => {});
+    }
   }
 }

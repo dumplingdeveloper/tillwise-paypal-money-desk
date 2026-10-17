@@ -14,31 +14,46 @@ function moneyValue(value: number) { return value.toFixed(2); }
 function isoDaysAgo(days: number) { const d = new Date(Date.now() - days * 86400_000); return d.toISOString().replace(/\.\d{3}Z$/, 'Z'); }
 
 type Preview = { id: string; hash: string; kind: string; payload: Record<string, unknown>; createdAt: number };
+type ServiceOptions = { previewTtlMs?: number; now?: () => number };
 
 type OrderContext = { order: { id: number; total: number; currency: string; billing_email?: string; items?: Array<{ name: string; quantity: number; total: number }> }; paypal: { paypal_capture_id?: string; paypal_order_id?: string; paypal_invoice_id?: string } };
 
 export class PayPalService {
   private previews = new Map<string, Preview>();
-  constructor(private readonly wp: Pick<WpAbilityClient, 'run'>, private readonly client: PayPalClient) {}
+  private readonly previewTtlMs: number;
+  private readonly now: () => number;
+  constructor(private readonly wp: Pick<WpAbilityClient, 'run'>, private readonly client: PayPalClient, options: ServiceOptions = {}) {
+    this.previewTtlMs = options.previewTtlMs ?? 10 * 60 * 1000;
+    this.now = options.now ?? (() => Date.now());
+  }
 
   static fromEnv(wp: Pick<WpAbilityClient, 'run'>, env: Record<string, string | undefined> = process.env) {
     const creds = readSandboxCredentials();
-    const useLive = env.PAYPAL_MODE === 'live' || !!creds;
-    return new PayPalService(wp, useLive && creds ? new LivePayPalClient({ ...creds, sandbox: true }) : new MockPayPalClient());
+    const mode = env.PAYPAL_MODE || (creds ? 'sandbox' : 'mock');
+    if (mode !== 'mock' && mode !== 'sandbox') throw new Error('PAYPAL_MODE must be mock or sandbox.');
+    if (mode === 'sandbox' && !creds) throw new Error('PAYPAL_MODE=sandbox requires ~/.config/tillwise/paypal-sandbox.env.');
+    return new PayPalService(wp, mode === 'sandbox' && creds ? new LivePayPalClient(creds) : new MockPayPalClient());
   }
 
   private preview(kind: string, payload: Record<string, unknown>): Preview {
     const digest = hash({ kind, payload });
-    const id = `ppv_${digest.slice(0, 16)}`;
-    const preview = { id, hash: digest, kind, payload, createdAt: Date.now() };
+    const id = `ppv_${randomUUID()}`;
+    const preview = { id, hash: digest, kind, payload, createdAt: this.now() };
     this.previews.set(id, preview);
     return preview;
   }
   private takePreview(id: string, kind: string): Preview {
     const preview = this.previews.get(id);
     if (!preview || preview.kind !== kind) throw new Error('Preview id was not found for this PayPal action. Preview again before applying.');
+    if (this.now() - preview.createdAt > this.previewTtlMs) {
+      this.previews.delete(id);
+      throw new Error('Preview expired. Preview again before applying this PayPal action.');
+    }
     this.previews.delete(id);
     return preview;
+  }
+  private requestId(prefix: string, preview: Preview): string {
+    return `${prefix}-${preview.id.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 44)}`;
   }
   private async orderContext(order_id: number): Promise<OrderContext> {
     const result = await this.wp.run('paypal-order-context', { order_id });
@@ -67,7 +82,7 @@ export class PayPalService {
   async refundApply(input: { preview_id: string }): Promise<AbilityResult> {
     const preview = this.takePreview(input.preview_id, 'refund');
     const p = preview.payload as { order_id: number; capture_id: string; amount: string; currency: string; note_to_payer: string };
-    const requestId = `tillwise-refund-${p.order_id}-${preview.hash.slice(0, 16)}`;
+    const requestId = this.requestId(`tillwise-refund-${p.order_id}`, preview);
     try {
       const refund = await this.client.createRefund({ capture_id: p.capture_id, amount: { currency_code: p.currency, value: p.amount }, note_to_payer: p.note_to_payer, request_id: requestId });
       await this.audit({ tool: 'paypal_refund_apply', woo_order_id: p.order_id, paypal_object_id: refund.id, paypal_refund_id: refund.id, paypal_capture_id: p.capture_id, amount: p.amount, currency: p.currency, idempotency_key: requestId, status: refund.status, summary: `Refunded ${p.currency} ${p.amount}` });
@@ -91,35 +106,69 @@ export class PayPalService {
   async invoiceCreateApply(input: { preview_id: string }): Promise<AbilityResult> {
     const preview = this.takePreview(input.preview_id, 'invoice-create');
     const p = preview.payload as { currency: string; recipient_email: string; business_name: string; items: Array<{ name: string; quantity: number; unit_amount: number }>; note: string; total: string };
-    const requestId = `tillwise-invoice-${preview.hash.slice(0, 16)}`;
-    const invoice = await this.client.createInvoice({ request_id: requestId, currency_code: p.currency, note: p.note, primary_recipients: [{ billing_info: { email_address: p.recipient_email, business_name: p.business_name || undefined } }], items: p.items.map((item) => ({ name: item.name, quantity: String(item.quantity), unit_amount: { currency_code: p.currency, value: moneyValue(item.unit_amount) } })) });
-    await this.audit({ tool: 'paypal_invoice_create_apply', paypal_object_id: invoice.id, paypal_invoice_id: invoice.id, amount: p.total, currency: p.currency, idempotency_key: requestId, status: invoice.status, summary: `Created invoice ${invoice.id}` });
-    return { speech: `Invoice ${invoice.id} was created as ${invoice.status}.`, data: { invoice, request_id: requestId, preview_hash: preview.hash } };
+    const requestId = this.requestId('tillwise-invoice', preview);
+    try {
+      const invoice = await this.client.createInvoice({ request_id: requestId, currency_code: p.currency, note: p.note, primary_recipients: [{ billing_info: { email_address: p.recipient_email, business_name: p.business_name || undefined } }], items: p.items.map((item) => ({ name: item.name, quantity: String(item.quantity), unit_amount: { currency_code: p.currency, value: moneyValue(item.unit_amount) } })) });
+      await this.audit({ tool: 'paypal_invoice_create_apply', paypal_object_id: invoice.id, paypal_invoice_id: invoice.id, amount: p.total, currency: p.currency, idempotency_key: requestId, status: invoice.status, summary: `Created invoice ${invoice.id}` });
+      return { speech: `Invoice ${invoice.id} was created as ${invoice.status}.`, data: { invoice, request_id: requestId, preview_hash: preview.hash } };
+    } catch (err) {
+      const debug = err instanceof PayPalApiError ? err.envelope.debug_id : '';
+      await this.audit({ tool: 'paypal_invoice_create_apply', amount: p.total, currency: p.currency, idempotency_key: requestId, status: 'FAILED', debug_id: debug, summary: err instanceof Error ? err.message : String(err) });
+      throw err;
+    }
   }
 
   async invoiceSendApply(input: { invoice_id: string; note?: string }): Promise<AbilityResult> {
     const requestId = `tillwise-send-invoice-${hash(input).slice(0, 16)}`;
-    const invoice = await this.client.sendInvoice({ invoice_id: input.invoice_id, note: input.note, send_to_recipient: true, request_id: requestId });
-    await this.audit({ tool: 'paypal_invoice_send_apply', paypal_object_id: input.invoice_id, paypal_invoice_id: input.invoice_id, idempotency_key: requestId, status: invoice.status || 'SENT', summary: `Sent invoice ${input.invoice_id}` });
-    return { speech: `Invoice ${input.invoice_id} was sent.`, data: { invoice, request_id: requestId } };
+    try {
+      const invoice = await this.client.sendInvoice({ invoice_id: input.invoice_id, note: input.note, send_to_recipient: true, request_id: requestId });
+      await this.audit({ tool: 'paypal_invoice_send_apply', paypal_object_id: input.invoice_id, paypal_invoice_id: input.invoice_id, idempotency_key: requestId, status: invoice.status || 'SENT', summary: `Sent invoice ${input.invoice_id}` });
+      return { speech: `Invoice ${input.invoice_id} was sent.`, data: { invoice, request_id: requestId } };
+    } catch (err) {
+      const debug = err instanceof PayPalApiError ? err.envelope.debug_id : '';
+      await this.audit({ tool: 'paypal_invoice_send_apply', paypal_object_id: input.invoice_id, paypal_invoice_id: input.invoice_id, idempotency_key: requestId, status: 'FAILED', debug_id: debug, summary: err instanceof Error ? err.message : String(err) });
+      throw err;
+    }
   }
 
   async trackingAddApply(input: { order_id: number; transaction_id?: string; tracking_number: string; carrier: string; status?: string }): Promise<AbilityResult> {
     const ctx = await this.orderContext(input.order_id);
     const transactionId = input.transaction_id || ctx.paypal.paypal_capture_id || `MOCKCAPTURE${input.order_id}`;
     const requestId = `tillwise-tracking-${input.order_id}-${hash(input).slice(0, 16)}`;
-    const shipment = await this.client.createShipmentTracking({ transaction_id: transactionId, tracking_number: input.tracking_number, carrier: input.carrier, status: input.status || 'SHIPPED', request_id: requestId });
-    await this.audit({ tool: 'paypal_tracking_add_apply', woo_order_id: input.order_id, paypal_object_id: shipment.id, paypal_tracking_id: shipment.id, paypal_capture_id: transactionId, idempotency_key: requestId, status: shipment.status, summary: `Added ${input.carrier} tracking ${input.tracking_number}` });
-    return { speech: `Tracking ${input.tracking_number} was added for PayPal transaction ${transactionId}.`, data: { shipment, request_id: requestId } };
+    try {
+      const shipment = await this.client.createShipmentTracking({ transaction_id: transactionId, tracking_number: input.tracking_number, carrier: input.carrier, status: input.status || 'SHIPPED', request_id: requestId });
+      await this.audit({ tool: 'paypal_tracking_add_apply', woo_order_id: input.order_id, paypal_object_id: shipment.id, paypal_tracking_id: shipment.id, paypal_capture_id: transactionId, idempotency_key: requestId, status: shipment.status, summary: `Added ${input.carrier} tracking ${input.tracking_number}` });
+      return { speech: `Tracking ${input.tracking_number} was added for PayPal transaction ${transactionId}.`, data: { shipment, request_id: requestId } };
+    } catch (err) {
+      const debug = err instanceof PayPalApiError ? err.envelope.debug_id : '';
+      await this.audit({ tool: 'paypal_tracking_add_apply', woo_order_id: input.order_id, paypal_capture_id: transactionId, idempotency_key: requestId, status: 'FAILED', debug_id: debug, summary: err instanceof Error ? err.message : String(err) });
+      throw err;
+    }
   }
 
   async disputesList(): Promise<AbilityResult> { const disputes = await this.client.listDisputes({ page_size: 10, page: 1 }); return { speech: `${disputes.length} PayPal disputes found.`, data: { disputes } }; }
   async disputeGet(input: { dispute_id: string }): Promise<AbilityResult> { const dispute = await this.client.getDispute(input.dispute_id); return { speech: `Dispute ${input.dispute_id} is ${dispute.status}.`, data: { dispute } }; }
-  async disputeAcceptClaimApply(input: { dispute_id: string; note: string }): Promise<AbilityResult> {
-    const requestId = `tillwise-accept-dispute-${hash(input).slice(0, 16)}`;
-    const result = await this.client.acceptDisputeClaim({ dispute_id: input.dispute_id, note: input.note, request_id: requestId });
-    await this.audit({ tool: 'paypal_dispute_accept_claim_apply', paypal_object_id: input.dispute_id, idempotency_key: requestId, status: result.status, summary: `Accepted dispute claim ${input.dispute_id}` });
-    return { speech: `Accepted liability for dispute ${input.dispute_id}. PayPal may refund the customer.`, data: { result, request_id: requestId } };
+  async disputeAcceptClaimPreview(input: { dispute_id: string; note?: string }): Promise<AbilityResult> {
+    const dispute = await this.client.getDispute(input.dispute_id);
+    const amount = Number(dispute.dispute_amount?.value || 0);
+    if (amount > 100) throw new Error('Dispute accept cap is €100 per confirmation. This request was refused before preview.');
+    const payload = { dispute_id: input.dispute_id, amount: moneyValue(amount), currency: dispute.dispute_amount?.currency_code || 'EUR', reason: dispute.reason || '', status: dispute.status, deadline: dispute.update_time || '', note: input.note || 'Tillwise owner accepted the PayPal dispute claim.' };
+    const preview = this.preview('dispute-accept', payload);
+    return { speech: `Preview ready: accept PayPal dispute ${input.dispute_id} for ${payload.currency} ${payload.amount}. Say yes only if you accept PayPal may refund the customer.`, data: { preview_id: preview.id, preview_hash: preview.hash, ...payload, dispute } };
+  }
+  async disputeAcceptClaimApply(input: { preview_id: string }): Promise<AbilityResult> {
+    const preview = this.takePreview(input.preview_id, 'dispute-accept');
+    const p = preview.payload as { dispute_id: string; note: string; amount: string; currency: string };
+    const requestId = this.requestId('tillwise-accept-dispute', preview);
+    try {
+      const result = await this.client.acceptDisputeClaim({ dispute_id: p.dispute_id, note: p.note, request_id: requestId });
+      await this.audit({ tool: 'paypal_dispute_accept_claim_apply', paypal_object_id: p.dispute_id, amount: p.amount, currency: p.currency, idempotency_key: requestId, status: result.status, summary: `Accepted dispute claim ${p.dispute_id}` });
+      return { speech: `Accepted liability for dispute ${p.dispute_id}. PayPal may refund the customer.`, data: { result, request_id: requestId, preview_hash: preview.hash } };
+    } catch (err) {
+      const debug = err instanceof PayPalApiError ? err.envelope.debug_id : '';
+      await this.audit({ tool: 'paypal_dispute_accept_claim_apply', paypal_object_id: p.dispute_id, amount: p.amount, currency: p.currency, idempotency_key: requestId, status: 'FAILED', debug_id: debug, summary: err instanceof Error ? err.message : String(err) });
+      throw err;
+    }
   }
 
   guardrailRefusal(input: { reason?: string }): AbilityResult { return { speech: `I cannot do that PayPal money action. ${input.reason || 'Bulk, over-cap, or unpreviewed money movement is blocked by Tillwise guardrails.'}`, data: { refused: true, reason: input.reason || 'guardrail' } }; }

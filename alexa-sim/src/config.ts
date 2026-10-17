@@ -29,6 +29,7 @@ export const MCP_TOOLS = [
   'paypal_tracking_add_apply',
   'paypal_disputes_list',
   'paypal_dispute_get',
+  'paypal_dispute_accept_claim_preview',
   'paypal_dispute_accept_claim_apply',
   'paypal_guardrail_refusal',
 ] as const;

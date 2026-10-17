@@ -16,7 +16,10 @@
     "test:reliability": "npm run build && RELIABILITY_E2E=1 node --test dist/test/reliability.test.js"
   },
   "dependencies": {
-    "@github/copilot-sdk": "1.0.15"
+    "@github/copilot-sdk": "1.0.15",
+    "ag-grid-community": "^36.2.0",
+    "ag-studio": "^3.0.0",
+    "ag-studio-react": "^3.0.0"
   },
   "devDependencies": {
     "@types/node": "26.0.0",

@@ -1,13 +1,17 @@
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import { createReadStream, existsSync } from 'node:fs';
-import { extname, join, normalize } from 'node:path';
+import { dirname, extname, join, normalize } from 'node:path';
+import { createRequire } from 'node:module';
 import { CopilotAgentRuntime } from './copilotAgent.js';
 import { PUBLIC_DIR } from './config.js';
 import { cardFromStructured } from './cards.js';
 import { classifyConfirmationReply } from './permissionGate.js';
+import { buildAgentWidgets, demoMoneyDeskRows } from './moneyDesk.js';
 
 const runtime = new CopilotAgentRuntime();
 const sseClients = new Map<string, Set<ServerResponse>>();
+const require = createRequire(import.meta.url);
+const agStudioRoot = join(dirname(require.resolve('ag-studio')), '..', '..');
 
 function json(res: ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { 'content-type': 'application/json' });
@@ -46,6 +50,15 @@ function serveStatic(req: IncomingMessage, res: ServerResponse) {
   createReadStream(path).pipe(res);
   return true;
 }
+function serveVendor(req: IncomingMessage, res: ServerResponse) {
+  const url = new URL(req.url || '/', 'http://127.0.0.1');
+  if (url.pathname !== '/vendor/ag-studio.js') return false;
+  const path = join(agStudioRoot, 'dist', 'umd', 'ag-studio.min.js');
+  if (!existsSync(path)) return false;
+  res.writeHead(200, { 'content-type': 'text/javascript' });
+  createReadStream(path).pipe(res);
+  return true;
+}
 
 export async function startSimulator(host = process.env.SIM_HOST || '127.0.0.1', port = Number(process.env.SIM_PORT || 4179)) {
   await runtime.start();
@@ -53,6 +66,17 @@ export async function startSimulator(host = process.env.SIM_HOST || '127.0.0.1',
     try {
       if (!checkHostOrigin(req, host, port)) return json(res, 403, { error: 'Forbidden' });
       const url = new URL(req.url || '/', `http://${host}:${port}`);
+      if (req.method === 'GET' && url.pathname === '/api/money-desk-data') {
+        const rows = demoMoneyDeskRows();
+        return json(res, 200, { rows, widgets: buildAgentWidgets(rows), readOnlyTools: ['paypal_money_briefing', 'paypal_disputes_list', 'paypal_dispute_get'] });
+      }
+      if (req.method === 'POST' && url.pathname === '/api/studio-agent/widgets') {
+        const body = await readJson(req);
+        const rows = Array.isArray(body.rows) ? body.rows as ReturnType<typeof demoMoneyDeskRows> : demoMoneyDeskRows();
+        const live = process.env.MONEY_DESK_LIVE_AGENT === '1' ? await runtime.runStudioMoneyAgent(String(body.prompt || 'Build PayPal money desk widgets.'), rows) : null;
+        const widgets = buildAgentWidgets(rows);
+        return json(res, 200, { ok: true, liveTurns: live?.liveTurns || 0, liveSummary: live?.text || '', mode: live ? 'live-copilot-sdk-money-agent' : 'scripted-copilot-compatible-harness', widgets, readOnlyTools: ['paypal_money_briefing', 'paypal_disputes_list', 'paypal_dispute_get'], forbiddenTools: ['paypal_refund_apply', 'paypal_invoice_create_apply', 'paypal_invoice_send_apply', 'paypal_tracking_add_apply', 'paypal_dispute_accept_claim_apply'] });
+      }
       if (req.method === 'GET' && url.pathname === '/api/status') return json(res, 200, { login: runtime.authLogin, model: process.env.COPILOT_MODEL || 'gpt-6-luna', models: runtime.models.map((m) => (m as { id?: string; name?: string }).id || (m as { name?: string }).name).filter(Boolean) });
       if (req.method === 'POST' && url.pathname === '/api/conversations') {
         await readJson(req);
@@ -95,7 +119,7 @@ export async function startSimulator(host = process.env.SIM_HOST || '127.0.0.1',
         req.on('close', () => { set.delete(res); });
         return;
       }
-      if (req.method === 'GET' && serveStatic(req, res)) return;
+      if (req.method === 'GET' && (serveVendor(req, res) || serveStatic(req, res))) return;
       json(res, 404, { error: 'Not found' });
     } catch (error) { json(res, (error as { status?: number }).status || 500, { error: error instanceof Error ? error.message : String(error) }); }
   });

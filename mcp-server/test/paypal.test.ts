@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { MockPayPalClient } from '../src/paypal/mockClient.js';
 import { PayPalService } from '../src/paypal/service.js';
 import { LivePayPalClient } from '../src/paypal/liveClient.js';
+import { PayPalApiError, type PayPalClient } from '../src/paypal/types.js';
 
 function fakeWp() {
   const audits: Record<string, unknown>[] = [];
@@ -17,19 +18,45 @@ function fakeWp() {
   };
 }
 
-test('mock refund preview/apply enforces cap, idempotency, and audit', async () => {
+const paypalFailure = new PayPalApiError({ name: 'UNPROCESSABLE_ENTITY', message: 'fixture failure', debug_id: 'DBG-FAIL', details: [{ issue: 'FIXTURE', description: 'forced failure' }] }, 422);
+class FailingPayPalClient extends MockPayPalClient {
+  constructor(private readonly failMethod: string) { super(); }
+  override async createInvoice(input: never) { if (this.failMethod === 'createInvoice') throw paypalFailure; return super.createInvoice(input); }
+  override async sendInvoice(input: never) { if (this.failMethod === 'sendInvoice') throw paypalFailure; return super.sendInvoice(input); }
+  override async createShipmentTracking(input: never) { if (this.failMethod === 'tracking') throw paypalFailure; return super.createShipmentTracking(input); }
+  override async acceptDisputeClaim(input: never) { if (this.failMethod === 'acceptDispute') throw paypalFailure; return super.acceptDisputeClaim(input); }
+}
+
+function headerValue(headers: unknown, name: string): string | null {
+  if (headers instanceof Headers) return headers.get(name);
+  const record = headers as Record<string, string | undefined> | undefined;
+  if (!record) return null;
+  const found = Object.keys(record).find((key) => key.toLowerCase() === name.toLowerCase());
+  return found ? String(record[found]) : null;
+}
+
+test('mock refund preview/apply enforces cap, distinct request ids, ttl, single use, and audit', async () => {
   const wp = fakeWp();
-  const service = new PayPalService(wp, new MockPayPalClient());
-  const preview = await service.refundPreview({ order_id: 123, amount: 10, note_to_payer: 'Broken item' });
-  assert.match(String(preview.data.preview_id), /^ppv_/);
-  const applied = await service.refundApply({ preview_id: String(preview.data.preview_id) });
-  assert.equal((applied.data.refund as { status: string }).status, 'COMPLETED');
-  assert.equal(wp.audits.length, 1);
-  assert.equal(wp.audits[0].tool, 'paypal_refund_apply');
+  let now = 1_000;
+  const service = new PayPalService(wp, new MockPayPalClient(), { previewTtlMs: 100, now: () => now });
+  const preview1 = await service.refundPreview({ order_id: 123, amount: 5, note_to_payer: 'Partial refund' });
+  const preview2 = await service.refundPreview({ order_id: 123, amount: 5, note_to_payer: 'Partial refund' });
+  assert.match(String(preview1.data.preview_id), /^ppv_[0-9a-f-]{36}$/);
+  assert.notEqual(preview1.data.preview_id, preview2.data.preview_id);
+  assert.equal(preview1.data.preview_hash, preview2.data.preview_hash);
+  const applied1 = await service.refundApply({ preview_id: String(preview1.data.preview_id) });
+  const applied2 = await service.refundApply({ preview_id: String(preview2.data.preview_id) });
+  assert.notEqual(applied1.data.request_id, applied2.data.request_id);
+  assert.notEqual((applied1.data.refund as { id: string }).id, (applied2.data.refund as { id: string }).id);
+  assert.equal(wp.audits.length, 2);
+  await assert.rejects(() => service.refundApply({ preview_id: String(preview1.data.preview_id) }), /Preview id was not found/);
+  const expiring = await service.refundPreview({ order_id: 123, amount: 5 });
+  now += 101;
+  await assert.rejects(() => service.refundApply({ preview_id: String(expiring.data.preview_id) }), /Preview expired/);
   await assert.rejects(() => service.refundPreview({ order_id: 123, amount: 101 }), /Refund cap/);
 });
 
-test('mock invoice, tracking, disputes, and briefing return deterministic shapes', async () => {
+test('mock invoice, tracking, dispute preview/apply, and briefing return deterministic shapes', async () => {
   const wp = fakeWp();
   const service = new PayPalService(wp, new MockPayPalClient());
   const invoicePreview = await service.invoicePreview({ recipient_email: 'buyer@example.test', items: [{ name: 'Mug', quantity: 12, unit_amount: 10 }] });
@@ -41,11 +68,42 @@ test('mock invoice, tracking, disputes, and briefing return deterministic shapes
   assert.equal((tracking.data.shipment as { carrier: string }).carrier, 'UPS');
   const disputes = await service.disputesList();
   assert.equal((disputes.data.disputes as unknown[]).length, 1);
+  const disputePreview = await service.disputeAcceptClaimPreview({ dispute_id: 'PP-D-MOCK-1', note: 'Accept claim' });
+  assert.equal(disputePreview.data.amount, '18.00');
+  const accepted = await service.disputeAcceptClaimApply({ preview_id: String(disputePreview.data.preview_id) });
+  assert.equal((accepted.data.result as { status: string }).status, 'RESOLVED');
   const briefing = await service.moneyBriefing();
   assert.equal((briefing.data.counts as { disputes: number }).disputes, 1);
 });
 
-test('live client contract sends token, SDK order/refund/transactions, and fetch invoice/dispute/tracking requests', async () => {
+test('dispute accept preview refuses over cap', async () => {
+  const client = new MockPayPalClient();
+  client.getDispute = async () => ({ dispute_id: 'D-HIGH', status: 'WAITING_FOR_SELLER_RESPONSE', reason: 'NOT_AS_DESCRIBED', dispute_amount: { currency_code: 'EUR', value: '101.00' } });
+  const service = new PayPalService(fakeWp(), client);
+  await assert.rejects(() => service.disputeAcceptClaimPreview({ dispute_id: 'D-HIGH' }), /Dispute accept cap/);
+});
+
+test('mutation failures audit FAILED rows with PayPal debug ids', async () => {
+  for (const [method, run] of [
+    ['createInvoice', async (service: PayPalService) => { const p = await service.invoicePreview({ recipient_email: 'buyer@example.test', items: [{ name: 'Mug', quantity: 1, unit_amount: 10 }] }); await service.invoiceCreateApply({ preview_id: String(p.data.preview_id) }); }],
+    ['sendInvoice', async (service: PayPalService) => { await service.invoiceSendApply({ invoice_id: 'INV2-FAIL' }); }],
+    ['tracking', async (service: PayPalService) => { await service.trackingAddApply({ order_id: 123, tracking_number: '1Z', carrier: 'UPS' }); }],
+    ['acceptDispute', async (service: PayPalService) => { const p = await service.disputeAcceptClaimPreview({ dispute_id: 'PP-D-MOCK-1' }); await service.disputeAcceptClaimApply({ preview_id: String(p.data.preview_id) }); }],
+  ] as const) {
+    const wp = fakeWp();
+    const service = new PayPalService(wp, new FailingPayPalClient(method));
+    await assert.rejects(() => run(service), /UNPROCESSABLE_ENTITY/);
+    assert.equal(wp.audits.at(-1)?.status, 'FAILED', method);
+    assert.equal(wp.audits.at(-1)?.debug_id, 'DBG-FAIL', method);
+  }
+});
+
+test('live client hard-refuses non-sandbox hosts and exposes sandbox mode', () => {
+  assert.equal(new LivePayPalClient({ clientId: 'id', clientSecret: 'secret' }).mode, 'sandbox');
+  assert.throws(() => new LivePayPalClient({ clientId: 'id', clientSecret: 'secret', baseUrl: 'https://api-m.paypal.com' }), /only supports the PayPal sandbox host/);
+});
+
+test('live client contract sends cached bearer token and required headers on SDK and fetch calls', async () => {
   const fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
   const fetchImpl: typeof fetch = async (url, init) => {
     fetchCalls.push({ url: String(url), init });
@@ -74,10 +132,59 @@ test('live client contract sends token, SDK order/refund/transactions, and fetch
   await client.listDisputes();
   await client.acceptDisputeClaim({ dispute_id: 'D-1', note: 'Accepting claim', request_id: 'rid-dispute' });
 
-  assert.ok(fetchCalls.find((c) => c.url.endsWith('/v1/oauth2/token'))?.init?.headers);
-  assert.ok(sdkCalls.find((c) => String(c.url).includes('/v2/checkout/orders') && c.headers['PayPal-Request-Id'] === 'rid-order'));
-  assert.ok(sdkCalls.find((c) => String(c.url).includes('/v2/payments/captures/CAPTURE1/refund') && c.headers['PayPal-Request-Id'] === 'rid-refund'));
+  assert.equal(fetchCalls.filter((c) => c.url.endsWith('/v1/oauth2/token')).length, 1);
+  const nonTokenFetch = fetchCalls.filter((c) => !c.url.endsWith('/v1/oauth2/token'));
+  for (const call of nonTokenFetch) assert.equal(headerValue(call.init?.headers, 'authorization'), 'Bearer stub-token', call.url);
+  for (const call of sdkCalls) assert.equal(headerValue(call.headers, 'authorization'), 'Bearer stub-token', call.url);
+  assert.ok(sdkCalls.find((c) => String(c.url).includes('/v2/checkout/orders') && c.headers['PayPal-Request-Id'] === 'rid-order' && headerValue(c.headers, 'Prefer') === 'return=representation'));
+  assert.ok(sdkCalls.find((c) => String(c.url).includes('/v2/payments/captures/CAPTURE1/refund') && c.headers['PayPal-Request-Id'] === 'rid-refund' && headerValue(c.headers, 'Prefer') === 'return=representation'));
   assert.ok(sdkCalls.find((c) => String(c.url).includes('/v1/reporting/transactions') && String(c.url).includes('start_date=2026-10-01')));
-  assert.ok(fetchCalls.find((c) => c.url.includes('/v2/invoicing/invoices') && (c.init?.headers as Headers).get('PayPal-Request-Id') === 'rid-invoice'));
-  assert.ok(fetchCalls.find((c) => c.url.includes('/v1/shipping/trackers-batch') && (c.init?.headers as Headers).get('PayPal-Request-Id') === 'rid-track'));
+  const invoice = fetchCalls.find((c) => c.url.includes('/v2/invoicing/invoices') && !c.url.includes('/send'));
+  assert.equal(headerValue(invoice?.init?.headers, 'PayPal-Request-Id'), 'rid-invoice');
+  assert.equal(headerValue(invoice?.init?.headers, 'content-type'), 'application/json');
+  assert.equal(headerValue(invoice?.init?.headers, 'Prefer'), 'return=representation');
+  const tracking = fetchCalls.find((c) => c.url.includes('/v1/shipping/trackers-batch'));
+  assert.equal(headerValue(tracking?.init?.headers, 'PayPal-Request-Id'), 'rid-track');
+  assert.equal(headerValue(tracking?.init?.headers, 'content-type'), 'application/json');
+  const accept = fetchCalls.find((c) => c.url.includes('/v1/customer/disputes/D-1/accept-claim'));
+  assert.equal(accept?.init?.method, 'POST');
+  assert.equal(headerValue(accept?.init?.headers, 'PayPal-Request-Id'), 'rid-dispute');
+  assert.equal(headerValue(accept?.init?.headers, 'content-type'), 'application/json');
 });
+
+async function retryCase(status: number) {
+  const calls: string[] = [];
+  const fetchImpl: typeof fetch = async (url, init) => {
+    calls.push(String(url));
+    if (String(url).endsWith('/v1/oauth2/token')) return new Response(JSON.stringify({ access_token: `token-${calls.filter((c) => c.endsWith('/v1/oauth2/token')).length}`, expires_in: 3600 }), { status: 200, headers: { 'content-type': 'application/json' } });
+    if (calls.filter((c) => c.includes('/v2/invoicing/invoices')).length === 1) return new Response(JSON.stringify({ name: 'RETRY_ME', message: 'retry', debug_id: `DBG-${status}` }), { status, headers: { 'content-type': 'application/json' } });
+    return new Response(JSON.stringify({ id: `INV-${status}`, status: 'DRAFT' }), { status: 201, headers: { 'content-type': 'application/json' } });
+  };
+  const client = new LivePayPalClient({ clientId: 'id', clientSecret: 'secret', fetchImpl });
+  const invoice = await client.createInvoice({ currency_code: 'EUR', primary_recipients: [{ billing_info: { email_address: 'x@example.test' } }], items: [{ name: 'Mug' }], request_id: `rid-${status}` });
+  return { calls, invoice };
+}
+
+test('live fetch path retries 401 with token refresh, 429, and 5xx', async () => {
+  const r401 = await retryCase(401);
+  assert.equal(r401.invoice.id, 'INV-401');
+  assert.equal(r401.calls.filter((c) => c.endsWith('/v1/oauth2/token')).length, 2);
+  const r429 = await retryCase(429);
+  assert.equal(r429.invoice.id, 'INV-429');
+  assert.equal(r429.calls.filter((c) => c.endsWith('/v1/oauth2/token')).length, 1);
+  const r500 = await retryCase(500);
+  assert.equal(r500.invoice.id, 'INV-500');
+  assert.equal(r500.calls.filter((c) => c.endsWith('/v1/oauth2/token')).length, 1);
+});
+
+test('live client parses PayPal error envelopes on fetch and SDK paths', async () => {
+  const fetchClient = new LivePayPalClient({ clientId: 'id', clientSecret: 'secret', fetchImpl: async (url) => {
+    if (String(url).endsWith('/v1/oauth2/token')) return new Response(JSON.stringify({ access_token: 'stub-token', expires_in: 3600 }), { status: 200, headers: { 'content-type': 'application/json' } });
+    return new Response(JSON.stringify({ name: 'FETCH_FAIL', message: 'fetch failed', debug_id: 'DBG-FETCH', details: [{ issue: 'BAD_FETCH' }] }), { status: 422, headers: { 'content-type': 'application/json' } });
+  } });
+  await assert.rejects(() => fetchClient.getDispute('D-ERR'), (err) => err instanceof PayPalApiError && err.envelope.name === 'FETCH_FAIL' && err.envelope.debug_id === 'DBG-FETCH' && err.envelope.details?.[0].issue === 'BAD_FETCH');
+
+  const sdkClient = new LivePayPalClient({ clientId: 'id', clientSecret: 'secret', fetchImpl: async () => new Response(JSON.stringify({ access_token: 'stub-token', expires_in: 3600 }), { status: 200, headers: { 'content-type': 'application/json' } }), sdkAdapter: async () => { throw { statusCode: 422, body: JSON.stringify({ name: 'SDK_FAIL', message: 'sdk failed', debug_id: 'DBG-SDK', details: [{ issue: 'BAD_SDK' }] }) }; } });
+  await assert.rejects(() => sdkClient.createRefund({ capture_id: 'CAPTURE1', amount: { currency_code: 'EUR', value: '1.00' }, request_id: 'rid-sdk-fail' }), (err) => err instanceof PayPalApiError && err.envelope.name === 'SDK_FAIL' && err.envelope.debug_id === 'DBG-SDK' && err.envelope.details?.[0].issue === 'BAD_SDK');
+});
+

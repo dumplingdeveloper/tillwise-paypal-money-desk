@@ -17,8 +17,10 @@ test('permission gate auto-approves reads and preview, gates mutations, denies e
   assert.deepEqual(decidePermission(mcp('price_change_preview')), { kind: 'approve-once' });
   assert.deepEqual(decidePermission(mcp('paypal_money_briefing')), { kind: 'approve-once' });
   assert.deepEqual(decidePermission(mcp('paypal_refund_preview')), { kind: 'approve-once' });
+  assert.deepEqual(decidePermission(mcp('paypal_dispute_accept_claim_preview')), { kind: 'approve-once' });
   assert.equal(decidePermission(mcp('price_change_apply')).kind, 'reject');
   assert.equal(decidePermission(mcp('paypal_refund_apply')).kind, 'reject');
+  assert.equal(decidePermission(mcp('paypal_dispute_accept_claim_apply')).kind, 'reject');
   assert.equal(decidePermission({ kind: 'shell' } as never).kind, 'reject');
   const broker = new ConfirmationBroker(undefined, 5000);
   const handler = createPermissionHandler(broker);

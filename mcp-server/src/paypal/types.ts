@@ -23,7 +23,7 @@ export type ListTransactionsInput = { start_date: string; end_date: string; tran
 export type CreateOrderInput = { currency_code: string; value: string; invoice_id?: string; custom_id?: string; request_id: string; payment_source?: Record<string, unknown> };
 
 export interface PayPalClient {
-  mode: 'mock' | 'live';
+  mode: 'mock' | 'sandbox';
   createRefund(input: CreateRefundInput): Promise<PayPalRefund>;
   createInvoice(input: CreateInvoiceInput): Promise<PayPalInvoice>;
   sendInvoice(input: SendInvoiceInput): Promise<PayPalInvoice>;

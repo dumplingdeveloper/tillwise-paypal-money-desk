@@ -29,7 +29,8 @@ skills/ contains Agent Skills loaded by the Copilot SDK and exposed by the MCP s
 - Guardrails such as minimum price and maximum discount persist in WordPress options and are enforced during preview.
 - Every ability returns a short `speech` string plus structured data for cards or screens.
 - PayPal mutations use preview/apply where practical, caps, `PayPal-Request-Id` idempotency keys, and WordPress audit rows/order notes.
-- PayPal mock mode is the default and requires no PayPal credentials. Sandbox mode is enabled only when `~/.config/tillwise/paypal-sandbox.env` exists with `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET`; secrets must not be printed or committed.
+- PayPal mock mode is the default and requires no PayPal credentials. Sandbox mode is enabled with `PAYPAL_MODE=sandbox` only when `~/.config/tillwise/paypal-sandbox.env` exists with `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET`; secrets must not be printed or committed.
+- This build can only talk to the PayPal sandbox host `api-m.sandbox.paypal.com`; production PayPal hosts are refused in code.
 
 ## Quick start
 
@@ -68,6 +69,7 @@ The MCP server exposes:
 - `paypal_tracking_add_apply`
 - `paypal_disputes_list`
 - `paypal_dispute_get`
+- `paypal_dispute_accept_claim_preview`
 - `paypal_dispute_accept_claim_apply`
 - `paypal_guardrail_refusal`
 
@@ -84,6 +86,12 @@ npm run demo
 ```
 
 Open the printed `http://127.0.0.1:4179` URL in Chrome. The UI supports push-to-talk with the Web Speech API (`webkitSpeechRecognition`) and a text fallback. It speaks final answers with `speechSynthesis`, renders structured MCP results as cards, and shows a collapsible MCP timeline with protocol version `2025-11-25`.
+
+### AG Studio Money Desk
+
+Open `http://127.0.0.1:4179/money-desk.html` after starting the simulator. The page embeds AG Studio 3.0.0 in edit mode, uses three Tillwise custom widgets (refund-rate tile, unpaid-invoice scoreboard, dispute-deadline countdown), and configures a Studio Agent Framework harness with a read-only Money agent. Money-moving PayPal tools are not exposed to Studio.
+
+AG Studio is a commercial product. This repo includes `ag-studio@3.0.0` for local hackathon testing only; no AG Studio license key is committed. If a trial key is provided later, keep it in the environment as `AG_STUDIO_LICENSE_KEY`.
 
 The simulator uses the GitHub Copilot SDK (`@github/copilot-sdk`) in `copilot-cli` mode with the logged-in Copilot CLI user by default. That mode keeps keytar (the OS keychain) available, so a stored Copilot CLI login is used; `empty` mode disables keytar and can fall back to a different `gh` account. Instead of a stored login, you can set `COPILOT_GITHUB_TOKEN` to a fine-grained `github_pat_` token that has the Copilot Requests permission. Classic `ghp_` tokens are rejected. Either way, the account needs GitHub Copilot access.
 
@@ -122,7 +130,7 @@ This resets demo prices, sale dates, previews, history, and guardrails without d
 node scripts/paypal-seed.mjs
 ```
 
-Without sandbox credentials, this seeds deterministic mock PayPal order/capture ids onto the latest Woo order. With credentials present, live browserless card seeding is still marked UNVERIFIED and is not attempted by M1.
+Without sandbox credentials, this seeds deterministic mock PayPal order/capture ids onto the latest Woo order. With sandbox credentials present, browserless card seeding is still marked UNVERIFIED and is not attempted by M1/M2.
 
 ## Agent Skills
 

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { PayPalApiError, type AcceptDisputeInput, type CreateInvoiceInput, type CreateOrderInput, type CreateRefundInput, type CreateShipmentInput, type ListTransactionsInput, type PayPalClient, type PayPalDispute, type PayPalInvoice, type PayPalOrder, type PayPalRefund, type PayPalShipment, type PayPalTransaction, type SendInvoiceInput } from './types.js';
 
-type LiveOptions = { clientId: string; clientSecret: string; sandbox?: boolean; fetchImpl?: typeof fetch; sdkAdapter?: unknown };
+type LiveOptions = { clientId: string; clientSecret: string; baseUrl?: string; fetchImpl?: typeof fetch; sdkAdapter?: unknown };
 type Token = { accessToken: string; expiresAt: number };
 
 export function readSandboxCredentials(path = join(homedir(), '.config', 'tillwise', 'paypal-sandbox.env')): { clientId: string; clientSecret: string } | null {
@@ -19,7 +19,7 @@ export function readSandboxCredentials(path = join(homedir(), '.config', 'tillwi
 }
 
 export class LivePayPalClient implements PayPalClient {
-  readonly mode = 'live' as const;
+  readonly mode = 'sandbox' as const;
   private readonly fetchImpl: typeof fetch;
   private token?: Token;
   private readonly baseUrl: string;
@@ -30,9 +30,12 @@ export class LivePayPalClient implements PayPalClient {
 
   constructor(private readonly options: LiveOptions) {
     this.fetchImpl = options.fetchImpl || fetch;
-    this.baseUrl = options.sandbox === false ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
+    this.baseUrl = options.baseUrl || 'https://api-m.sandbox.paypal.com';
+    if (new URL(this.baseUrl).hostname !== 'api-m.sandbox.paypal.com') {
+      throw new Error('Tillwise PayPal M1/M2 only supports the PayPal sandbox host api-m.sandbox.paypal.com.');
+    }
     this.sdkClient = new Client({
-      environment: options.sandbox === false ? Environment.Production : Environment.Sandbox,
+      environment: Environment.Sandbox,
       timeout: 30_000,
       clientCredentialsAuthCredentials: {
         oAuthClientId: options.clientId,
