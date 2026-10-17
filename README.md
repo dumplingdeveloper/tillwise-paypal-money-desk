@@ -2,6 +2,8 @@
 
 Tillwise Store Agent is an Alexa+ track hackathon project for WooCommerce store owners. It exposes safe, stateful store operations through WordPress Abilities, a self-hosted MCP server over Streamable HTTP, Agent Skills, and an unofficial browser-based Alexa+ experience simulator.
 
+Phase B adds the PayPal AI Hackathon fork, “Tillwise × PayPal”: the same safety model now wraps PayPal sandbox money tools in mock-first mode, with explicit confirmation before any mutation.
+
 ## Architecture
 
 ```text
@@ -10,6 +12,7 @@ Chrome browser voice/text UI (alexa-sim/public)
   -> mcp-server/ (TypeScript, @modelcontextprotocol/sdk, Streamable HTTP)
   -> WordPress REST /wp-abilities/v1/abilities/tillwise-store/<ability>/run
   -> wp-plugin/tillwise-store-agent/ (WooCommerce operations, previews, history, guardrails)
+  -> PayPal client layer in mcp-server/src/paypal (mock by default; sandbox when credentials exist)
   -> WooCommerce demo store in Docker
 
 skills/ contains Agent Skills loaded by the Copilot SDK and exposed by the MCP server as resources.
@@ -25,6 +28,8 @@ skills/ contains Agent Skills loaded by the Copilot SDK and exposed by the MCP s
 - Undo also checks for conflicts before restoring old values.
 - Guardrails such as minimum price and maximum discount persist in WordPress options and are enforced during preview.
 - Every ability returns a short `speech` string plus structured data for cards or screens.
+- PayPal mutations use preview/apply where practical, caps, `PayPal-Request-Id` idempotency keys, and WordPress audit rows/order notes.
+- PayPal mock mode is the default and requires no PayPal credentials. Sandbox mode is enabled only when `~/.config/tillwise/paypal-sandbox.env` exists with `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET`; secrets must not be printed or committed.
 
 ## Quick start
 
@@ -54,6 +59,17 @@ The MCP server exposes:
 - `price_change_history`
 - `guardrails_get`
 - `guardrails_update`
+- `paypal_money_briefing`
+- `paypal_refund_preview`
+- `paypal_refund_apply`
+- `paypal_invoice_create_preview`
+- `paypal_invoice_create_apply`
+- `paypal_invoice_send_apply`
+- `paypal_tracking_add_apply`
+- `paypal_disputes_list`
+- `paypal_dispute_get`
+- `paypal_dispute_accept_claim_apply`
+- `paypal_guardrail_refusal`
 
 It also exposes the Agent Skill markdown files as MCP resources.
 
@@ -87,8 +103,8 @@ The simulator logs the authenticated login and refuses to send prompts unless it
 ### Simulator safety layers
 
 1. **Tool allow-list:** the Copilot session gets only the Tillwise MCP tools (`mcp:tillwise-*`) and the built-in `skill` tool, which may load only the two Tillwise Agent Skills. It has no shell, file, web, or other built-in tools.
-2. **Human confirmation gate:** readonly tools and preview are auto-approved; `price_change_apply`, `price_change_undo`, and `guardrails_update` require a Yes/No confirmation in the UI. Typing or saying “yes” or “no” resolves the pending request; otherwise it times out after 120 seconds and is denied.
-3. **Server-side safety:** WordPress still enforces preview tokens, user binding, expiry, single use, guardrails, optimistic concurrency, history, and undo conflict checks.
+2. **Human confirmation gate:** readonly tools, previews, and guardrail refusals are auto-approved; price mutations and PayPal mutation tools require a Yes/No confirmation in the UI. Typing or saying “yes” or “no” resolves the pending request; otherwise it times out after 120 seconds and is denied.
+3. **Server-side safety:** WordPress still enforces preview tokens, user binding, expiry, single use, guardrails, optimistic concurrency, history, undo conflict checks, and PayPal audit persistence.
 
 ### Demo reset
 
@@ -98,6 +114,15 @@ The simulator logs the authenticated login and refuses to send prompts unless it
 ```
 
 This resets demo prices, sale dates, previews, history, and guardrails without deleting Docker volumes.
+
+### PayPal mock seed
+
+```bash
+# from the repository root
+node scripts/paypal-seed.mjs
+```
+
+Without sandbox credentials, this seeds deterministic mock PayPal order/capture ids onto the latest Woo order. With credentials present, live browserless card seeding is still marked UNVERIFIED and is not attempted by M1.
 
 ## Agent Skills
 

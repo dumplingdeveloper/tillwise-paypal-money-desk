@@ -8,6 +8,7 @@ class Tillwise_Test_Runner {
 	private $original_guardrails;
 	private $original_previews;
 	private $original_history;
+	private $original_paypal_audit;
 	private $original_timezone;
 	private $created_users = array();
 
@@ -15,6 +16,7 @@ class Tillwise_Test_Runner {
 		$this->original_guardrails = get_option( Tillwise_Store_Agent::GUARDRAILS_OPTION, array() );
 		$this->original_previews   = get_option( Tillwise_Store_Agent::PREVIEWS_OPTION, array() );
 		$this->original_history    = get_option( Tillwise_Store_Agent::HISTORY_OPTION, array() );
+		$this->original_paypal_audit = get_option( Tillwise_Store_Agent::PAYPAL_AUDIT_OPTION, array() );
 		$this->original_timezone   = get_option( 'timezone_string' );
 		try {
 			$this->test_abilities_api_registration_and_core_routes();
@@ -34,6 +36,7 @@ class Tillwise_Test_Runner {
 			$this->test_sales_summary();
 			$this->test_sales_summary_timezone();
 			$this->test_demo_reset_briefing_data();
+			$this->test_paypal_audit_and_order_links();
 			$this->test_low_stock();
 			$this->test_low_stock_names_unique();
 			$this->test_seeded_hoodie_variations();
@@ -98,6 +101,7 @@ class Tillwise_Test_Runner {
 		update_option( Tillwise_Store_Agent::GUARDRAILS_OPTION, $this->original_guardrails, false );
 		update_option( Tillwise_Store_Agent::PREVIEWS_OPTION, $this->original_previews, false );
 		update_option( Tillwise_Store_Agent::HISTORY_OPTION, $this->original_history, false );
+		update_option( Tillwise_Store_Agent::PAYPAL_AUDIT_OPTION, $this->original_paypal_audit, false );
 		update_option( 'timezone_string', $this->original_timezone, false );
 		foreach ( $this->created_users as $user_id ) { wp_delete_user( $user_id ); }
 		wp_set_current_user( 0 );
@@ -284,6 +288,22 @@ class Tillwise_Test_Runner {
 		$this->assert_true( (float) $data['today']['total'] > (float) $data['same_weekday_last_week']['total'], 'demo reset sales are up versus same weekday last week' );
 		$this->assert_true( 6 === (int) $data['waiting_orders'], 'demo reset creates exactly 6 processing orders waiting' );
 		$this->assert_true( 1 === count( $data['sales_ending_soon'] ), 'demo reset creates exactly one sale ending soon' );
+	}
+
+	private function test_paypal_audit_and_order_links() {
+		$orders = wc_get_orders( array( 'limit' => 1, 'orderby' => 'date', 'order' => 'DESC', 'return' => 'objects', 'status' => array_keys( wc_get_order_statuses() ) ) );
+		$this->assert_true( ! empty( $orders ), 'paypal audit test has a seeded Woo order' );
+		$order_id = $orders[0]->get_id();
+		$seed = $this->data( $this->call( 'paypal-seed-demo' ) );
+		$this->assert_true( 0 === strpos( $seed['data']['paypal_capture_id'], 'MOCKCAPTURE' ), 'paypal-seed-demo attaches mock capture id' );
+		$context = $this->data( $this->call( 'paypal-order-context', array( 'order_id' => $order_id ) ) );
+		$this->assert_true( $seed['data']['paypal_capture_id'] === $context['data']['paypal']['paypal_capture_id'], 'paypal-order-context returns stored mock capture id' );
+		$audit = $this->data( $this->call( 'paypal-audit-record', array( 'woo_order_id' => $order_id, 'tool' => 'paypal_refund_apply', 'paypal_object_id' => 'MOCK-REFUND-1', 'paypal_refund_id' => 'MOCK-REFUND-1', 'amount' => 12.34, 'currency' => 'EUR', 'idempotency_key' => 'idem-1', 'status' => 'COMPLETED', 'summary' => 'Refunded test order' ) ) );
+		$this->assert_true( 'MOCK-REFUND-1' === $audit['data']['audit']['paypal_object_id'], 'paypal-audit-record stores PayPal object id' );
+		$list = $this->data( $this->call( 'paypal-audit-list' ) );
+		$this->assert_true( $list['data']['count'] > 0 && 'MOCK-REFUND-1' === $list['data']['audit'][0]['paypal_object_id'], 'paypal-audit-list returns newest PayPal audit row first' );
+		$context2 = $this->data( $this->call( 'paypal-order-context', array( 'order_id' => $order_id ) ) );
+		$this->assert_true( in_array( 'MOCK-REFUND-1', $context2['data']['paypal']['paypal_refund_ids'], true ), 'paypal audit links refund id back to Woo order meta' );
 	}
 
 	private function test_low_stock() {

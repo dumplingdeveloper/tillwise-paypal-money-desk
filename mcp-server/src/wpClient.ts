@@ -1,6 +1,6 @@
 export type AbilityResult = { speech: string; data: Record<string, unknown> };
 
-const READONLY_ABILITIES = new Set(['store-briefing', 'sales-summary', 'low-stock', 'price-change-preview', 'price-change-history', 'guardrails-get']);
+const READONLY_ABILITIES = new Set(['store-briefing', 'sales-summary', 'low-stock', 'price-change-preview', 'price-change-history', 'guardrails-get', 'paypal-order-context', 'paypal-audit-list']);
 
 function appendInput(searchParams: URLSearchParams, prefix: string, value: unknown) {
   if (value === undefined) return;

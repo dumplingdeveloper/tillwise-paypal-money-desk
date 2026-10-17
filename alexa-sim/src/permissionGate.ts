@@ -1,8 +1,8 @@
 import type { PermissionHandler, PermissionRequest, PermissionRequestResult } from '@github/copilot-sdk';
 import { MCP_SERVER_KEY } from './config.js';
 
-export const AUTO_APPROVED_TOOLS = new Set(['store_briefing','sales_summary','low_stock','price_change_preview','price_change_history','guardrails_get']);
-export const HUMAN_GATED_TOOLS = new Set(['price_change_apply','price_change_undo','guardrails_update']);
+export const AUTO_APPROVED_TOOLS = new Set(['store_briefing','sales_summary','low_stock','price_change_preview','price_change_history','guardrails_get','paypal_money_briefing','paypal_refund_preview','paypal_invoice_create_preview','paypal_disputes_list','paypal_dispute_get','paypal_guardrail_refusal']);
+export const HUMAN_GATED_TOOLS = new Set(['price_change_apply','price_change_undo','guardrails_update','paypal_refund_apply','paypal_invoice_create_apply','paypal_invoice_send_apply','paypal_tracking_add_apply','paypal_dispute_accept_claim_apply']);
 export const ALLOWED_SKILLS = new Set(['woocommerce-daily-briefing', 'woocommerce-safe-price-changes']);
 
 export function classifyConfirmationReply(text: string): 'yes' | 'no' | 'unknown' {

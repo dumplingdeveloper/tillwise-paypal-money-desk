@@ -14,9 +14,11 @@ class Tillwise_Store_Agent {
 	const PREVIEWS_OPTION   = 'tillwise_store_agent_previews';
 	const HISTORY_OPTION    = 'tillwise_store_agent_history';
 	const GUARDRAILS_OPTION = 'tillwise_store_agent_guardrails';
+	const PAYPAL_AUDIT_OPTION = 'tillwise_paypal_audit';
 	const PREVIEW_TTL       = 900;
 	const MAX_HISTORY       = 50;
 	const MAX_PREVIEWS      = 50;
+	const MAX_PAYPAL_AUDIT  = 100;
 
 	/** Bootstrap hooks. */
 	public static function bootstrap() {
@@ -111,6 +113,10 @@ class Tillwise_Store_Agent {
 			'price-change-history' => array( 'label' => 'Price change history', 'description' => 'Read applied price change history.', 'input_schema' => $object_input_schema, 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ) ),
 			'guardrails-get'       => array( 'label' => 'Get guardrails', 'description' => 'Read persistent owner price-change guardrails.', 'input_schema' => $object_input_schema, 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ) ),
 			'guardrails-update'    => array( 'label' => 'Update guardrails', 'description' => 'Update persistent owner price-change guardrails.', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'min_price' => array( 'type' => 'number', 'minimum' => 0 ), 'max_discount_percent' => array( 'type' => 'number', 'minimum' => 0, 'maximum' => 100 ), 'max_items_per_preview' => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 500 ), 'allow_regular_price_increase' => array( 'type' => 'boolean' ) ) ), 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) ),
+			'paypal-order-context' => array( 'label' => 'PayPal order context', 'description' => 'Read Woo order context and PayPal object links for money tools.', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'order_id' => array( 'type' => 'integer' ) ), 'required' => array( 'order_id' ) ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ) ),
+			'paypal-audit-record'  => array( 'label' => 'PayPal audit record', 'description' => 'Persist an audited PayPal mutation and link PayPal object ids to a Woo order.', 'input_schema' => $object_input_schema, 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) ),
+			'paypal-audit-list'    => array( 'label' => 'PayPal audit list', 'description' => 'Read recent audited PayPal actions.', 'input_schema' => $object_input_schema, 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ) ),
+			'paypal-seed-demo'     => array( 'label' => 'PayPal seed demo', 'description' => 'Attach deterministic mock PayPal ids to a demo Woo order.', 'input_schema' => $object_input_schema, 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) ),
 		);
 	}
 
@@ -131,8 +137,106 @@ class Tillwise_Store_Agent {
 			case 'price-change-history': return self::price_change_history();
 			case 'guardrails-get': return self::guardrails_get();
 			case 'guardrails-update': return self::guardrails_update( $input );
+			case 'paypal-order-context': return self::paypal_order_context( $input );
+			case 'paypal-audit-record': return self::paypal_audit_record( $input );
+			case 'paypal-audit-list': return self::paypal_audit_list();
+			case 'paypal-seed-demo': return self::paypal_seed_demo();
 		}
 		return new WP_Error( 'tillwise_unknown_ability', __( 'Unknown ability.', 'tillwise-store-agent' ), array( 'status' => 404 ) );
+	}
+
+	/** Read PayPal-linked Woo order context. */
+	protected static function paypal_order_context( array $input ) {
+		$order_id = isset( $input['order_id'] ) ? absint( $input['order_id'] ) : 0;
+		$order    = $order_id ? wc_get_order( $order_id ) : null;
+		if ( ! $order ) {
+			return new WP_Error( 'tillwise_paypal_order_not_found', __( 'Woo order not found.', 'tillwise-store-agent' ), array( 'status' => 404 ) );
+		}
+		$items = array();
+		foreach ( $order->get_items() as $item ) {
+			$items[] = array( 'name' => $item->get_name(), 'quantity' => (int) $item->get_quantity(), 'total' => round( (float) $item->get_total(), 2 ) );
+		}
+		$links = array(
+			'paypal_order_id'    => (string) $order->get_meta( '_tillwise_paypal_order_id' ),
+			'paypal_capture_id'  => (string) $order->get_meta( '_tillwise_paypal_capture_id' ),
+			'paypal_refund_ids'  => array_values( array_filter( (array) $order->get_meta( '_tillwise_paypal_refund_ids' ) ) ),
+			'paypal_invoice_id'  => (string) $order->get_meta( '_tillwise_paypal_invoice_id' ),
+			'paypal_tracking_ids'=> array_values( array_filter( (array) $order->get_meta( '_tillwise_paypal_tracking_ids' ) ) ),
+		);
+		return array(
+			'speech' => sprintf( 'Order %d is %s for %s.', $order_id, $order->get_status(), self::spoken_money( $order->get_total() ) ),
+			'data'   => array( 'order' => array( 'id' => $order_id, 'status' => $order->get_status(), 'total' => round( (float) $order->get_total(), 2 ), 'currency' => $order->get_currency(), 'billing_email' => $order->get_billing_email(), 'items' => $items ), 'paypal' => $links ),
+		);
+	}
+
+	/** Persist PayPal audit rows and selected Woo order meta links. */
+	protected static function paypal_audit_record( array $input ) {
+		$order_id = isset( $input['woo_order_id'] ) ? absint( $input['woo_order_id'] ) : 0;
+		$order    = $order_id ? wc_get_order( $order_id ) : null;
+		if ( $order_id && ! $order ) {
+			return new WP_Error( 'tillwise_paypal_order_not_found', __( 'Woo order not found for audit.', 'tillwise-store-agent' ), array( 'status' => 404 ) );
+		}
+		$row = array(
+			'id'              => isset( $input['id'] ) ? sanitize_text_field( (string) $input['id'] ) : wp_generate_uuid4(),
+			'timestamp'       => current_time( 'mysql', true ),
+			'tool'            => isset( $input['tool'] ) ? sanitize_key( (string) $input['tool'] ) : 'paypal',
+			'woo_order_id'    => $order_id,
+			'paypal_object_id'=> isset( $input['paypal_object_id'] ) ? sanitize_text_field( (string) $input['paypal_object_id'] ) : '',
+			'amount'          => isset( $input['amount'] ) ? round( (float) $input['amount'], 2 ) : null,
+			'currency'        => isset( $input['currency'] ) ? sanitize_text_field( (string) $input['currency'] ) : get_woocommerce_currency(),
+			'idempotency_key' => isset( $input['idempotency_key'] ) ? sanitize_text_field( (string) $input['idempotency_key'] ) : '',
+			'status'          => isset( $input['status'] ) ? sanitize_text_field( (string) $input['status'] ) : 'unknown',
+			'debug_id'        => isset( $input['debug_id'] ) ? sanitize_text_field( (string) $input['debug_id'] ) : '',
+			'summary'         => isset( $input['summary'] ) ? sanitize_text_field( (string) $input['summary'] ) : '',
+		);
+		$audit = get_option( self::PAYPAL_AUDIT_OPTION, array() );
+		$audit = is_array( $audit ) ? $audit : array();
+		array_unshift( $audit, $row );
+		$audit = array_slice( $audit, 0, self::MAX_PAYPAL_AUDIT );
+		update_option( self::PAYPAL_AUDIT_OPTION, $audit, false );
+		if ( $order ) {
+			self::paypal_update_order_links( $order, $input );
+			$order->add_order_note( 'Tillwise PayPal audit: ' . $row['tool'] . ' ' . $row['status'] . ( $row['paypal_object_id'] ? ' (' . $row['paypal_object_id'] . ')' : '' ) . ( $row['debug_id'] ? ' debug_id ' . $row['debug_id'] : '' ) );
+			$order->save();
+		}
+		return array( 'speech' => 'PayPal audit recorded.', 'data' => array( 'audit' => $row, 'count' => count( $audit ) ) );
+	}
+
+	/** Update selected PayPal meta links on an order. */
+	protected static function paypal_update_order_links( $order, array $input ) {
+		$scalar = array( 'paypal_order_id' => '_tillwise_paypal_order_id', 'paypal_capture_id' => '_tillwise_paypal_capture_id', 'paypal_invoice_id' => '_tillwise_paypal_invoice_id' );
+		foreach ( $scalar as $input_key => $meta_key ) {
+			if ( ! empty( $input[ $input_key ] ) ) {
+				$order->update_meta_data( $meta_key, sanitize_text_field( (string) $input[ $input_key ] ) );
+			}
+		}
+		foreach ( array( 'paypal_refund_id' => '_tillwise_paypal_refund_ids', 'paypal_tracking_id' => '_tillwise_paypal_tracking_ids' ) as $input_key => $meta_key ) {
+			if ( empty( $input[ $input_key ] ) ) { continue; }
+			$values = array_values( array_filter( (array) $order->get_meta( $meta_key ) ) );
+			$value  = sanitize_text_field( (string) $input[ $input_key ] );
+			if ( ! in_array( $value, $values, true ) ) { $values[] = $value; }
+			$order->update_meta_data( $meta_key, $values );
+		}
+	}
+
+	/** Read recent PayPal audit rows. */
+	protected static function paypal_audit_list() {
+		$audit = get_option( self::PAYPAL_AUDIT_OPTION, array() );
+		$audit = is_array( $audit ) ? $audit : array();
+		return array( 'speech' => count( $audit ) . ' PayPal audit rows are stored.', 'data' => array( 'audit' => array_slice( $audit, 0, 25 ), 'count' => count( $audit ) ) );
+	}
+
+	/** Seed deterministic mock PayPal ids on the newest seeded order. */
+	protected static function paypal_seed_demo() {
+		$orders = wc_get_orders( array( 'limit' => 1, 'orderby' => 'date', 'order' => 'DESC', 'return' => 'objects', 'status' => array_keys( wc_get_order_statuses() ) ) );
+		if ( empty( $orders ) ) {
+			return new WP_Error( 'tillwise_paypal_no_orders', __( 'No Woo orders exist to seed.', 'tillwise-store-agent' ), array( 'status' => 404 ) );
+		}
+		$order = $orders[0];
+		$order->update_meta_data( '_tillwise_paypal_order_id', 'MOCK-ORDER-' . $order->get_id() );
+		$order->update_meta_data( '_tillwise_paypal_capture_id', 'MOCKCAPTURE' . $order->get_id() );
+		$order->save();
+		return array( 'speech' => 'Mock PayPal links seeded on order ' . $order->get_id() . '.', 'data' => array( 'order_id' => $order->get_id(), 'paypal_order_id' => 'MOCK-ORDER-' . $order->get_id(), 'paypal_capture_id' => 'MOCKCAPTURE' . $order->get_id() ) );
 	}
 
 	/** Default guardrails. */

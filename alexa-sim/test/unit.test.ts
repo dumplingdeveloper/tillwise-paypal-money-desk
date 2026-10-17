@@ -15,7 +15,10 @@ function mcp(toolName: string) {
 test('permission gate auto-approves reads and preview, gates mutations, denies everything else', async () => {
   assert.deepEqual(decidePermission(mcp('store_briefing')), { kind: 'approve-once' });
   assert.deepEqual(decidePermission(mcp('price_change_preview')), { kind: 'approve-once' });
+  assert.deepEqual(decidePermission(mcp('paypal_money_briefing')), { kind: 'approve-once' });
+  assert.deepEqual(decidePermission(mcp('paypal_refund_preview')), { kind: 'approve-once' });
   assert.equal(decidePermission(mcp('price_change_apply')).kind, 'reject');
+  assert.equal(decidePermission(mcp('paypal_refund_apply')).kind, 'reject');
   assert.equal(decidePermission({ kind: 'shell' } as never).kind, 'reject');
   const broker = new ConfirmationBroker(undefined, 5000);
   const handler = createPermissionHandler(broker);
@@ -28,6 +31,8 @@ test('permission gate auto-approves reads and preview, gates mutations, denies e
 
 test('tool allow-list contains exactly Tillwise MCP tools plus the isolated skill built-in', () => {
   assert.deepEqual(MCP_ALLOWLIST, MCP_TOOLS.map((tool) => `mcp:tillwise-${tool}`));
+  assert.ok(MCP_ALLOWLIST.includes('mcp:tillwise-paypal_money_briefing'));
+  assert.ok(MCP_ALLOWLIST.includes('mcp:tillwise-paypal_refund_apply'));
   assert.deepEqual(BUILTIN_ALLOWLIST, ['builtin:skill']);
   assert.deepEqual(buildToolSet().toArray(), TOOL_ALLOWLIST);
   assert.deepEqual(decidePermission({ kind: 'tool', toolName: 'skill', args: { skill: 'woocommerce-daily-briefing' } } as never), { kind: 'approve-once' });

@@ -52,6 +52,13 @@ test('MCP live preview apply undo flow negotiates 2025-11-25', { timeout: 120000
     assert.equal(byName.get('price_change_apply')?.annotations?.destructiveHint, true);
     assert.ok(byName.get('price_change_preview')?.inputSchema);
     assert.ok(byName.get('price_change_preview')?.outputSchema);
+    assert.equal(byName.get('paypal_money_briefing')?.annotations?.readOnlyHint, true);
+    assert.equal(byName.get('paypal_refund_apply')?.annotations?.destructiveHint, true);
+    assert.ok(byName.get('paypal_refund_preview')?.inputSchema);
+    assert.ok(byName.get('paypal_refund_apply')?.outputSchema);
+
+    const paypalBriefing = await client.callTool({ name: 'paypal_money_briefing', arguments: {} });
+    assert.equal((paypalBriefing.structuredContent as { data: { mode: string } }).data.mode, 'mock');
 
     console.log('E2E: resolving product');
     const productId = Number(wpEval(root, "$p=get_posts(array('post_type'=>'product','title'=>'Midnight Espresso Mug','post_status'=>'any','numberposts'=>1,'fields'=>'ids')); echo $p[0];"));

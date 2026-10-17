@@ -8,6 +8,8 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { LATEST_PROTOCOL_VERSION, isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { WpAbilityClient } from './wpClient.js';
 import { registerTillwiseTools } from './tools.js';
+import { PayPalService } from './paypal/service.js';
+import { registerPayPalTools } from './paypal/tools.js';
 
 export type Env = Record<string, string | undefined>;
 
@@ -32,9 +34,10 @@ function readBody(req: IncomingMessage): Promise<unknown> {
   });
 }
 
-export function createServer(wp: Pick<WpAbilityClient, 'run'>) {
+export function createServer(wp: Pick<WpAbilityClient, 'run'>, env: Env = process.env) {
   const server = new McpServer({ name: 'tillwise-store-agent', version: '0.1.0' });
   registerTillwiseTools(server, wp);
+  registerPayPalTools(server, PayPalService.fromEnv(wp, env));
 
   const root = dirname(dirname(fileURLToPath(import.meta.url)));
   for (const skillName of ['woocommerce-safe-price-changes', 'woocommerce-daily-briefing']) {
@@ -121,7 +124,7 @@ export async function startHttpServer(env: Env = process.env) {
             return;
           }
           transport = makeTransport();
-          const mcp = createServer(wp);
+          const mcp = createServer(wp, env);
           await mcp.connect(transport);
         }
         if (init) {

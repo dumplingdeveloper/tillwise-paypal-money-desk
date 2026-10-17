@@ -20,6 +20,17 @@ export const MCP_TOOLS = [
   'price_change_history',
   'guardrails_get',
   'guardrails_update',
+  'paypal_money_briefing',
+  'paypal_refund_preview',
+  'paypal_refund_apply',
+  'paypal_invoice_create_preview',
+  'paypal_invoice_create_apply',
+  'paypal_invoice_send_apply',
+  'paypal_tracking_add_apply',
+  'paypal_disputes_list',
+  'paypal_dispute_get',
+  'paypal_dispute_accept_claim_apply',
+  'paypal_guardrail_refusal',
 ] as const;
 export type McpToolName = typeof MCP_TOOLS[number];
 export const RUNTIME_MCP_TOOLS = MCP_TOOLS.map((name) => `${MCP_SERVER_KEY}-${name}`);
