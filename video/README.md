@@ -40,7 +40,9 @@ npm run record:live -- --url http://127.0.0.1:4178
 
 The page is recorded at `1920 x (1080 - subtitleBandHeight)` and then composed onto a 1920x1080 dark canvas. Burned-in captions are constrained to the reserved bottom band, wrap to at most two lines, and long speech is split into sequential caption cards timed proportionally to the generated audio.
 
-Live scenes support honest dead-air compression with `maxSilenceMs` (default `1500`): gaps with no audio are sped up and marked with a waiting badge in the subtitle band.
+Live scenes support honest dead-air compression with `maxSilenceMs` (default `1500`): gaps with no audio are sped up and marked with a "⏩ fast-forward" badge in the subtitle band. These gaps include model latency and the time Kokoro needs to generate each live answer; the real time from the end of each owner line to the live answer is recorded in `out/compose-report.json` (`stepLatencies`).
+
+`scripts/video-timing.js` patches Playwright's video recorder before recording. Unpatched, Playwright writes every screencast frame at least once at 25 fps, so a page that repaints faster (the simulator's animated ring) produces a video longer than wall-clock time and the narration drifts away from the picture. In a 20-second test with the ring animating, the unpatched recording was 32.96 s long and the patched one 20.08 s.
 
 ## Scene step types
 

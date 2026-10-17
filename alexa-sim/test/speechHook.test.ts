@@ -101,6 +101,16 @@ test('demo speech hook serializes synthetic SSE speech with state transitions', 
     assert.ok(timeline.find((row) => row.text.includes('price_change_apply'))?.text.includes('after confirmation'));
     assert.ok(timeline.find((row) => row.text.includes('permission'))?.text.includes('confirmed by owner (voice) after'));
     assert.ok(timeline.some((row) => row.text.includes("said") && row.text.includes("I'll check that now.")));
+
+    // Real Copilot runtime order: tool_start arrives before the permission request.
+    await emit({ type: 'tool_start', data: { id: 'tool3', name: 'price_change_undo', arguments: {} } });
+    await emit({ type: 'permission', data: { id: 'perm3', toolName: 'price_change_undo', message: 'Undo the last change?', summary: 'undo' } });
+    await page.waitForTimeout(1200);
+    await emit({ type: 'permission_resolved', data: { id: 'perm3', approved: true, reason: 'owner' } });
+    await page.waitForTimeout(40);
+    await emit({ type: 'tool_end', data: { id: 'tool3', name: 'price_change_undo', success: true } });
+    const undoRow = await page.evaluate(() => [...document.querySelectorAll('#timeline li')].map((li) => li.textContent || '').find((text) => text.includes('price_change_undo')) || '');
+    assert.match(undoRow, /\d+ ms after confirmation/, `owner wait must not count as tool time: ${undoRow}`);
   } finally {
     const browserProcess = (browser as unknown as { process?: () => { kill: () => void } | null }).process?.();
     await Promise.race([browser.close(), new Promise((resolve) => setTimeout(resolve, 3000))]).catch(() => {});

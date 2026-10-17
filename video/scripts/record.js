@@ -3,6 +3,7 @@ import path from 'node:path';
 import { chromium } from 'playwright-core';
 import { CACHE_DIR, OUT_DIR, VOICES, clipId, clipPath, collectSayLines, ensureDirs, parseArgs, readScene, rel } from './common.js';
 import { ensureClip, getTts } from './tts-engine.js';
+import { patchPlaywrightVideoTiming } from './video-timing.js';
 
 const FRAME_WIDTH = 1920;
 const FRAME_HEIGHT = 1080;
@@ -121,6 +122,7 @@ async function main() {
     }
   }
 
+  patchPlaywrightVideoTiming();
   const browser = await chromium.launch({
     channel: 'chrome',
     headless: true,

@@ -86,7 +86,7 @@ The simulator logs the authenticated login and refuses to send prompts unless it
 
 ### Simulator safety layers
 
-1. **Tool allow-list:** the Copilot session gets only the Tillwise MCP tools (`mcp:tillwise-*`), with no shell, file, web, or other built-in tools.
+1. **Tool allow-list:** the Copilot session gets only the Tillwise MCP tools (`mcp:tillwise-*`) and the built-in `skill` tool, which may load only the two Tillwise Agent Skills. It has no shell, file, web, or other built-in tools.
 2. **Human confirmation gate:** readonly tools and preview are auto-approved; `price_change_apply`, `price_change_undo`, and `guardrails_update` require a Yes/No confirmation in the UI. Typing or saying “yes” or “no” resolves the pending request; otherwise it times out after 120 seconds and is denied.
 3. **Server-side safety:** WordPress still enforces preview tokens, user binding, expiry, single use, guardrails, optimistic concurrency, history, and undo conflict checks.
 

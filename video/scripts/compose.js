@@ -101,16 +101,22 @@ function speakerLabel(event) {
   const role = String(event.role || event.voice || '').toLowerCase();
   if (role === 'owner') return 'Owner';
   if (role === 'narrator') return 'Narrator';
+  if (role === 'host') return 'Host';
   return 'Assistant';
 }
 
-function buildCompressionSegments(audioTimeline, duration, maxSilenceSeconds) {
-  const audio = [...audioTimeline].sort((a, b) => a.start - b.start);
+// Title and outro cards are protected ranges: they are never sped up, even though they are silent.
+function buildCompressionSegments(audioTimeline, duration, maxSilenceSeconds, protectedRanges = []) {
+  const audio = [
+    ...audioTimeline.map(clip => ({ start: clip.start, end: clip.end, type: 'audio' })),
+    ...protectedRanges.map(range => ({ start: range.start, end: range.end, type: 'card' }))
+  ].sort((a, b) => a.start - b.start);
   const segments = [];
   let cursor = 0;
   for (const clip of audio) {
     if (clip.start > cursor) segments.push({ type: 'silence', originalStart: cursor, originalEnd: clip.start });
-    segments.push({ type: 'audio', originalStart: clip.start, originalEnd: Math.max(clip.end, clip.start) });
+    const start = Math.max(clip.start, cursor);
+    if (clip.end > start) segments.push({ type: clip.type, originalStart: start, originalEnd: clip.end });
     cursor = Math.max(cursor, clip.end);
   }
   if (cursor < duration) segments.push({ type: 'silence', originalStart: cursor, originalEnd: duration });
@@ -307,7 +313,10 @@ async function main() {
     });
   }
   const originalAudioOverlapChecks = assertNoTemporalOverlaps(timeline, 'Audio');
-  const compressionSegments = buildCompressionSegments(timeline, baseDuration, maxSilenceSeconds);
+  const compressionSegments = buildCompressionSegments(timeline, baseDuration, maxSilenceSeconds, [
+    { start: 0, end: INTRO_SECONDS },
+    { start: Math.max(0, baseDuration - OUTRO_SECONDS), end: baseDuration }
+  ]);
   for (const item of timeline) {
     item.originalStart = item.start;
     item.originalEnd = item.end;
@@ -387,7 +396,7 @@ async function main() {
   const badgeBrowser = await chromium.launch({ channel: 'chrome', headless: true });
   for (const seg of compressionSegments.filter(s => s.spedUp)) {
     const badgeNumber = badgeOverlays.length + 1;
-    const text = `⏩ ${seg.factor.toFixed(1)}x · waiting for the model`;
+    const text = "⏩ fast-forward";
     const png = path.join(OUT_DIR, `speed-badge-${badgeNumber}.png`);
     const bbox = await renderBadge(text, png, bandHeight, badgeBrowser);
     badgeInputs.push('-loop', '1', '-framerate', '30', '-i', png);
