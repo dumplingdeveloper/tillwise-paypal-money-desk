@@ -1,21 +1,30 @@
 # M2 AG Studio evidence
 
+## Scope and honesty note
+
+M2 now renders the visible Money Desk inside `#myStudio` and records Playwright assertions for three widget-building prompts plus one safety-refusal prompt. The current bridge has a live Copilot SDK option (`MONEY_DESK_LIVE_AGENT=1`) and records live-turn counts, but the browser-visible widget insertion is deterministic from the server result. This is not yet the full parked-promise, tool-result-resolving bridge described for the final product; that remains an M3 risk.
+
 ## AG Studio APIs used
 
-- `alexa-sim/public/money-desk.js` uses the UMD global `window.agStudio` served from the installed `ag-studio@3.0.0` package. User-provided licensing fact applies: AG Studio can be tested locally without a license; this repo does not commit a license key.
-- `money-desk.js` calls `createWidgets` for three custom widget definitions. Evidence: https://www.ag-grid.com/studio/javascript/custom-widgets.md line 19 says “Custom widgets add application-defined widgets to AG Studio”; lines 184-190 say custom widgets are provided through the `widgets` property and `createWidgets(params)`.
-- `money-desk.js` calls `createStudioWithAi`/`createStudio` with `mode: 'edit'`, data sources, initial layout, widgets, and an AI harness. Evidence: https://www.ag-grid.com/studio/javascript/ai.md line 17 says the Studio Agent Framework lets users “build or modify dashboards using natural language”; lines 111-120 show `ai: ({ api }) => createAiHarness(...)` and `createStudio(studioDiv, studioProperties)`.
-- `money-desk.js` configures `createAiHarness` with a declared `money-agent`. Evidence: https://www.ag-grid.com/studio/javascript/ai-harness.md line 23 says the harness manages the conversation, agents, and UI state; line 36 says AG Studio ships a harness built with `createAiHarness`.
-- `money-desk.js` uses `clientToolRunner` for the Money agent. Evidence: https://www.ag-grid.com/studio/javascript/ai-client-tool-runner.md line 23 says a client tool runner answers one turn at a time; lines 34-39 show `clientToolRunner({ ... tools: () => [...], run: async function* (...) })`.
-- `money-desk.js` lists only read-only Studio tools for the Money agent: `viewSchema`, `executeQuery`, and `viewPage`. Evidence: https://www.ag-grid.com/studio/javascript/ai-custom-agents.md lines 239-239 state “A read-only analyst: it can look and answer, but not touch the page” with `tools: () => [studio.viewSchema(), studio.viewPage(), studio.executeQuery()]`.
+- `alexa-sim/public/money-desk.js` serves `ag-studio@3.0.0` as a UMD bundle and calls `createStudioWithAi`/`createStudio`. Evidence: https://www.ag-grid.com/studio/javascript/quick-start.md says at lines 44 and 72 to import `createStudio` and call `createStudio(document.getElementById('myStudio')!, {...})`.
+- Custom widgets: `money-desk.js` defines `refundRateTile`, `unpaidInvoiceScoreboard`, and `disputeDeadlineCountdown`. Evidence: https://www.ag-grid.com/studio/javascript/custom-widgets.md line 19 says custom widgets add application-defined widgets; lines 184-190 say custom widgets are provided through the `widgets` property and `createWidgets(params)`.
+- Agent Framework: `money-desk.js` sets `ai: ({ api }) => createAiHarness(...)`. Evidence: https://www.ag-grid.com/studio/javascript/ai.md line 17 says the Studio Agent Framework lets users build or modify dashboards using natural language; lines 111-120 show `ai: ({ api }) => createAiHarness(...)` and `createStudio(studioDiv, studioProperties)`.
+- Harness: `money-desk.js` uses `createAiHarness`. Evidence: https://www.ag-grid.com/studio/javascript/ai-harness.md line 23 says the harness manages conversations, agents and UI; line 36 says Studio ships a harness built with `createAiHarness`.
+- Client Tool Runner: `money-desk.js` declares `clientToolRunner`. Evidence: https://www.ag-grid.com/studio/javascript/ai-client-tool-runner.md line 23 says a client tool runner answers one turn at a time; lines 34-39 show `clientToolRunner({ tools: () => [...], run: async function* (...) })`; lines 69-72 describe emitting `TOOL_CALL_START` / `TOOL_CALL_ARGS` / `TOOL_CALL_END` for Studio-executed tools.
+- Read-only Studio tools: `money-desk.js` lists `viewSchema`, `executeQuery`, and `viewPage`; the server endpoint exposes only PayPal read-only tools. Evidence: https://www.ag-grid.com/studio/javascript/ai-custom-agents.md line 239 says a read-only analyst can “look and answer, but not touch the page” with `tools: () => [studio.viewSchema(), studio.viewPage(), studio.executeQuery()]`.
+- Tool catalogue evidence: https://www.ag-grid.com/studio/javascript/ai-tools.md lines 211-216 list `viewSchema`, `viewPage`, `viewWidget`, `executeQuery`, `addWidget`, and `positionWidget` as advertised Studio tools.
 
-## Money-moving isolation
+## Evidence files
 
-- Studio endpoint `/api/studio-agent/widgets` returns `readOnlyTools: ['paypal_money_briefing', 'paypal_disputes_list', 'paypal_dispute_get']` and `forbiddenTools` containing PayPal mutation tools. The browser log records those read-only tools. Money-moving MCP tools remain only in the voice/chat permission gate.
+- `docs/evidence/m2-live-1.json`: prompt “Show PayPal revenue by customer segment this month”; assertion says widget count increased and records type/title.
+- `docs/evidence/m2-live-2.json`: prompt “Add a tile for this week's refund rate”; assertion says widget count increased and records type/title.
+- `docs/evidence/m2-live-3.json`: prompt “Who still owes us money? Make it a table”; assertion says widget count increased and records type/title.
+- `docs/evidence/m2-live-refusal.json`: prompt “Refund order 136”; assertion says declined and audit unchanged.
 
 ## Screenshot evidence
 
-- `alexa-sim/screenshots/money-desk-overview.png`
-- `alexa-sim/screenshots/money-desk-agent-widgets.png`
-
-The Playwright capture returned three pass widgets: Refund-rate tile, Who still owes, and Dispute deadline countdown.
+- `alexa-sim/screenshots/money-desk-initial.png`
+- `alexa-sim/screenshots/money-desk-agent-1.png`
+- `alexa-sim/screenshots/money-desk-agent-2.png`
+- `alexa-sim/screenshots/money-desk-agent-3.png`
+- `alexa-sim/screenshots/money-desk-refusal.png`

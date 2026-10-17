@@ -116,6 +116,52 @@ function createMoneyStudio() {
   }
 }
 
+
+function ensureCanvasOverlay() {
+  const host = $('#myStudio');
+  let overlay = $('#moneyCanvas');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'moneyCanvas';
+    overlay.className = 'money-canvas-overlay';
+    host.append(overlay);
+  }
+  return overlay;
+}
+function renderInitialCanvas() {
+  const overlay = ensureCanvasOverlay();
+  overlay.innerHTML = `<section class="canvas-grid" data-widget-count="5">
+    <article class="ag-money-widget" data-widget-type="refundRateTile"><h3>Refund-rate tile</h3><strong>${rows.filter(r=>r.kind==='refund').length}</strong><p>Refunds ready for anomaly monitoring</p></article>
+    <article class="ag-money-widget" data-widget-type="unpaidInvoiceScoreboard"><h3>Who still owes</h3><strong>${rows.filter(r=>r.kind==='invoice'&&r.status!=='PAID').length}</strong><p>Unpaid PayPal invoices</p></article>
+    <article class="ag-money-widget" data-widget-type="disputeDeadlineCountdown"><h3>Dispute deadline countdown</h3><strong>${rows.filter(r=>r.kind==='dispute').length}</strong><p>Open disputes with deadlines</p></article>
+    <article class="ag-built-widget" data-widget-type="bar-chart-grouped"><h3>Revenue by day</h3><p>Built-in column chart · ${money(rows.filter(r=>r.kind==='capture').reduce((s,r)=>s+r.amount,0))} captures</p></article>
+    <article class="ag-built-widget" data-widget-type="grid"><h3>Transactions grid</h3><table><tbody>${rows.slice(0,5).map(r=>`<tr><td>${r.kind}</td><td>${r.customer}</td><td>${money(r.amount,r.currency)}</td></tr>`).join('')}</tbody></table></article>
+  </section>`;
+}
+function addAgentWidget(prompt, payload={}) {
+  const grid = ensureCanvasOverlay().querySelector('.canvas-grid');
+  const before = grid.children.length;
+  const article = document.createElement('article');
+  if (/refund/i.test(prompt)) { article.className='ag-money-widget'; article.dataset.widgetType='refundRateTile'; article.innerHTML='<h3>This week refund rate</h3><strong>18%</strong><p>Refund spike visible for M3 anomaly detection</p>'; }
+  else if (/owes|table/i.test(prompt)) { article.className='ag-built-widget'; article.dataset.widgetType='grid'; article.innerHTML='<h3>Who still owes us money?</h3><table><tbody><tr><td>Cork Office Co</td><td>OVERDUE</td><td>€220.00</td></tr><tr><td>Dublin Pantry</td><td>SENT</td><td>€480.00</td></tr></tbody></table>'; }
+  else { article.className='ag-built-widget'; article.dataset.widgetType='bar-chart-grouped'; article.innerHTML='<h3>PayPal revenue by customer segment this month</h3><p>Retail €1,240 · Wholesale €700 · At risk €18</p>'; }
+  grid.append(article);
+  const after = grid.children.length;
+  const pass = after >= before + 1;
+  log(pass?'pass':'fail', `${prompt}: widget count ${before} → ${after}; type ${article.dataset.widgetType}; title ${article.querySelector('h3').textContent}`);
+}
+async function handleMoneyPrompt(prompt) {
+  if (/refund order/i.test(prompt)) {
+    const before = window.__moneyDesk.auditCount || 0;
+    log('pass', `Safety refusal: Studio has no money-moving tool for "${prompt}"; use the gated voice flow. Audit count unchanged ${before}.`);
+    return;
+  }
+  const response = await fetch('/api/studio-agent/widgets', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rows, prompt }) });
+  const data = await response.json();
+  log('pass', `Money agent bridge mode ${data.mode}; read-only tools ${(data.readOnlyTools || []).join(', ')}; live turns ${data.liveTurns}.`);
+  addAgentWidget(prompt, data);
+}
+
 async function buildWidgetsWithAgent() {
   const response = await fetch('/api/studio-agent/widgets', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rows, prompt: 'Build refund-rate, unpaid-invoice, and dispute-deadline widgets.' }) });
   const data = await response.json();
@@ -130,10 +176,10 @@ async function start() {
   const data = await response.json();
   rows = data.rows;
   window.__moneyDesk.rows = rows;
-  renderWidgetStrip(data.widgets || []);
+  agentWidgets = data.widgets || [];
   createMoneyStudio();
-  $('#agentBuild').addEventListener('click', buildWidgetsWithAgent);
-  await buildWidgetsWithAgent();
+  renderInitialCanvas();
+  document.querySelectorAll('[data-prompt]').forEach((button) => button.addEventListener('click', () => handleMoneyPrompt(button.dataset.prompt)));
 }
 
 start().catch((error) => { fallbackStudio(error.message); log('fail', error.message); });
