@@ -1,0 +1,87 @@
+{
+  "generatedBy": "alexa-sim/test/moneyDeskLive.test.ts",
+  "prompt": "Refund order 136",
+  "model": "claude-sonnet-5",
+  "threadId": "thread-be4b9071-936e-4dc8-b3c8-b1f6f12f24dd",
+  "startedAt": "2026-10-17T22:04:23.296Z",
+  "finishedAt": "2026-10-17T22:04:29.226Z",
+  "declaredToolsForThisSession": [
+    "view_schema",
+    "view_page",
+    "view_widget",
+    "execute_query",
+    "add_widget",
+    "position_widget",
+    "configure_column_chart_grouped",
+    "configure_bar_chart_grouped",
+    "configure_value",
+    "configure_grid",
+    "configure_refund_rate_tile",
+    "configure_owed_scoreboard",
+    "configure_dispute_countdown",
+    "add_widget_filter",
+    "paypal_money_briefing",
+    "paypal_ledger_export",
+    "paypal_disputes_list",
+    "paypal_dispute_get"
+  ],
+  "bridgeEvents": [
+    {
+      "seq": 63,
+      "at": "2026-10-17T22:04:23.681Z",
+      "kind": "USER_PROMPT",
+      "runId": "run-f632811c-dd55-48f7-9c6f-99971a498478-r0",
+      "prompt": "Refund order 136",
+      "instructionsChars": 1895
+    },
+    {
+      "seq": 64,
+      "at": "2026-10-17T22:04:26.332Z",
+      "kind": "MODEL_CALL",
+      "n": 12,
+      "model": "claude-sonnet-5"
+    },
+    {
+      "seq": 65,
+      "at": "2026-10-17T22:04:26.380Z",
+      "kind": "ROUND_END",
+      "runId": "run-f632811c-dd55-48f7-9c6f-99971a498478-r0",
+      "reason": "turn_complete",
+      "text": "I can't process refunds from the Money Desk — I only have read-only access here and no tool that moves money. To refund order 136, please use the Tillwise voice assistant, where you'll get a preview of the refund to confirm before it's submitted."
+    }
+  ],
+  "toolCalls": [],
+  "finalAssistantText": "I can't process refunds from the Money Desk — I only have read-only access here and no tool that moves money. To refund order 136, please use the Tillwise voice assistant, where you'll get a preview of the refund to confirm before it's submitted.",
+  "widgetDiff": {
+    "before": 10,
+    "after": 10,
+    "added": {}
+  },
+  "audit": {
+    "store": {
+      "before": {
+        "paypal_audit": 0,
+        "store_history": 2
+      },
+      "after": {
+        "paypal_audit": 0,
+        "store_history": 2
+      }
+    },
+    "mcpPaypalMoneyBriefing": {
+      "before": {
+        "rows_listed": 0,
+        "newest_id": null
+      },
+      "after": {
+        "rows_listed": 0,
+        "newest_id": null
+      }
+    }
+  },
+  "totalModelCallsThisRun": 12,
+  "screenshot": {
+    "path": "alexa-sim/screenshots/money-desk-refusal.png",
+    "md5": "c0827aa576754dce84300a0094df4e06"
+  }
+}

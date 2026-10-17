@@ -1,0 +1,122 @@
+{
+  "generatedBy": "alexa-sim/test/moneyDeskLive.test.ts",
+  "at": "2026-10-17T22:03:30.547Z",
+  "url": "http://127.0.0.1:4189/money-desk.html",
+  "dataSource": {
+    "tool": "paypal_ledger_export",
+    "via": "mcp",
+    "speech": "PayPal ledger export (mock) for the last 45 days: 144 captures, 18 refunds, 6 invoices, 3 disputes, 8 tracking rows."
+  },
+  "ledger": {
+    "mode": "mock",
+    "anchorDate": "2026-10-17",
+    "counts": {
+      "captures": 144,
+      "refunds": 18,
+      "invoices": 6,
+      "disputes": 3,
+      "tracking": 8
+    }
+  },
+  "agentConfig": {
+    "model": "claude-sonnet-5",
+    "readOnlyPayPalTools": [
+      "paypal_ledger_export",
+      "paypal_money_briefing",
+      "paypal_disputes_list",
+      "paypal_dispute_get"
+    ]
+  },
+  "onErrorRaised": [],
+  "studioWarnings": [],
+  "widgets": {
+    "kpi-gross": {
+      "type": "value",
+      "fields": [
+        "captures.gross"
+      ]
+    },
+    "kpi-refunded": {
+      "type": "value",
+      "fields": [
+        "refunds.amount"
+      ]
+    },
+    "refund-rate": {
+      "type": "refund-rate-tile",
+      "fields": [
+        "refunds.amount",
+        "refunds.date",
+        "captures.gross",
+        "captures.date"
+      ]
+    },
+    "daily-revenue": {
+      "type": "column-chart-grouped",
+      "fields": [
+        "captures.date",
+        "captures.gross"
+      ]
+    },
+    "owed-board": {
+      "type": "owed-scoreboard",
+      "fields": [
+        "invoices.customer",
+        "invoices.amount_due",
+        "invoices.days_overdue"
+      ]
+    },
+    "dispute-clock": {
+      "type": "dispute-countdown",
+      "fields": [
+        "disputes.dispute_id",
+        "disputes.seller_response_due_date",
+        "disputes.amount"
+      ]
+    },
+    "refunds-grid": {
+      "type": "grid",
+      "fields": [
+        "refunds.date",
+        "refunds.customer",
+        "refunds.segment",
+        "refunds.amount",
+        "refunds.reason"
+      ]
+    }
+  },
+  "canvasWidgetFrames": 7,
+  "customWidgetText": [
+    "Last 7 days of PayPal data 39.8% €768.05 refunded of €1,932.14 captured Refund spike baseline 7.4% before that",
+    "4 customers · €1,196.00 outstanding 1Dublin Pantry Ltdnot yet due€480.002Galway Gift House10 days overdue€400.003Cork Office Co11 days overdue€220.004Mugs & Candles Club11 days overdue€96.00",
+    "⏱PP-D-MOCK-1due 2026-10-19 23:00 UTC · €18.002d 0h⏱PP-D-MOCK-2due 2026-10-22 23:00 UTC · €202.035d 0h"
+  ],
+  "licenceKeyConfigured": false,
+  "licence": {
+    "watermarkElements": [
+      {
+        "className": "ag-studio-watermark ag-hidden",
+        "visible": false,
+        "text": ""
+      },
+      {
+        "className": "ag-watermark ag-hidden",
+        "visible": false,
+        "text": ""
+      }
+    ]
+  },
+  "licenceConsole": [
+    "[error] ********************************************** AG Studio Pro with AI License ***********************************************",
+    "[error] ************************************************** License Key Not Found ***************************************************",
+    "[error] * All AG Studio Pro with AI features are unlocked for trial. *",
+    "[error] * If you want to hide the watermark please email info@ag-grid.com for a trial license key. *"
+  ],
+  "otherConsoleErrors": [
+    "[error] Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "screenshot": {
+    "path": "alexa-sim/screenshots/money-desk-initial.png",
+    "md5": "4333224909e5604c4033a0f944489445"
+  }
+}

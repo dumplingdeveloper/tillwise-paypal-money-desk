@@ -1,0 +1,278 @@
+{
+  "generatedBy": "alexa-sim/test/moneyDeskLive.test.ts",
+  "prompt": "Who still owes us money? Make it a table",
+  "typedInto": "#myStudio textarea[aria-label=\"Message input\"] + [aria-label=\"Send message\"]",
+  "model": "claude-sonnet-5",
+  "threadId": "thread-be4b9071-936e-4dc8-b3c8-b1f6f12f24dd",
+  "startedAt": "2026-10-17T22:04:04.660Z",
+  "finishedAt": "2026-10-17T22:04:20.157Z",
+  "modelCallsThisPrompt": 4,
+  "bridgeEvents": [
+    {
+      "seq": 41,
+      "at": "2026-10-17T22:04:05.539Z",
+      "kind": "USER_PROMPT",
+      "runId": "run-8a4c1630-9148-4d24-9063-dead1e4e2615-r0",
+      "prompt": "Who still owes us money? Make it a table",
+      "instructionsChars": 1869
+    },
+    {
+      "seq": 42,
+      "at": "2026-10-17T22:04:07.995Z",
+      "kind": "MODEL_CALL",
+      "n": 8,
+      "model": "claude-sonnet-5"
+    },
+    {
+      "seq": 43,
+      "at": "2026-10-17T22:04:08.025Z",
+      "kind": "STUDIO_TOOL_PARKED",
+      "toolCallId": "toolu_01YR9gVvCTk8fv5njYdYmvsM",
+      "name": "add_widget",
+      "args": "{\"type\":\"grid\",\"widgetId\":\"amounts-owed-grid\",\"xSpan\":12,\"xTrack\":0,\"ySpan\":16,\"yTrack\":74}"
+    },
+    {
+      "seq": 44,
+      "at": "2026-10-17T22:04:08.025Z",
+      "kind": "TOOL_CALL_EMITTED",
+      "runId": "run-8a4c1630-9148-4d24-9063-dead1e4e2615-r0",
+      "toolCallId": "toolu_01YR9gVvCTk8fv5njYdYmvsM",
+      "name": "add_widget",
+      "args": "{\"type\":\"grid\",\"widgetId\":\"amounts-owed-grid\",\"xSpan\":12,\"xTrack\":0,\"ySpan\":16,\"yTrack\":74}"
+    },
+    {
+      "seq": 45,
+      "at": "2026-10-17T22:04:08.426Z",
+      "kind": "ROUND_END",
+      "runId": "run-8a4c1630-9148-4d24-9063-dead1e4e2615-r0",
+      "reason": "awaiting_studio_tool_results",
+      "toolCalls": 1,
+      "text": ""
+    },
+    {
+      "seq": 46,
+      "at": "2026-10-17T22:04:08.595Z",
+      "kind": "ROUND_START",
+      "runId": "run-8a4c1630-9148-4d24-9063-dead1e4e2615-r1",
+      "messages": 17
+    },
+    {
+      "seq": 47,
+      "at": "2026-10-17T22:04:08.595Z",
+      "kind": "STUDIO_TOOL_RESULT",
+      "runId": "run-8a4c1630-9148-4d24-9063-dead1e4e2615-r1",
+      "toolCallId": "toolu_01YR9gVvCTk8fv5njYdYmvsM",
+      "name": "add_widget",
+      "result": "{\"success\":true,\"response\":\"Added widget amounts-owed-grid (grid).\",\"data\":{\"added\":[{\"widgetId\":\"amounts-owed-grid\",\"type\":\"grid\",\"xTrack\":0,\"yTrack\":74,\"xSpan\":12,\"ySpan\":16}],\"failed\":[]}}"
+    },
+    {
+      "seq": 48,
+      "at": "2026-10-17T22:04:11.506Z",
+      "kind": "MODEL_CALL",
+      "n": 9,
+      "model": "claude-sonnet-5"
+    },
+    {
+      "seq": 49,
+      "at": "2026-10-17T22:04:11.518Z",
+      "kind": "STUDIO_TOOL_PARKED",
+      "toolCallId": "toolu_01JP8h4LEC9RBE5eneFzTqV1",
+      "name": "configure_grid",
+      "args": "{\"op\":\"patch\",\"value\":{\"dataMapping\":{\"cols\":[{\"id\":\"invoices.customer\"},{\"id\":\"invoices.invoice_number\"},{\"id\":\"invoices.status\"},{\"aggregation\":\"sum\",\"id\":\"invoices.amount_due\"},{\"aggregation\":\"max\",\"id\":\"invoices.days_overdue\"}]},\"format\":{\"title\":{\"enabled\":true,\"text\":\"Customers Who Still Owe Money\"}},\"sort\":[{\"direction\":\"desc\",\"field\":{\"aggregation\":\"sum\",\"id\":\"invoices.amount_due\"}}]},\"widgetId\":\"amounts-owed-grid\"}"
+    },
+    {
+      "seq": 50,
+      "at": "2026-10-17T22:04:11.519Z",
+      "kind": "TOOL_CALL_EMITTED",
+      "runId": "run-8a4c1630-9148-4d24-9063-dead1e4e2615-r1",
+      "toolCallId": "toolu_01JP8h4LEC9RBE5eneFzTqV1",
+      "name": "configure_grid",
+      "args": "{\"op\":\"patch\",\"value\":{\"dataMapping\":{\"cols\":[{\"id\":\"invoices.customer\"},{\"id\":\"invoices.invoice_number\"},{\"id\":\"invoices.status\"},{\"aggregation\":\"sum\",\"id\":\"invoices.amount_due\"},{\"aggregation\":\"max\",\"id\":\"invoices.days_overdue\"}]},\"format\":{\"title\":{\"enabled\":true,\"text\":\"Customers Who Still Owe Money\"}},\"sort\":[{\"direction\":\"desc\",\"field\":{\"aggregation\":\"sum\",\"id\":\"invoices.amount_due\"}}]},\"widgetId\":\"amounts-owed-grid\"}"
+    },
+    {
+      "seq": 51,
+      "at": "2026-10-17T22:04:11.919Z",
+      "kind": "ROUND_END",
+      "runId": "run-8a4c1630-9148-4d24-9063-dead1e4e2615-r1",
+      "reason": "awaiting_studio_tool_results",
+      "toolCalls": 1,
+      "text": ""
+    },
+    {
+      "seq": 52,
+      "at": "2026-10-17T22:04:12.573Z",
+      "kind": "ROUND_START",
+      "runId": "run-8a4c1630-9148-4d24-9063-dead1e4e2615-r2",
+      "messages": 19
+    },
+    {
+      "seq": 53,
+      "at": "2026-10-17T22:04:12.573Z",
+      "kind": "STUDIO_TOOL_RESULT",
+      "runId": "run-8a4c1630-9148-4d24-9063-dead1e4e2615-r2",
+      "toolCallId": "toolu_01JP8h4LEC9RBE5eneFzTqV1",
+      "name": "configure_grid",
+      "result": "{\"success\":true,\"response\":\"{\\\"configured\\\":\\\"amounts-owed-grid\\\",\\\"health\\\":[{\\\"code\\\":\\\"category_density\\\",\\\"description\\\":\\\"5 categories × 1 series - 79px per element (ideal: 80-Infinitypx)\\\",\\\"suggestions\\\":\\\"Each element has only 79px of space (ideal: 80-Infinitypx). Reduce the number of categories, e.g. add a widget filter on the numeric value field with operator 'rank' and value [N, null] to keep only the top N. If the user has applied filters that change the category count, the density may improve once filters are adjusted.\\\",\\\"score\\\":0.98,\\\"scope\\\":{\\\"kind\\\":\\\"widget\\\",\\\"widgetId\\\":\\…[+1160 chars]"
+    },
+    {
+      "seq": 54,
+      "at": "2026-10-17T22:04:14.886Z",
+      "kind": "MODEL_CALL",
+      "n": 10,
+      "model": "claude-sonnet-5"
+    },
+    {
+      "seq": 55,
+      "at": "2026-10-17T22:04:14.897Z",
+      "kind": "STUDIO_TOOL_PARKED",
+      "toolCallId": "toolu_01HQk8YuYhMwyWnnzdmsLxDc",
+      "name": "add_widget_filter",
+      "args": "{\"op\":\"append\",\"value\":{\"field\":{\"id\":\"invoices.amount_due\"},\"model\":{\"operator\":\"greaterThan\",\"value\":0}},\"widgetId\":\"amounts-owed-grid\"}"
+    },
+    {
+      "seq": 56,
+      "at": "2026-10-17T22:04:14.897Z",
+      "kind": "TOOL_CALL_EMITTED",
+      "runId": "run-8a4c1630-9148-4d24-9063-dead1e4e2615-r2",
+      "toolCallId": "toolu_01HQk8YuYhMwyWnnzdmsLxDc",
+      "name": "add_widget_filter",
+      "args": "{\"op\":\"append\",\"value\":{\"field\":{\"id\":\"invoices.amount_due\"},\"model\":{\"operator\":\"greaterThan\",\"value\":0}},\"widgetId\":\"amounts-owed-grid\"}"
+    },
+    {
+      "seq": 57,
+      "at": "2026-10-17T22:04:15.298Z",
+      "kind": "ROUND_END",
+      "runId": "run-8a4c1630-9148-4d24-9063-dead1e4e2615-r2",
+      "reason": "awaiting_studio_tool_results",
+      "toolCalls": 1,
+      "text": "Now let's filter to only unpaid/outstanding amounts (amount_due > 0)."
+    },
+    {
+      "seq": 58,
+      "at": "2026-10-17T22:04:15.619Z",
+      "kind": "ROUND_START",
+      "runId": "run-8a4c1630-9148-4d24-9063-dead1e4e2615-r3",
+      "messages": 21
+    },
+    {
+      "seq": 59,
+      "at": "2026-10-17T22:04:15.619Z",
+      "kind": "STUDIO_TOOL_RESULT",
+      "runId": "run-8a4c1630-9148-4d24-9063-dead1e4e2615-r3",
+      "toolCallId": "toolu_01HQk8YuYhMwyWnnzdmsLxDc",
+      "name": "add_widget_filter",
+      "result": "{\"success\":true,\"response\":\"{\\\"filtered\\\":\\\"amounts-owed-grid\\\",\\\"health\\\":[{\\\"code\\\":\\\"category_density\\\",\\\"description\\\":\\\"5 categories × 1 series - 79px per element (ideal: 80-Infinitypx)\\\",\\\"suggestions\\\":\\\"Each element has only 79px of space (ideal: 80-Infinitypx). Reduce the number of categories, e.g. add a widget filter on the numeric value field with operator 'rank' and value [N, null] to keep only the top N. If the user has applied filters that change the category count, the density may improve once filters are adjusted.\\\",\\\"score\\\":0.98,\\\"scope\\\":{\\\"kind\\\":\\\"widget\\\",\\\"widgetId\\\":\\\"a…[+1156 chars]"
+    },
+    {
+      "seq": 60,
+      "at": "2026-10-17T22:04:17.022Z",
+      "kind": "MODEL_CALL",
+      "n": 11,
+      "model": "claude-sonnet-5"
+    },
+    {
+      "seq": 61,
+      "at": "2026-10-17T22:04:17.058Z",
+      "kind": "ROUND_END",
+      "runId": "run-8a4c1630-9148-4d24-9063-dead1e4e2615-r3",
+      "reason": "turn_complete",
+      "text": "I added a \"Customers Who Still Owe Money\" table showing customer, invoice #, status, amount due, and days overdue, sorted by highest amount due and filtered to only invoices with an outstanding balance."
+    }
+  ],
+  "toolCalls": [
+    {
+      "kind": "TOOL_CALL_EMITTED",
+      "name": "add_widget",
+      "args": "{\"type\":\"grid\",\"widgetId\":\"amounts-owed-grid\",\"xSpan\":12,\"xTrack\":0,\"ySpan\":16,\"yTrack\":74}"
+    },
+    {
+      "kind": "TOOL_CALL_EMITTED",
+      "name": "configure_grid",
+      "args": "{\"op\":\"patch\",\"value\":{\"dataMapping\":{\"cols\":[{\"id\":\"invoices.customer\"},{\"id\":\"invoices.invoice_number\"},{\"id\":\"invoices.status\"},{\"aggregation\":\"sum\",\"id\":\"invoices.amount_due\"},{\"aggregation\":\"max\",\"id\":\"invoices.days_overdue\"}]},\"format\":{\"title\":{\"enabled\":true,\"text\":\"Customers Who Still Owe Money\"}},\"sort\":[{\"direction\":\"desc\",\"field\":{\"aggregation\":\"sum\",\"id\":\"invoices.amount_due\"}}]},\"widgetId\":\"amounts-owed-grid\"}"
+    },
+    {
+      "kind": "TOOL_CALL_EMITTED",
+      "name": "add_widget_filter",
+      "args": "{\"op\":\"append\",\"value\":{\"field\":{\"id\":\"invoices.amount_due\"},\"model\":{\"operator\":\"greaterThan\",\"value\":0}},\"widgetId\":\"amounts-owed-grid\"}"
+    }
+  ],
+  "finalAssistantText": "I added a \"Customers Who Still Owe Money\" table showing customer, invoice #, status, amount due, and days overdue, sorted by highest amount due and filtered to only invoices with an outstanding balance.",
+  "widgetDiff": {
+    "before": 9,
+    "after": 10,
+    "added": {
+      "amounts-owed-grid": {
+        "type": "grid",
+        "format": {
+          "title": {
+            "enabled": true,
+            "text": "Customers Who Still Owe Money"
+          }
+        },
+        "dataMapping": {
+          "cols": [
+            {
+              "id": "invoices.customer"
+            },
+            {
+              "id": "invoices.invoice_number"
+            },
+            {
+              "id": "invoices.status"
+            },
+            {
+              "id": "invoices.amount_due",
+              "aggregation": "sum"
+            },
+            {
+              "id": "invoices.days_overdue",
+              "aggregation": "max"
+            }
+          ]
+        },
+        "sort": [
+          {
+            "field": {
+              "id": "invoices.amount_due",
+              "aggregation": "sum"
+            },
+            "direction": "desc"
+          }
+        ],
+        "layout": {
+          "xTrack": 0,
+          "yTrack": 74,
+          "xSpan": 12,
+          "ySpan": 16
+        },
+        "widgetFilters": [
+          {
+            "field": {
+              "id": "invoices.amount_due"
+            },
+            "model": {
+              "operator": "greaterThan",
+              "value": 0
+            }
+          }
+        ]
+      }
+    },
+    "changed": {}
+  },
+  "canvas": {
+    "framesBefore": 9,
+    "framesAfter": 10,
+    "newFrames": [
+      {
+        "text": "Customers Who Still Owe Money No Rows To Show Customer Invoice # Status Amount due (sum) 1 Days overdue (max) Dublin Pantry LtdTW-7001SENT€480.000Galway Gift HouseTW-7003PARTIALLY_PAID€400.0010Cork Office CoTW-7002SENT€220.0011Mugs & Candle",
+        "height": 256
+      }
+    ]
+  },
+  "studioOnErrorRaisedSoFar": [],
+  "screenshot": {
+    "path": "alexa-sim/screenshots/money-desk-agent-3.png",
+    "md5": "ebce2ea6d1f2c6fb704bddb078f6034c"
+  }
+}
