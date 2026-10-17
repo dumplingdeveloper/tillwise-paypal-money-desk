@@ -14,7 +14,7 @@ import { isReadOnlyPayPalTool } from './paypalMcp.js';
  */
 
 /** Studio tools the agent may ask the page to execute (names as advertised by api.getAiTools(), ai-tools-builtin.md). */
-export const STUDIO_TOOL_ALLOWLIST = ['view_schema', 'view_page', 'view_widget', 'execute_query', 'add_widget', 'position_widget'] as const;
+export const STUDIO_TOOL_ALLOWLIST = ['view_schema', 'view_page', 'view_widget', 'execute_query', 'add_widget', 'position_widget', 'add_widget_filter'] as const;
 /** Widget types the agent may configure; each gets a configure_<type> tool wrapping Studio's AgConfigureWidgetCommand. */
 export const AGENT_WIDGET_TYPES = ['column-chart-grouped', 'bar-chart-grouped', 'value', 'grid', 'refund-rate-tile', 'owed-scoreboard', 'dispute-countdown'] as const;
 export const configureToolName = (widgetType: string) => `configure_${widgetType.replace(/-/g, '_')}`;

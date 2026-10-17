@@ -186,8 +186,8 @@
       id: 'money-desk',
       name: 'Money Desk',
       widgets: {
-        'kpi-gross': { type: 'value', dataMapping: { value: [sum('captures.gross')] }, format: title('PayPal gross captured (45 days)') },
-        'kpi-refunded': { type: 'value', dataMapping: { value: [sum('refunds.amount')] }, format: title('Refunded (45 days)') },
+        'kpi-gross': { type: 'value', dataMapping: { value: [sum('captures.gross')] }, format: title('Captured · 45d') },
+        'kpi-refunded': { type: 'value', dataMapping: { value: [sum('refunds.amount')] }, format: title('Refunded · 45d') },
         'refund-rate': { type: 'refund-rate-tile', dataMapping: { refundAmount: [sum('refunds.amount')], refundDate: [{ id: 'refunds.date' }], capturedAmount: [sum('captures.gross')], captureDate: [{ id: 'captures.date' }] }, format: { ...title('Refund rate · last 7 days'), windowDays: 7 } },
         'daily-revenue': { type: 'column-chart-grouped', dataMapping: { categoryKey: [{ id: 'captures.date' }], valueKey: [sum('captures.gross')] }, format: title('Daily PayPal revenue') },
         'owed-board': { type: 'owed-scoreboard', dataMapping: { customer: [{ id: 'invoices.customer' }], amountDue: [sum('invoices.amount_due')], daysOverdue: [{ id: 'invoices.days_overdue', aggregation: 'max' }] }, format: title('Who still owes us') },
@@ -284,7 +284,24 @@
       studio.addWidget(),
       studio.positionWidget(),
       ...configureTools(api),
+      widgetFilterTool(api),
     ];
+  }
+
+  // Studio's AgAddWidgetFilterCommand (ai-custom-tools.md, built-in command refs) so the agent can scope a widget
+  // to a period ("this month" via inRelativeRange) or to a subset of rows.
+  let widgetFilterToolCache = null;
+  function widgetFilterTool(api) {
+    widgetFilterToolCache ||= api.defineAiTool({
+      name: 'add_widget_filter',
+      description: 'Add a widget-level filter to a widget already on the page, e.g. a relative date range (operator inRelativeRange) or a numeric/text condition. Use op \'append\'.',
+      command: api.defineAiCommand({ type: 'AgAddWidgetFilterCommand' }),
+      result: async (_value, args) => {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        return { response: { filtered: args.widgetId, health: (await api.getAiContext().health.widget(args.widgetId)).issues } };
+      },
+    });
+    return widgetFilterToolCache;
   }
 
   // configure_widget is bound per widget type (ai-tools-builtin.md); wrap Studio's own
@@ -321,6 +338,9 @@
       tables,
       `Widgets on the page now: ${widgets || 'none'}. The page is 24 tracks wide; the first free row is yTrack ${nextRow}.`,
       `To add a widget: call add_widget (it seeds type and position only), then the configure_<type> tool for that type with op 'patch' and a value containing dataMapping and a format title.`,
+      'To limit a widget to a period or to some rows, call add_widget_filter on it after configuring it.',
+      'One yTrack is about 16px tall: charts and tables need ySpan 16 or more to be readable, KPI tiles about 12.',
+      `Today is ${new Date().toISOString().slice(0, 10)}.`,
     ].join('\n');
   }
 

@@ -18,7 +18,8 @@ const scriptedFakeModel: SessionFactory = async ({ invoke, onEvent }) => ({
       onEvent({ type: 'text_delta', messageId: 'fake-1', delta: '[offline scripted fake] adding a grid.' });
       const added = await invoke('add_widget', { widgetId: 'plumbing-grid', type: 'grid', xTrack: 0, yTrack: 46, xSpan: 24, ySpan: 12 }, 'fake-call-1');
       const configured = await invoke('configure_grid', { op: 'patch', widgetId: 'plumbing-grid', value: { type: 'grid', dataMapping: { cols: [{ id: 'invoices.customer' }, { id: 'invoices.amount_due' }] }, format: { title: { enabled: true, text: 'Plumbing check grid' } } } }, 'fake-call-2');
-      onEvent({ type: 'text_delta', messageId: 'fake-2', delta: `[offline scripted fake] results: ${added.slice(0, 80)} | ${configured.slice(0, 80)}` });
+      const filtered = await invoke('add_widget_filter', { op: 'append', widgetId: 'plumbing-grid', value: { field: { id: 'invoices.amount_due' }, model: { operator: 'greaterThan', value: 0 } } }, 'fake-call-3');
+      onEvent({ type: 'text_delta', messageId: 'fake-2', delta: `[offline scripted fake] results: ${added.slice(0, 80)} | ${configured.slice(0, 80)} | ${filtered.slice(0, 80)}` });
       onEvent({ type: 'idle' });
       } catch (error) { onEvent({ type: 'error', message: (error as Error).message }); }
     })();
@@ -45,10 +46,11 @@ test('offline plumbing: AI panel → client tool runner → bridge → Studio ex
     assert.deepEqual(Object.keys(result.added), ['plumbing-grid']);
     assert.equal(result.added['plumbing-grid'].type, 'grid');
     assert.deepEqual(result.added['plumbing-grid'].dataMapping?.cols.map((c) => c.id), ['invoices.customer', 'invoices.amount_due']);
+    assert.deepEqual(result.added['plumbing-grid'].widgetFilters, [{ field: { id: 'invoices.amount_due' }, model: { operator: 'greaterThan', value: 0 } }]);
     assert.equal(await canvasWidgetCount(page), canvasBefore + 1);
     assert.equal(await canvasHasText(page, 'Plumbing check grid'), true);
     const kinds = result.turnEvents.map((e) => `${e.kind}${e.name ? `:${e.name}` : ''}`);
-    assert.deepEqual(kinds.filter((k) => k.startsWith('TOOL_CALL_EMITTED') || k.startsWith('STUDIO_TOOL_RESULT')), ['TOOL_CALL_EMITTED:add_widget', 'STUDIO_TOOL_RESULT:add_widget', 'TOOL_CALL_EMITTED:configure_grid', 'STUDIO_TOOL_RESULT:configure_grid']);
+    assert.deepEqual(kinds.filter((k) => k.startsWith('TOOL_CALL_EMITTED') || k.startsWith('STUDIO_TOOL_RESULT')), ['TOOL_CALL_EMITTED:add_widget', 'STUDIO_TOOL_RESULT:add_widget', 'TOOL_CALL_EMITTED:configure_grid', 'STUDIO_TOOL_RESULT:configure_grid', 'TOOL_CALL_EMITTED:add_widget_filter', 'STUDIO_TOOL_RESULT:add_widget_filter']);
     const studioResults = result.turnEvents.filter((e) => e.kind === 'STUDIO_TOOL_RESULT').map((e) => String(e.result));
     assert.equal(studioResults.some((r) => /error/i.test(r)), false, `Studio tool results: ${studioResults.join(' || ')}`);
   } finally {

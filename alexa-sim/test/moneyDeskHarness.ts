@@ -3,7 +3,7 @@ import type { Page } from 'playwright-core';
 
 /** Shared browser helpers for the Money Desk tests (offline plumbing + LIVE_LLM acceptance). */
 
-export type WidgetSnapshot = Record<string, { type: string; dataMapping?: Record<string, Array<{ id: string; aggregation?: string }>>; format?: Record<string, unknown> }>;
+export type WidgetSnapshot = Record<string, { type: string; dataMapping?: Record<string, Array<{ id: string; aggregation?: string }>>; format?: Record<string, unknown>; layout?: Record<string, number>; widgetFilters?: Array<{ field?: { id: string }; model?: unknown }> }>;
 
 export async function openMoneyDesk(page: Page, baseUrl: string) {
   const consoleLines: string[] = [];
@@ -21,7 +21,10 @@ export async function pageWidgets(page: Page): Promise<WidgetSnapshot> {
     const api = (window as any).__moneyDesk.studioApi;
     const state = api.getState();
     const current = state.pages.find((p: { id: string }) => p.id === state.selectedPageId);
-    return JSON.parse(JSON.stringify(current.widgets || {}));
+    // Widget config plus the widget's layout and widget-level filters (stored at page.filter.widget[id]).
+    const out: Record<string, unknown> = {};
+    for (const [id, widget] of Object.entries(current.widgets || {})) out[id] = { ...(widget as object), layout: current.widgetLayout?.[id], widgetFilters: current.filter?.widget?.[id] || [] };
+    return JSON.parse(JSON.stringify(out));
   });
 }
 
