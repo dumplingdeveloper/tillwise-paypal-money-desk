@@ -21,3 +21,4 @@ video/.cache/
 oss/
 # Internal hackathon notes (Devpost drafts, rules excerpts, checklists)
 submission/
+.scratch/

@@ -67,13 +67,13 @@ test('mock invoice, tracking, dispute preview/apply, and briefing return determi
   const tracking = await service.trackingAddApply({ order_id: 123, tracking_number: '1Z999', carrier: 'UPS' });
   assert.equal((tracking.data.shipment as { carrier: string }).carrier, 'UPS');
   const disputes = await service.disputesList();
-  assert.equal((disputes.data.disputes as unknown[]).length, 1);
+  assert.equal((disputes.data.disputes as unknown[]).length, 3);
   const disputePreview = await service.disputeAcceptClaimPreview({ dispute_id: 'PP-D-MOCK-1', note: 'Accept claim' });
   assert.equal(disputePreview.data.amount, '18.00');
   const accepted = await service.disputeAcceptClaimApply({ preview_id: String(disputePreview.data.preview_id) });
   assert.equal((accepted.data.result as { status: string }).status, 'RESOLVED');
   const briefing = await service.moneyBriefing();
-  assert.equal((briefing.data.counts as { disputes: number }).disputes, 1);
+  assert.equal((briefing.data.counts as { disputes: number }).disputes, 3);
 });
 
 test('dispute accept preview refuses over cap', async () => {

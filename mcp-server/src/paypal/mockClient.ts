@@ -1,4 +1,5 @@
-import { PayPalApiError, type AcceptDisputeInput, type CreateInvoiceInput, type CreateOrderInput, type CreateRefundInput, type CreateShipmentInput, type ListTransactionsInput, type PayPalClient, type PayPalDispute, type PayPalInvoice, type PayPalOrder, type PayPalRefund, type PayPalShipment, type PayPalTransaction, type SendInvoiceInput } from './types.js';
+import { buildMockLedger } from './mockLedger.js';
+import { PayPalApiError, type PayPalLedger, type LedgerRefund, type AcceptDisputeInput, type CreateInvoiceInput, type CreateOrderInput, type CreateRefundInput, type CreateShipmentInput, type ListTransactionsInput, type PayPalClient, type PayPalDispute, type PayPalInvoice, type PayPalOrder, type PayPalRefund, type PayPalShipment, type PayPalTransaction, type SendInvoiceInput } from './types.js';
 
 function amount(value: string, currency_code = 'EUR') { return { currency_code, value }; }
 function error(message: string, issue = 'INVALID_REQUEST', status = 400): never {
@@ -16,12 +17,22 @@ export class MockPayPalClient implements PayPalClient {
   private transactions: PayPalTransaction[] = [];
   private next = 1000;
 
-  constructor() {
-    this.disputes.set('PP-D-MOCK-1', { dispute_id: 'PP-D-MOCK-1', status: 'WAITING_FOR_SELLER_RESPONSE', dispute_state: 'REQUIRED_ACTION', reason: 'MERCHANDISE_OR_SERVICE_NOT_RECEIVED', dispute_amount: amount('18.00'), update_time: '2026-10-15T10:00:00Z' });
-    this.transactions = [
-      { transaction_info: { transaction_id: 'MOCKCAPTURE1001', transaction_event_code: 'T0006', transaction_status: 'S', transaction_amount: amount('39.00'), transaction_updated_date: '2026-10-16T09:00:00Z' } },
-      { transaction_info: { transaction_id: 'MOCK-INVOICE-PAID-1', transaction_event_code: 'T1107', transaction_status: 'S', transaction_amount: amount('72.00'), transaction_updated_date: '2026-10-15T12:00:00Z' } },
-    ];
+  private ledgerBase: PayPalLedger;
+  private agentRefunds: LedgerRefund[] = [];
+
+  constructor(options: { now?: () => number } = {}) {
+    this.ledgerBase = buildMockLedger((options.now ?? Date.now)());
+    for (const d of this.ledgerBase.disputes) {
+      this.disputes.set(d.dispute_id, { dispute_id: d.dispute_id, status: d.status, dispute_state: d.dispute_state, reason: d.reason, dispute_amount: amount(d.amount.toFixed(2), d.currency), create_time: `${d.created_date}T10:00:00Z`, update_time: `${d.created_date}T10:00:00Z`, ...(d.seller_response_due_date ? { seller_response_due_date: d.seller_response_due_date } : {}) });
+    }
+    const captures: PayPalTransaction[] = this.ledgerBase.captures.map((c) => ({ transaction_info: { transaction_id: c.capture_id, transaction_event_code: 'T0006', transaction_status: 'S', transaction_amount: amount(c.gross.toFixed(2), c.currency), transaction_updated_date: c.captured_at } }));
+    const refunds: PayPalTransaction[] = this.ledgerBase.refunds.map((r) => ({ transaction_info: { transaction_id: r.refund_id, transaction_event_code: 'T1107', transaction_status: 'S', transaction_amount: amount((-r.amount).toFixed(2), r.currency), transaction_updated_date: r.refunded_at } }));
+    this.transactions = [...captures, ...refunds].sort((a, b) => String(b.transaction_info.transaction_updated_date).localeCompare(String(a.transaction_info.transaction_updated_date)));
+  }
+
+  ledger(): PayPalLedger {
+    const disputes = this.ledgerBase.disputes.map((d) => ({ ...d, status: this.disputes.get(d.dispute_id)?.status || d.status, dispute_state: this.disputes.get(d.dispute_id)?.dispute_state || d.dispute_state }));
+    return { ...this.ledgerBase, refunds: [...this.ledgerBase.refunds, ...this.agentRefunds], disputes };
   }
 
   private once<T>(requestId: string, create: () => T): T {
@@ -37,6 +48,9 @@ export class MockPayPalClient implements PayPalClient {
     return this.once(input.request_id, () => {
       const refund: PayPalRefund = { id: `MOCK-RFND-${++this.next}`, status: 'COMPLETED', capture_id: input.capture_id, amount: input.amount || amount('39.00') };
       this.refunds.set(refund.id, refund);
+      const at = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+      const capture = this.ledgerBase.captures.find((c) => c.capture_id === input.capture_id);
+      this.agentRefunds.push({ refund_id: refund.id, capture_id: input.capture_id, order_id: capture?.order_id ?? null, date: at.slice(0, 10), refunded_at: at, customer: capture?.customer || 'Unknown', segment: capture?.segment || 'Unknown', amount: Number(refund.amount.value), currency: refund.amount.currency_code, reason: input.note_to_payer || 'Owner-approved refund', status: refund.status });
       this.transactions.unshift({ transaction_info: { transaction_id: refund.id, transaction_event_code: 'T1107', transaction_status: 'S', transaction_amount: { ...refund.amount, value: `-${refund.amount.value}` }, transaction_updated_date: new Date().toISOString() } });
       return refund;
     });
@@ -77,7 +91,12 @@ export class MockPayPalClient implements PayPalClient {
     requireField(input.dispute_id, 'dispute_id'); requireField(input.note, 'note');
     return this.once(input.request_id, () => { const d = this.disputes.get(input.dispute_id); if (!d) error('Dispute not found', 'RESOURCE_NOT_FOUND', 404); d.status = 'RESOLVED'; d.dispute_state = 'RESOLVED'; return { dispute_id: input.dispute_id, status: 'RESOLVED' }; });
   }
-  async listTransactions(_input: ListTransactionsInput): Promise<PayPalTransaction[]> { return this.transactions; }
+  async listTransactions(input: ListTransactionsInput): Promise<PayPalTransaction[]> {
+    const start = Date.parse(input.start_date); const end = Date.parse(input.end_date);
+    const inRange = this.transactions.filter((t) => { const at = Date.parse(String(t.transaction_info.transaction_updated_date)); return (!Number.isFinite(start) || at >= start) && (!Number.isFinite(end) || at <= end); });
+    const size = input.page_size || 100; const page = input.page || 1;
+    return inRange.slice((page - 1) * size, page * size);
+  }
   async createOrder(input: CreateOrderInput): Promise<PayPalOrder> {
     requireField(input.currency_code, 'currency_code'); requireField(input.value, 'value');
     return this.once(input.request_id, () => ({ id: `MOCK-ORDER-${++this.next}`, status: 'CREATED', purchase_units: [{ amount: { currency_code: input.currency_code, value: input.value }, invoice_id: input.invoice_id, custom_id: input.custom_id }] }));
