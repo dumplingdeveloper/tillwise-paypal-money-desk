@@ -62,7 +62,7 @@ Copilot SDK model count <n>
 Alexa+ simulator listening on http://127.0.0.1:4179
 ```
 
-Quick check: `curl -s http://127.0.0.1:4179/api/money-desk-data` returns `"source":{"tool":"paypal_ledger_export","via":"mcp",…}` with 138 captures, 16 refunds, 6 invoices, 3 disputes and 8 tracking rows (mock ledger, 45 days to today).
+Quick check: `curl -s http://127.0.0.1:4179/api/money-desk-data` returns `"source":{"tool":"paypal_ledger_export","via":"mcp",…}` with about 310–320 captures, 40–45 refunds (the exact counts depend on the time of day), 6 invoices, 3 disputes and 8 tracking rows (mock ledger, 45 days to today).
 
 With BYOK the second line is `LLM provider: BYOK openai · gpt-4o-mini @ api.openai.com (key set)` (the key itself is never printed). A wrong key is shown in the voice sim and in the Money Desk AI panel as `BYOK provider openai rejected the API key (HTTP 401). Check TILLWISE_LLM_API_KEY …`.
 

@@ -1,5 +1,7 @@
 # M3 evidence: canvas polish, refund anomaly drill-down, BYOK, sandbox smoke, judge path
 
+> **M3.1 update (after commit 9bab855).** Commit ea94db7 changed the mock ledger: more captures per day, and an 8% baseline spread over every reason and product. The figures quoted in §1–§2 and §7 (35.3%, 5.4%, €564.36, 138 captures…) describe the ledger *before* that change. The run-2 evidence files still match them. The current figures and the M3.1 changes are in §8.
+
 M3 work started at 2026-10-25T18:07Z on top of M2 (`b961f79`). Every file named under `docs/evidence/` and `alexa-sim/screenshots/` here was written by a test, not by hand. The clean-clone transcript in §6 is copied from command output.
 
 ## 1. Canvas polish
@@ -248,3 +250,52 @@ The evidence files from these runs replace M2's `m2-live-*.json`, which remain i
 - **BYOK with a real key:** unverified. Only the 401 path (openai and anthropic, fake key) was exercised. There is no local Ollama on this Mac, so the keyless path was not run here.
 - **Model wording:** in run 2 the model described the calendar week as "Sun–Sat". The tile itself (and its form label) uses Monday to today, and the tile prints the dates (Mon 19 – Sun 25 Oct).
 - **Single-bar driver chart:** the anomaly chart shows one bar, because every refund in the window is one product with one reason. This is truthful, but Studio's health check flags it as a "category_density" hint.
+
+
+## 8. M3.1: informative drill-down, "this week" vs "last 7 days", M5 prep
+
+### 8.1 Drill-down chart from tool data
+- `paypal_refund_anomaly` changes (mcp-server/src/paypal/refundAnomaly.ts):
+  - It returns `daily`: refunds per day over twice the window, split by reason and by product, with a pre-formatted `text` per day.
+  - It anchors on the last capture/refund day (`lastDataDate`), the same anchor the Money Desk tile uses.
+- Mock ledger (mcp-server/src/paypal/mockLedger.ts):
+  - 5–9 captures a day;
+  - an 8% baseline spread over all reasons and products;
+  - the 85% "Damaged in transit" Stoneware Mug Set spike is unchanged.
+  - At 2026-10-25T20:00Z this gives 35.2% vs 7.3% (4.8×), with the top reason at 98.1% of refunded €.
+- Tests (mcp-server/test/ledger.test.ts):
+  - the daily rows add up to the ledger;
+  - the baseline has ≥4 reasons and ≥4 products, and the 14-day series has ≥3 reasons, on three different anchor days;
+  - the spike reason holds ≥80% of window refunds.
+- Studio side:
+  - `column-chart-stacked` was added to the agent's widget types (alexa-sim/src/studioBridge.ts and money-desk.js `AGENT_WIDGET_TYPES`).
+  - The request context explains date-bucket field ids: `<table>.<date>::day`.
+  - AG Studio types: `widgetFieldService.d.ts:27-34` ("calendar-free built-in date buckets … as `sourceId.field::fragId`"). The built-in bucket ids (`quarter`, `month`, `week`, `day`, …) are in the shipped bundle, `ag-studio/dist/umd/ag-studio.js` around l.12306-12490 (`BUILT_IN_BUCKET_MAP`).
+- Offline proof (moneyDeskPlumbing.test.ts):
+  - A scripted stacked chart with `categoryKey refunds.date::day`, `legendKey refunds.reason` and a last-14-days widget filter renders.
+  - Studio's own health check (`getAiContext().health.widget`) reports exactly as many categories as the tool's `daily` rows with refunds, and at least 7.
+  - Studio still emits informational `category_density` / `data_variance` hints for this chart. We assert the category count, not an empty health list.
+- `configure_*` now re-checks health up to 5×300 ms after a patch, so it no longer reports the pre-patch "required fields not mapped" state.
+- The Studio panel's `maxTurns` went from 12 to 16, so a place + configure + filter sequence plus the anomaly read fits in one run.
+
+### 8.2 "This week" vs "last 7 days"
+- The tool returns `calendar_week` (Monday to the last data day) with its exact dates (`label`, e.g. "Mon 19 Oct – Sun 25 Oct"), its figures, and `same_dates_as_window`, plus a `windows_note`.
+- The page computes the same windows from the rows Studio holds (money-desk.js `refundWindows`, exposed as `__moneyDesk.refundWindows()`).
+  - The canvas summary prints each refund tile's exact dates.
+  - When the calendar week has the same dates as an existing tile, the summary says so ("already covers exactly these dates, so a "this week" refund-rate tile would show identical figures").
+- Day labels are built by hand (`Mon 19 Oct`) in both places, so they do not depend on the browser's or Node's locale data.
+- The system message (studioBridge.ts) tells the model:
+  - to quote period dates as written instead of describing weeks in its own words;
+  - not to add a widget that shows the same measure for the same dates.
+- Tests:
+  - mcp-server ledger tests: Sunday 2026-10-25 → same dates; Wednesday 2026-10-28 → Mon 26 – Wed 28 Oct, with the rate re-computed from the ledger.
+  - The plumbing test checks that the page's windows equal the MCP tool's dates and that the note appears exactly when `same_dates_as_window` is true.
+  - The live test, prompt 2: when `refundWindows()` says the calendar week equals an existing tile, `getState()` must show no added and no changed widgets, and the reply must quote the week's dates. Otherwise the M3 checks apply (a calendar-week tile).
+
+### 8.3 Live run
+See the final report. A live run was started only on AC power (`pmset -g batt`).
+
+### 8.4 M5 prep
+- `docs/DEVPOST.md`: the Devpost draft.
+- `docs/VIDEO_SCRIPT.md`: the video script.
+- `video/scenes/m5-money-desk.json`: the scene file for the existing video pipeline. Neither the script nor the scene has been rendered or dry-run.
