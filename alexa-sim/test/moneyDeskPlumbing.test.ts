@@ -29,6 +29,10 @@ const scriptedFakeModel: SessionFactory = async ({ invoke, onEvent }) => ({
       results.push(await invoke('place_widget', { widgetId: 'plumbing-grid', type: 'grid' }, 'fake-call-7'));
       results.push(await invoke('configure_grid', { op: 'patch', widgetId: 'plumbing-grid', value: { type: 'grid', dataMapping: { cols: [{ id: 'invoices.customer' }, { id: 'invoices.invoice_number' }, { id: 'invoices.status' }, { id: 'invoices.due_date' }, { id: 'invoices.days_overdue' }, { id: 'invoices.amount_due' }] }, format: title('Plumbing check grid') } }, 'fake-call-8'));
       results.push(await invoke('add_widget_filter', { op: 'append', widgetId: 'plumbing-grid', value: { field: { id: 'invoices.amount_due' }, model: { operator: 'greaterThan', value: 0 } } }, 'fake-call-9'));
+      // Refund drill-down shape: one column per day (date bucket field id ::day), stacked by reason, last 14 days.
+      results.push(await invoke('place_widget', { widgetId: 'plumbing-daily', type: 'column-chart-stacked' }, 'fake-call-10'));
+      results.push(await invoke('configure_column_chart_stacked', { op: 'patch', widgetId: 'plumbing-daily', value: { type: 'column-chart-stacked', dataMapping: { categoryKey: [{ id: 'refunds.date::day' }], valueKey: [{ id: 'refunds.amount', aggregation: 'sum' }], legendKey: [{ id: 'refunds.reason' }] }, format: title('Refunds per day by reason · last 14 days') } }, 'fake-call-11'));
+      results.push(await invoke('add_widget_filter', { op: 'append', widgetId: 'plumbing-daily', value: { field: { id: 'refunds.date' }, model: { operator: 'inRelativeRange', value: { type: 'last', value: 14, unit: 'day', includeToday: true } } } }, 'fake-call-12'));
       onEvent({ type: 'text_delta', messageId: 'fake-2', delta: `[offline scripted fake] results: ${results.map((r) => r.slice(0, 60)).join(' | ')}` });
       onEvent({ type: 'idle' });
       } catch (error) { onEvent({ type: 'error', message: (error as Error).message }); }
@@ -58,12 +62,24 @@ test('offline plumbing: AI panel → client tool runner → bridge → Studio ex
       assert.equal(frame.gridOverflowX, false, `seeded grid columns overflow: ${frame.title}`);
       assert.deepEqual(frame.truncatedCells, [], `seeded cells cut off in ${frame.title}`);
     }
+    const windows = await page.evaluate(() => (window as any).__moneyDesk.refundWindows());
+    const anomaly = (await paypalRead.callReadOnly('paypal_refund_anomaly', { window_days: 7 })).data as { window: { end: string; label: string }; calendar_week: { label: string; same_dates_as_window: boolean } };
     promptsSeen = [];
     const result = await askStudioPanel(page, baseUrl, 'Plumbing check: who still owes us?', 60000);
+    if (process.env.PLUMBING_SHOT) { await page.waitForTimeout(1500); await page.screenshot({ path: process.env.PLUMBING_SHOT, fullPage: true }); }
     // The agent is told what is already on the canvas (the de-duplication context).
     assert.match(promptsSeen[0], /- refund-rate \[refund-rate-tile\] "Refund rate · last 7 days": .*window=rolling last 7 days/);
     assert.match(promptsSeen[0], /- refunds-grid \[grid\] "PayPal refunds": cols=refunds\.date\+refunds\.customer/);
-    assert.deepEqual(Object.keys(result.added).sort(), ['plumbing-chart', 'plumbing-grid', 'plumbing-kpi', 'plumbing-week-tile']);
+    // The page's refund windows (from the rows Studio holds) agree with the read-only MCP tool, and the agent sees the
+    // exact dates; when the calendar week equals the seeded rolling 7 days (a Sunday), it is told a tile would repeat it.
+    assert.equal(windows.lastDataDay, anomaly.window.end);
+    assert.equal(windows.calendarWeek.dates, anomaly.calendar_week.label);
+    assert.equal(windows.tiles.find((t: { id: string }) => t.id === 'refund-rate').dates, anomaly.window.label);
+    assert.equal(windows.tiles.find((t: { id: string }) => t.id === 'refund-rate').sameDatesAsCalendarWeek, anomaly.calendar_week.same_dates_as_window);
+    assert.ok(promptsSeen[0].includes(`window=rolling last 7 days = ${anomaly.window.label}`), 'the seeded tile line carries its exact dates');
+    assert.ok(promptsSeen[0].includes(`the calendar week (Monday to the last data day) is ${anomaly.calendar_week.label}.`), 'the calendar week dates are in the request context');
+    assert.equal(promptsSeen[0].includes('already covers exactly these dates'), anomaly.calendar_week.same_dates_as_window);
+    assert.deepEqual(Object.keys(result.added).sort(), ['plumbing-chart', 'plumbing-daily', 'plumbing-grid', 'plumbing-kpi', 'plumbing-week-tile']);
     const added = result.added;
     assert.equal(added['plumbing-grid'].type, 'grid');
     assert.deepEqual(added['plumbing-grid'].dataMapping?.cols.map((c) => c.id), ['invoices.customer', 'invoices.invoice_number', 'invoices.status', 'invoices.due_date', 'invoices.days_overdue', 'invoices.amount_due']);
@@ -75,7 +91,9 @@ test('offline plumbing: AI panel → client tool runner → bridge → Studio ex
     assert.deepEqual(added['plumbing-week-tile'].layout, { xTrack: 0, yTrack: 70, xSpan: 12, ySpan: 12 });
     assert.deepEqual(added['plumbing-kpi'].layout, { xTrack: 12, yTrack: 70, xSpan: 12, ySpan: 12 });
     assert.deepEqual(added['plumbing-grid'].layout, { xTrack: 0, yTrack: 82, xSpan: 24, ySpan: 18 });
-    assert.equal(await canvasWidgetCount(page), canvasBefore + 4);
+    assert.deepEqual(added['plumbing-daily'].layout, { xTrack: 0, yTrack: 100, xSpan: 24, ySpan: 20 });
+    assert.deepEqual(added['plumbing-daily'].dataMapping?.categoryKey.map((c) => c.id), ['refunds.date::day']);
+    assert.equal(await canvasWidgetCount(page), canvasBefore + 5);
     assert.equal(await canvasHasText(page, 'Plumbing check grid'), true);
     const tileText = await page.evaluate(() => [...document.querySelectorAll('#myStudio .tw-refund-rate')].map((el) => (el.textContent || '').replace(/\s+/g, ' ').trim()));
     assert.ok(tileText.some((t) => t.startsWith('This calendar week')), `calendar-week tile text: ${JSON.stringify(tileText)}`);
@@ -92,12 +110,14 @@ test('offline plumbing: AI panel → client tool runner → bridge → Studio ex
     const hostHeight = await page.evaluate(() => document.getElementById('myStudio')!.getBoundingClientRect().height);
     assert.ok(hostHeight >= 100 * 16, `the Studio host grows with the canvas (${hostHeight}px for 100 tracks)`);
     const kinds = result.turnEvents.map((e) => `${e.kind}${e.name ? `:${e.name}` : ''}`).filter((k) => k.startsWith('TOOL_CALL_EMITTED') || k.startsWith('STUDIO_TOOL_RESULT'));
-    assert.deepEqual(kinds.filter((k) => k.startsWith('TOOL_CALL_EMITTED')), ['place_widget', 'configure_column_chart_grouped', 'place_widget', 'configure_refund_rate_tile', 'place_widget', 'configure_value', 'place_widget', 'configure_grid', 'add_widget_filter'].map((n) => `TOOL_CALL_EMITTED:${n}`));
+    assert.deepEqual(kinds.filter((k) => k.startsWith('TOOL_CALL_EMITTED')), ['place_widget', 'configure_column_chart_grouped', 'place_widget', 'configure_refund_rate_tile', 'place_widget', 'configure_value', 'place_widget', 'configure_grid', 'add_widget_filter', 'place_widget', 'configure_column_chart_stacked', 'add_widget_filter'].map((n) => `TOOL_CALL_EMITTED:${n}`));
     const studioResults = result.turnEvents.filter((e) => e.kind === 'STUDIO_TOOL_RESULT').map((e) => String(e.result));
-    assert.equal(studioResults.length, 9);
+    assert.equal(studioResults.length, 12);
+    // Health once the 14-day filter is applied: no density/variance hints (the M3 one-bar driver chart had one).
+    const dailyHealth = await page.evaluate(async () => (await (window as any).__moneyDesk.studioApi.getAiContext().health.widget('plumbing-daily')).issues.map((i: { code: string; description: string }) => `${i.code}: ${i.description}`));
+    assert.deepEqual(dailyHealth, [], 'the per-day stacked refunds chart is healthy');
     assert.equal(studioResults.some((r) => /error|rejected/i.test(r)), false, `Studio tool results: ${studioResults.join(' || ')}`);
     assert.deepEqual(await page.evaluate(() => (window as any).__moneyDesk.errors), []);
-    if (process.env.PLUMBING_SHOT) await page.screenshot({ path: process.env.PLUMBING_SHOT, fullPage: true });
   } finally {
     await browser.close();
     await studioBridge.close();

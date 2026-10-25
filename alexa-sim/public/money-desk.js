@@ -66,7 +66,11 @@
     }
   }
 
-  const fmtDay = (day) => new Date(day * DAY).toLocaleDateString('en-IE', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+  // "Mon 19 Oct", built by hand so the label does not depend on the browser's locale data (same as dayLabel in
+  // mcp-server/src/paypal/refundAnomaly.ts, whose calendar_week.label the agent quotes).
+  const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const fmtDay = (day) => { const d = new Date(day * DAY); return `${WEEKDAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`; };
   /**
    * The tile's window, anchored on the latest capture/refund day in the data (UTC days):
    * - 'rolling-days': the last windowDays days, ending on the anchor day;
@@ -76,12 +80,30 @@
   function refundWindow(format, anchor) {
     if (format?.window === 'calendar-week') {
       const start = anchor - ((new Date(anchor * DAY).getUTCDay() + 6) % 7);
-      return { start, label: `This calendar week · ${fmtDay(start)} – ${fmtDay(anchor)}` };
+        return { start, end: anchor, dates: `${fmtDay(start)} – ${fmtDay(anchor)}`, label: `This calendar week · ${fmtDay(start)} – ${fmtDay(anchor)}` };
     }
     const days = Math.max(1, Math.min(90, Number(format?.windowDays) || 7));
     const start = anchor - days + 1;
-    return { start, label: `Last ${days} days · ${fmtDay(start)} – ${fmtDay(anchor)}` };
+    return { start, end: anchor, dates: `${fmtDay(start)} – ${fmtDay(anchor)}`, label: `Last ${days} days · ${fmtDay(start)} – ${fmtDay(anchor)}` };
   }
+
+  /**
+   * The exact dates each refund-rate tile on the page covers, and the calendar-week window, computed from the same
+   * ledger rows Studio holds (anchor = latest capture/refund day, as in RefundRateTile). Lets the agent see that a
+   * "this week" tile would repeat an existing tile when both windows are the same days (e.g. on a Sunday).
+   */
+  function refundWindows(page) {
+    const days = [...(md.ledger?.captures || []), ...(md.ledger?.refunds || [])].map((r) => dayIndex(r.date)).filter((d) => d !== null);
+    if (!days.length) return null;
+    const anchor = Math.max(...days);
+    const calendarWeek = refundWindow({ window: 'calendar-week' }, anchor);
+    const tiles = Object.entries(page?.widgets || {}).filter(([, w]) => w.type === 'refund-rate-tile').map(([id, w]) => {
+      const win = refundWindow(w.format, anchor);
+      return { id, title: w.format?.title?.text || '', window: w.format?.window === 'calendar-week' ? 'calendar-week' : 'rolling-days', dates: win.dates, sameDatesAsCalendarWeek: win.start === calendarWeek.start && win.end === calendarWeek.end };
+    });
+    return { lastDataDay: new Date(anchor * DAY).toISOString().slice(0, 10), calendarWeek: { dates: calendarWeek.dates }, tiles };
+  }
+  md.refundWindows = () => { const s = md.studioApi?.getState(); return refundWindows(s?.pages.find((p) => p.id === s.selectedPageId)); };
 
   /** Refund rate (refunded / captured EUR) in a window of the data vs the rate over all earlier days. */
   class RefundRateTile extends LedgerWidget {
@@ -383,28 +405,43 @@
       description: `Configure a ${widgetType} widget already on the page (add it first with place_widget, type '${widgetType}'): set its dataMapping and format. Use op 'patch'.`,
       command: api.defineAiCommand({ type: 'AgConfigureWidgetCommand', params: { widgetType } }),
       result: async (_value, args) => {
-        // Let the patched config settle before asking for health, otherwise the report can describe the pre-patch widget.
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        return { response: { configured: args.widgetId, health: (await api.getAiContext().health.widget(args.widgetId)).issues } };
+        // Let the patched config settle before asking for health, otherwise the report can describe the pre-patch widget
+        // (an unmapped-fields issue right after a patch that mapped them); re-check a few times before reporting it.
+        let issues = [];
+        for (let attempt = 0; attempt < 5; attempt++) {
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          issues = (await api.getAiContext().health.widget(args.widgetId)).issues;
+          if (!issues.some((issue) => issue.code === 'data_mapping_complete')) break;
+        }
+        return { response: { configured: args.widgetId, health: issues } };
       },
     }));
     return configureToolCache;
   }
   // Must match AGENT_WIDGET_TYPES in src/studioBridge.ts (the server rejects any other configure_* tool).
-  const AGENT_WIDGET_TYPES = ['column-chart-grouped', 'bar-chart-grouped', 'value', 'grid', 'refund-rate-tile', 'owed-scoreboard', 'dispute-countdown'];
+  const AGENT_WIDGET_TYPES = ['column-chart-grouped', 'column-chart-stacked', 'bar-chart-grouped', 'value', 'grid', 'refund-rate-tile', 'owed-scoreboard', 'dispute-countdown'];
 
   /** One compact line per widget on the canvas, so the agent can tell what already exists before it adds anything. */
   function canvasSummary(page) {
+    const windows = refundWindows(page);
     const fieldText = (f) => (f.aggregation ? `${f.aggregation}(${f.id})` : f.id);
     const filterText = (f) => `${f.field?.id ?? '?'} ${f.model?.operator ?? ''} ${JSON.stringify(f.model?.value ?? f.model?.values ?? f.model?.range ?? '')}`.trim().slice(0, 120);
     return Object.entries(page?.widgets || {}).map(([id, w]) => {
       const title = w.format?.title?.text ? ` "${w.format.title.text}"` : '';
       const fields = Object.entries(w.dataMapping || {}).map(([key, list]) => `${key}=${(list || []).map(fieldText).join('+')}`).join('; ');
       const filters = (page.filter?.widget?.[id] || []).map(filterText);
-      const win = w.type === 'refund-rate-tile' ? ` window=${w.format?.window === 'calendar-week' ? 'calendar-week (Monday to today)' : `rolling last ${Number(w.format?.windowDays) || 7} days`}` : '';
+      const dates = windows?.tiles.find((t) => t.id === id)?.dates;
+      const win = w.type === 'refund-rate-tile' ? ` window=${w.format?.window === 'calendar-week' ? 'calendar-week (Monday to today)' : `rolling last ${Number(w.format?.windowDays) || 7} days`}${dates ? ` = ${dates}` : ''}` : '';
       const l = page.widgetLayout?.[id];
       return `- ${id} [${w.type}]${title}: ${fields || 'no fields yet'}${filters.length ? `; widget filters: ${filters.join(', ')}` : ''}${win}${l ? `; at row ${l.yTrack}, ${l.xSpan} cols wide` : ''}`;
-    }).join('\n');
+    }).join('\n') + refundWindowNote(windows);
+  }
+
+  function refundWindowNote(windows) {
+    if (!windows) return '';
+    const same = windows.tiles.filter((t) => t.sameDatesAsCalendarWeek);
+    return `\n- Refund windows: the last data day is ${windows.lastDataDay}; the calendar week (Monday to the last data day) is ${windows.calendarWeek.dates}.` +
+      (same.length ? ` Refund-rate tile ${same.map((t) => `${t.id} "${t.title}"`).join(', ')} already covers exactly these dates, so a "this week" refund-rate tile would show identical figures.` : '');
   }
 
   function agentInstructions(api) {
@@ -420,6 +457,7 @@
       canvasSummary(page) || '- none',
       'To add a widget: call place_widget (Studio picks the position and gives it the full free width), then the configure_<type> tool for that type with op \'patch\' and a value containing dataMapping and a format title.',
       'To limit a widget to a period or to some rows, call add_widget_filter on it after configuring it.',
+      'For a time axis, use a date bucket field id: <table>.<date field>::day (or ::week, ::month), e.g. refunds.date::day as categoryKey for one column per day.',
       `Today is ${new Date().toISOString().slice(0, 10)} (${new Date().toLocaleDateString('en-IE', { weekday: 'long', timeZone: 'UTC' })}).`,
     ].join('\n');
   }
@@ -441,6 +479,7 @@
     const response = await fetch('/api/money-desk-data');
     const payload = await response.json();
     if (!response.ok) { showError(`Money Desk data unavailable: ${payload.error || response.status}`); $('mdDataSource').textContent = 'unavailable'; return; }
+    md.ledger = payload.ledger;
     md.meta = { source: payload.source, ledgerMode: payload.ledger.mode, anchorDate: payload.ledger.anchor_date, counts: payload.ledger.counts, licenseKeyPresent: Boolean(payload.licenseKey), agent: payload.agent };
     $('mdDataSource').textContent = `MCP ${payload.source.tool} · ${payload.ledger.mode} mode · ${payload.ledger.counts.captures} captures, anchor ${payload.ledger.anchor_date}`;
     $('mdAgent').textContent = `Copilot SDK bridge · ${payload.agent.llm || 'Copilot'} · model ${payload.agent.model}`;
@@ -473,7 +512,7 @@
           schema: (s) => s.undefined(),
           instructions: () => agentInstructions(studioApi),
           tools: () => studioTools(studioApi, studio),
-          maxTurns: 12,
+          maxTurns: 16,
           run: copilotRound,
         })],
         primary: 'tillwise-money-agent',
