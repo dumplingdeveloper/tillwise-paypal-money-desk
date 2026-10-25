@@ -19,7 +19,7 @@ const CUSTOMERS: Customer[] = [
 ];
 const REFUND_REASONS = ['Damaged in transit', 'Wrong size', 'Changed mind', 'Late delivery', 'Duplicate order'];
 const PRODUCTS: Record<Customer['segment'], string[]> = {
-  Retail: ['Stoneware Mug Set', 'Soy Candle Trio', 'Linen Notebook Bundle'],
+  Retail: ['Stoneware Mug Set', 'Soy Candle Trio', 'Notebook Bundle'],
   Wholesale: ['Stoneware Mug Set', 'Gift Hamper', 'Desk Organiser'],
   Subscription: ['Monthly Candle Box', 'Desk Refresh Box'],
 };
