@@ -37,6 +37,39 @@ export async function canvasHasText(page: Page, text: string) {
   return page.evaluate((needle) => [...document.querySelectorAll('#myStudio .ag-studio-layout-canvas .ag-studio-layout-widget')].some((el) => (el.textContent || '').includes(needle)), text);
 }
 
+export type FrameGeometry = { title: string; x: number; width: number; height: number; titleTruncated: boolean; gridOverflowX: boolean; truncatedCells: string[] };
+
+/**
+ * Measures every widget frame in AG Studio's canvas: its box, whether its title is cut off (scrollWidth > clientWidth),
+ * and for grids whether the columns overflow horizontally or any rendered cell is ellipsised.
+ * Frames carry no widget id in the DOM, so callers match them to getState() widgets by title.
+ */
+export async function canvasGeometry(page: Page): Promise<{ canvasWidth: number; frames: FrameGeometry[] }> {
+  return page.evaluate(() => {
+    const canvas = document.querySelector('#myStudio .ag-studio-layout-canvas')!;
+    const cut = (el: Element | null) => Boolean(el && el.scrollWidth > el.clientWidth + 1);
+    // AG Grid ellipsises a cell when its text is even a fraction of a pixel wider than the content box, which
+    // scrollWidth (an integer) misses, so compare the text's measured width with the padded content width.
+    const ellipsised = (el: Element) => {
+      const style = getComputedStyle(el);
+      if (style.textOverflow !== 'ellipsis') return cut(el);
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const html = el as HTMLElement;
+      const content = el.getBoundingClientRect().width - (html.offsetWidth - html.clientWidth) - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      return range.getBoundingClientRect().width > content + 0.01;
+    };
+    const frames = [...canvas.querySelectorAll('.ag-studio-layout-widget')].map((frame) => {
+      const box = frame.getBoundingClientRect();
+      const title = frame.querySelector('.ag-studio-layout-widget-title');
+      const gridOverflowX = [...frame.querySelectorAll('.ag-grid-viewport, .ag-body-horizontal-scroll-viewport')].some(cut);
+      const truncatedCells = [...frame.querySelectorAll('.ag-cell, .ag-header-cell-text')].filter(ellipsised).map((el) => (el.textContent || '').trim()).slice(0, 10);
+      return { title: (title?.textContent || '').trim(), x: Math.round(box.x), width: Math.round(box.width), height: Math.round(box.height), titleTruncated: Boolean(title && ellipsised(title)), gridOverflowX, truncatedCells };
+    });
+    return { canvasWidth: Math.round(canvas.getBoundingClientRect().width), frames };
+  });
+}
+
 export async function noOverlaysOverStudio(page: Page) {
   return page.evaluate(() => {
     const host = document.getElementById('myStudio')!;

@@ -18,11 +18,11 @@ export const MONEY_DESK_SOURCES: StudioSourceDef[] = [
   { id: 'captures', name: 'PayPal captures', description: 'One row per completed PayPal capture (money received). Revenue = sum of gross.', fields: [
     text('capture_id', 'PayPal capture id', 'Capture ID'), int('order_id', 'WooCommerce order number', 'Order'), date('date', 'Capture date', 'Date'),
     text('customer', 'Payer / customer name', 'Customer'), text('segment', 'Customer segment: Retail, Wholesale or Subscription', 'Segment'),
-    euro('gross', 'Gross amount captured in EUR (revenue)', 'Gross'), euro('fee', 'PayPal fee in EUR', 'Fee'), euro('net', 'Net amount after fee in EUR', 'Net'), text('status', 'Capture status', 'Status'),
+    text('product', 'Product sold in this order', 'Product'), euro('gross', 'Gross amount captured in EUR (revenue)', 'Gross'), euro('fee', 'PayPal fee in EUR', 'Fee'), euro('net', 'Net amount after fee in EUR', 'Net'), text('status', 'Capture status', 'Status'),
   ] },
   { id: 'refunds', name: 'PayPal refunds', description: 'One row per PayPal refund issued against a capture. Refund rate = refunded amount / captured gross for the same period.', fields: [
     text('refund_id', 'PayPal refund id', 'Refund ID'), text('capture_id', 'Refunded capture id', 'Capture ID'), int('order_id', 'WooCommerce order number', 'Order'), date('date', 'Refund date', 'Date'),
-    text('customer', 'Customer name', 'Customer'), text('segment', 'Customer segment', 'Segment'), euro('amount', 'Refunded amount in EUR', 'Refund amount'), text('reason', 'Refund reason', 'Reason'), text('status', 'Refund status', 'Status'),
+    text('customer', 'Customer name', 'Customer'), text('segment', 'Customer segment', 'Segment'), text('product', 'Product that was refunded', 'Product'), euro('amount', 'Refunded amount in EUR', 'Refund amount'), text('reason', 'Refund reason', 'Reason'), text('status', 'Refund status', 'Status'),
   ] },
   { id: 'invoices', name: 'PayPal invoices', description: 'PayPal invoices. Money still owed = amount_due on invoices with status SENT, UNPAID or PARTIALLY_PAID; overdue when past due_date. DRAFT and PAID owe nothing.', fields: [
     text('invoice_id', 'PayPal invoice id', 'Invoice ID'), text('invoice_number', 'Invoice number', 'Invoice #'), text('customer', 'Billed customer', 'Customer'), text('segment', 'Customer segment', 'Segment'),

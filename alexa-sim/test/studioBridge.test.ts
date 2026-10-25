@@ -40,7 +40,7 @@ function fakePayPal() {
 }
 
 const STUDIO_TOOLS = [
-  { name: 'add_widget', description: 'Add a widget', parameters: { type: 'object', properties: { widgetId: { type: 'string' }, type: { type: 'string' } } } },
+  { name: 'place_widget', description: 'Add a widget', parameters: { type: 'object', properties: { widgetId: { type: 'string' }, type: { type: 'string' } } } },
   { name: 'configure_grid', description: 'Configure grid', parameters: { type: 'object', properties: { widgetId: { type: 'string', enum: ['a'] }, op: { type: 'string' }, value: { type: 'object' } } } },
   { name: 'remove_widget', description: 'Remove a widget', parameters: { type: 'object', properties: {} } },
   { name: 'paypal_refund_apply', description: 'Smuggled money tool', parameters: { type: 'object', properties: {} } },
@@ -61,7 +61,7 @@ test('a Studio tool call ends the round and parks; the next round resolves it an
   const { factory, state } = fakeFactory(async ({ invoke, emit }) => {
     emit({ type: 'usage', model: 'fake-model' });
     emit({ type: 'text_delta', messageId: 'a1', delta: 'Adding a table.' });
-    resolvedWith = await invoke('add_widget', { widgetId: 'owed', type: 'grid' }, 'call-1');
+    resolvedWith = await invoke('place_widget', { widgetId: 'owed', type: 'grid' }, 'call-1');
     emit({ type: 'usage', model: 'fake-model' });
     emit({ type: 'text_delta', messageId: 'a2', delta: 'Built it.' });
     emit({ type: 'message', messageId: 'a2', content: 'Built it.' });
@@ -74,7 +74,7 @@ test('a Studio tool call ends the round and parks; the next round resolves it an
   assert.deepEqual(first.map((e) => e.type), ['TEXT_MESSAGE_START', 'TEXT_MESSAGE_CONTENT', 'TEXT_MESSAGE_END', 'TOOL_CALL_START', 'TOOL_CALL_ARGS', 'TOOL_CALL_END']);
   const start = first[3] as Extract<StudioEvent, { type: 'TOOL_CALL_START' }>;
   assert.equal(start.toolCallId, 'call-1');
-  assert.equal(start.toolCallName, 'add_widget');
+  assert.equal(start.toolCallName, 'place_widget');
   assert.deepEqual(JSON.parse((first[4] as Extract<StudioEvent, { type: 'TOOL_CALL_ARGS' }>).delta), { widgetId: 'owed', type: 'grid' });
   assert.equal(resolvedWith, undefined, 'the SDK tool handler is still parked');
   assert.equal(bridge.summary().threads[0].parked, 1);
@@ -98,11 +98,14 @@ test('only allowlisted Studio tools and read-only PayPal tools are declared to t
   const { factory, state } = fakeFactory(async ({ emit }) => { emit({ type: 'idle' }); });
   const bridge = new StudioBridge({ createSession: factory, paypal: fakePayPal().client });
   await collect(bridge.runRound(round('t2', 'r1', [{ id: 'u1', role: 'user', content: 'hi' }])));
-  assert.deepEqual(state.tools.map((t) => t.name).sort(), ['add_widget', 'configure_grid', 'paypal_money_briefing']);
+  assert.deepEqual(state.tools.map((t) => t.name).sort(), ['configure_grid', 'paypal_money_briefing', 'place_widget']);
   const configure = state.tools.find((t) => t.name === 'configure_grid')!;
   assert.equal((configure.parameters as { properties: { widgetId: { enum?: unknown } } }).properties.widgetId.enum, undefined, 'widgetId enum is relaxed');
   assert.deepEqual(bridge.threadLog('t2').events[0].droppedStudioTools, ['remove_widget', 'paypal_refund_apply']);
   assert.equal(isAllowedStudioTool('paypal_refund_apply'), false);
+  // Raw add/position are replaced by place_widget, so the model never picks grid tracks itself.
+  assert.equal(isAllowedStudioTool('add_widget'), false);
+  assert.equal(isAllowedStudioTool('position_widget'), false);
   assert.equal(isAllowedStudioTool('configure_value'), true);
   assert.equal(isAllowedStudioTool('configure_pie_chart'), false);
 });
@@ -144,7 +147,7 @@ test('cancellation aborts the SDK turn, rejects parked calls and ends the stream
   let parkedOutcome = '';
   const { factory, state } = fakeFactory(async ({ invoke, emit }) => {
     emit({ type: 'text_delta', messageId: 'a1', delta: 'Working' });
-    await invoke('add_widget', { widgetId: 'x', type: 'grid' }, 'call-c').then(() => { parkedOutcome = 'resolved'; }, (error) => { parkedOutcome = `rejected: ${error.message}`; });
+    await invoke('place_widget', { widgetId: 'x', type: 'grid' }, 'call-c').then(() => { parkedOutcome = 'resolved'; }, (error) => { parkedOutcome = `rejected: ${error.message}`; });
   });
   const bridge = new StudioBridge({ createSession: factory, paypal: fakePayPal().client, quietMs: 10_000 });
   const controller = new AbortController();
@@ -182,7 +185,7 @@ test('failures become RUN_ERROR events instead of throwing', async () => {
 test('idle sessions expire: the SDK session is disconnected and parked calls are rejected', async () => {
   let now = 1_000_000;
   let outcome = '';
-  const { factory, state } = fakeFactory(async ({ invoke }) => { await invoke('add_widget', { widgetId: 'x', type: 'grid' }, 'call-e').catch((error) => { outcome = error.message; }); });
+  const { factory, state } = fakeFactory(async ({ invoke }) => { await invoke('place_widget', { widgetId: 'x', type: 'grid' }, 'call-e').catch((error) => { outcome = error.message; }); });
   const bridge = new StudioBridge({ createSession: factory, paypal: fakePayPal().client, idleMs: 60_000, quietMs: 10, now: () => now });
   await collect(bridge.runRound(round('t10', 'r1', [{ id: 'u1', role: 'user', content: 'x' }])));
   assert.deepEqual(await bridge.sweep(), []);

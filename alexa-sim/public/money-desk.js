@@ -5,7 +5,7 @@
 (() => {
   'use strict';
   const AG = window.agStudio;
-  const md = (window.__moneyDesk = { ready: false, errors: [], warnings: [], bridgeRuns: [], studioApi: null, meta: null });
+  const md = (window.__moneyDesk = { ready: false, errors: [], warnings: [], bridgeRuns: [], placements: [], studioApi: null, meta: null });
   const $ = (id) => document.getElementById(id);
 
   function showError(message) {
@@ -20,7 +20,13 @@
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const toDate = (v) => (v instanceof Date ? v : v == null || v === '' ? null : new Date(v));
   const DAY = 86400000;
-  const utcDay = (d) => Math.floor(d.getTime() / DAY);
+  // Calendar day number of a ledger date. Studio hands 'dateFormat' values back as Dates at LOCAL midnight, so the
+  // local calendar date is used (flooring the UTC time would shift every day by one during Irish summer time).
+  const dayIndex = (v) => {
+    if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) return Date.UTC(+v.slice(0, 4), +v.slice(5, 7) - 1, +v.slice(8, 10)) / DAY;
+    const d = toDate(v);
+    return d && !Number.isNaN(d.getTime()) ? Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY) : null;
+  };
 
   // ---------- custom widgets (AG Studio createWidgets, custom-widgets.md) ----------
   // Each comp reads ONLY what Studio's widgetApi.getData returns for the fields in its dataMapping.
@@ -60,20 +66,37 @@
     }
   }
 
-  /** Refund rate over the last N days of the data (anchored on the latest capture/refund date) vs the rate before it. */
+  const fmtDay = (day) => new Date(day * DAY).toLocaleDateString('en-IE', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+  /**
+   * The tile's window, anchored on the latest capture/refund day in the data (UTC days):
+   * - 'rolling-days': the last windowDays days, ending on the anchor day;
+   * - 'calendar-week': Monday of the anchor's ISO week up to the anchor day.
+   * Returns the first day in the window and a label that states the exact dates.
+   */
+  function refundWindow(format, anchor) {
+    if (format?.window === 'calendar-week') {
+      const start = anchor - ((new Date(anchor * DAY).getUTCDay() + 6) % 7);
+      return { start, label: `This calendar week · ${fmtDay(start)} – ${fmtDay(anchor)}` };
+    }
+    const days = Math.max(1, Math.min(90, Number(format?.windowDays) || 7));
+    const start = anchor - days + 1;
+    return { start, label: `Last ${days} days · ${fmtDay(start)} – ${fmtDay(anchor)}` };
+  }
+
+  /** Refund rate (refunded / captured EUR) in a window of the data vs the rate over all earlier days. */
   class RefundRateTile extends LedgerWidget {
     static cssClass = 'tw-refund-rate';
     static required = ['refundAmount', 'refundDate', 'capturedAmount', 'captureDate'];
     async compute() {
-      const windowDays = Math.max(1, Math.min(90, Number(this.params.format?.windowDays) || 7));
       const [refundAmount, refundDate, capturedAmount, captureDate] = this.constructor.required.map((k) => this.field(k));
       const [refunds, captures] = await Promise.all([this.rows([refundDate, refundAmount], 'refunds'), this.rows([captureDate, capturedAmount], 'captures')]);
-      const dated = (rows, dateField, amountField) => rows.map((r) => ({ day: toDate(r[dateField.key]), amount: Number(r[amountField.key]) || 0 })).filter((r) => r.day && !Number.isNaN(r.day.getTime()));
+      const dated = (rows, dateField, amountField) => rows.map((r) => ({ day: dayIndex(r[dateField.key]), amount: Number(r[amountField.key]) || 0 })).filter((r) => r.day !== null);
       const ref = dated(refunds, refundDate, refundAmount);
       const cap = dated(captures, captureDate, capturedAmount);
       if (!cap.length) return null;
-      const anchor = Math.max(...cap.map((r) => utcDay(r.day)), ...ref.map((r) => utcDay(r.day)));
-      const inWindow = (r) => anchor - utcDay(r.day) < windowDays;
+      const anchor = Math.max(...cap.map((r) => r.day), ...ref.map((r) => r.day));
+      const win = refundWindow(this.params.format, anchor);
+      const inWindow = (r) => r.day >= win.start;
       const sum = (rows) => rows.reduce((t, r) => t + r.amount, 0);
       const recentRef = sum(ref.filter(inWindow));
       const recentCap = sum(cap.filter(inWindow));
@@ -82,10 +105,11 @@
       const rate = recentCap ? recentRef / recentCap : 0;
       const baseline = priorCap ? priorRef / priorCap : 0;
       const spike = baseline > 0 ? rate >= baseline * 2 : rate > 0.1;
-      return `<div class="tw-muted">Last ${windowDays} days of PayPal data</div>
+      return `<div class="tw-rate"><div class="tw-rate-main"><div class="tw-muted">${esc(win.label)}</div>
         <div class="tw-big">${pct(rate)}</div>
-        <div class="tw-muted">${eur(recentRef)} refunded of ${eur(recentCap)} captured</div>
-        <div><span class="tw-badge ${spike ? 'alert' : 'ok'}">${spike ? 'Refund spike' : 'Normal'}</span> <span class="tw-muted">baseline ${pct(baseline)} before that</span></div>`;
+        <div class="tw-muted">${eur(recentRef)} refunded of ${eur(recentCap)} captured</div></div>
+        <div class="tw-rate-side"><div><span class="tw-badge ${spike ? 'alert' : 'ok'}">${spike ? 'Refund spike' : 'Normal'}</span> <span class="tw-muted">baseline ${pct(baseline)} before this window</span></div>
+        ${spike ? '<div class="tw-hint">Ask the AI panel: “Why are refunds spiking?”</div>' : ''}</div></div>`;
     }
   }
 
@@ -147,8 +171,17 @@
         capturedAmount: numeric('Captured revenue measure, e.g. captures.gross with aggregation sum'),
         captureDate: temporal('Capture date field, e.g. captures.date'),
       },
-      formatShape: formatShape((s) => ({ windowDays: s.number({ description: 'Length of the recent window in days (7 = this week). Default 7.' }).optional() })),
-      ai: { description: 'KPI tile: refund rate (refunded / captured) over the most recent N days of PayPal data, flagged when it spikes versus the earlier baseline.', usage: 'Use for refund rate or refund spike questions, e.g. "this week\'s refund rate".' },
+      formatShape: formatShape((s) => ({
+        window: s.enum(['rolling-days', 'calendar-week']).optional(),
+        windowDays: s.number({ description: 'Days in a rolling-days window. Default 7.' }).optional(),
+      })),
+      // params.format only carries values that have a form item (custom-widgets.md: "Widget format as constructed
+      // from the widget form"), so the window settings get their own inputs (custom-widgets-form.md: Select, Number Input).
+      formItems: [
+        { type: 'select', id: 'format.window', label: 'Window', defaultValue: 'rolling-days', items: [{ label: { raw: 'Rolling days' }, value: 'rolling-days' }, { label: { raw: 'Calendar week (Monday to today)' }, value: 'calendar-week' }] },
+        { type: 'number', id: 'format.windowDays', label: 'Days in rolling window', defaultValue: 7, min: 1, max: 90, step: 1 },
+      ],
+      ai: { description: 'KPI tile: refund rate (refunded / captured EUR) in a window of the PayPal data, flagged when it spikes versus the rate before the window. format.window is "calendar-week" (Monday to today) or "rolling-days" (the last format.windowDays days, default 7); the tile prints the exact dates it covers.', usage: 'Use for refund rate questions. "This week" means format.window "calendar-week"; "last N days" means "rolling-days" with windowDays N. Title it to match the window.' },
       defaultSize: { width: 320, height: 200 }, minSize: { width: 220, height: 150 },
     },
     {
@@ -173,9 +206,13 @@
       ai: { description: 'Live countdown to each PayPal dispute seller-response deadline.', usage: 'Use for dispute deadline questions.' },
       defaultSize: { width: 360, height: 260 }, minSize: { width: 240, height: 180 },
     },
-  ].map((def) => ({
+  ].map(({ formItems, ...def }) => ({
     ...def,
-    form: (p) => p.createDefaults({ dataMappingItems: Object.keys(def.dataMapping).map((key) => ({ key, label: key })) }),
+    form: (p) => {
+      const form = p.createDefaults({ dataMappingItems: Object.keys(def.dataMapping).map((key) => ({ key, label: key })) });
+      if (formItems) form.items[0].items.push({ type: 'section', key: 'tillwiseWindow', label: 'Refund window', items: formItems });
+      return form;
+    },
   }));
 
   // ---------- initial report state (built-in + custom widgets with real dataMapping) ----------
@@ -188,11 +225,11 @@
       widgets: {
         'kpi-gross': { type: 'value', dataMapping: { value: [sum('captures.gross')] }, format: title('Captured · 45d') },
         'kpi-refunded': { type: 'value', dataMapping: { value: [sum('refunds.amount')] }, format: title('Refunded · 45d') },
-        'refund-rate': { type: 'refund-rate-tile', dataMapping: { refundAmount: [sum('refunds.amount')], refundDate: [{ id: 'refunds.date' }], capturedAmount: [sum('captures.gross')], captureDate: [{ id: 'captures.date' }] }, format: { ...title('Refund rate · last 7 days'), windowDays: 7 } },
+        'refund-rate': { type: 'refund-rate-tile', dataMapping: { refundAmount: [sum('refunds.amount')], refundDate: [{ id: 'refunds.date' }], capturedAmount: [sum('captures.gross')], captureDate: [{ id: 'captures.date' }] }, format: { ...title('Refund rate · last 7 days'), window: 'rolling-days', windowDays: 7 } },
         'daily-revenue': { type: 'column-chart-grouped', dataMapping: { categoryKey: [{ id: 'captures.date' }], valueKey: [sum('captures.gross')] }, format: title('Daily PayPal revenue') },
         'owed-board': { type: 'owed-scoreboard', dataMapping: { customer: [{ id: 'invoices.customer' }], amountDue: [sum('invoices.amount_due')], daysOverdue: [{ id: 'invoices.days_overdue', aggregation: 'max' }] }, format: title('Who still owes us') },
-        'dispute-clock': { type: 'dispute-countdown', dataMapping: { dispute: [{ id: 'disputes.dispute_id' }], dueDate: [{ id: 'disputes.seller_response_due_date' }], amount: [sum('disputes.amount')] }, format: title('Dispute response deadlines') },
-        'refunds-grid': { type: 'grid', dataMapping: { cols: [{ id: 'refunds.date' }, { id: 'refunds.customer' }, { id: 'refunds.segment' }, { id: 'refunds.amount' }, { id: 'refunds.reason' }] }, format: title('PayPal refunds') },
+        'dispute-clock': { type: 'dispute-countdown', dataMapping: { dispute: [{ id: 'disputes.dispute_id' }], dueDate: [{ id: 'disputes.seller_response_due_date' }], amount: [sum('disputes.amount')] }, format: title('Dispute deadlines') },
+        'refunds-grid': { type: 'grid', dataMapping: { cols: [{ id: 'refunds.date' }, { id: 'refunds.customer' }, { id: 'refunds.product' }, { id: 'refunds.amount' }, { id: 'refunds.reason' }] }, format: title('PayPal refunds') },
       },
       widgetLayout: {
         'kpi-gross': { xTrack: 0, yTrack: 0, xSpan: 6, ySpan: 12 },
@@ -200,12 +237,13 @@
         'refund-rate': { xTrack: 12, yTrack: 0, xSpan: 12, ySpan: 12 },
         'daily-revenue': { xTrack: 0, yTrack: 12, xSpan: 14, ySpan: 20 },
         'owed-board': { xTrack: 14, yTrack: 12, xSpan: 10, ySpan: 20 },
-        'dispute-clock': { xTrack: 0, yTrack: 32, xSpan: 10, ySpan: 14 },
-        'refunds-grid': { xTrack: 10, yTrack: 32, xSpan: 14, ySpan: 14 },
+        'dispute-clock': { xTrack: 0, yTrack: 32, xSpan: 7, ySpan: 18 },
+        'refunds-grid': { xTrack: 7, yTrack: 32, xSpan: 17, ySpan: 18 },
       },
     }],
     selectedPageId: 'money-desk',
-    panels: { filters: { collapsed: true }, data: { collapsed: true }, ai: { collapsed: false } },
+    // The Compose ('edit') panel starts collapsed so the canvas gets the width (modes-layout.md: panels state).
+    panels: { filters: { collapsed: true }, data: { collapsed: true }, edit: { collapsed: true }, ai: { collapsed: false } },
   };
 
   // ---------- theme (theming.md / studio-theme.md: studioTheme.withParams) ----------
@@ -281,11 +319,42 @@
       studio.viewPage(),
       studio.viewWidget(),
       studio.executeQuery(),
-      studio.addWidget(),
-      studio.positionWidget(),
+      placeWidgetTool(api),
       ...configureTools(api),
       widgetFilterTool(api),
     ];
+  }
+
+  // place_widget: ai-custom-tools.md "Wrap a Built-in Command" shows a place_widget tool over AgAddWidgetCommand.
+  // Ours keeps Studio's validated add (and AgPositionWidgetCommand for re-splitting a row of tiles) but takes the
+  // grid position from TillwiseLayout.planPlacement, so new widgets always get the full free width.
+  let placeToolCache = null;
+  function placeWidgetTool(api) {
+    placeToolCache ||= api.defineAiTool({
+      name: 'place_widget',
+      description: 'Add one new, empty widget to the Money Desk canvas. Studio places it below the existing widgets at the full free width (a KPI tile added right after other tiles shares their row). Then call the configure_<type> tool for it. size: compact, standard (default) or tall.',
+      params: (s) => s.object({
+        widgetId: s.string({ description: 'A new, unique widget id in kebab-case, e.g. revenue-by-segment.' }),
+        type: s.enum(AGENT_WIDGET_TYPES),
+        size: s.enum(['compact', 'standard', 'tall']).optional(),
+      }),
+      execute: async (args, ctx) => {
+        const state = api.getState();
+        const page = state.pages.find((p) => p.id === state.selectedPageId);
+        if (page?.widgets?.[args.widgetId]) return ctx.error(`A widget with id ${args.widgetId} already exists. Pick a new id, or configure the existing widget instead.`);
+        const plan = window.TillwiseLayout.planPlacement(page?.widgets || {}, page?.widgetLayout || {}, args.type, args.size, page?.layout?.columns);
+        // Shrink the tiles that will share the row first: Studio moves a widget that would overlap another.
+        for (const move of plan.reposition) {
+          const moved = await api.defineAiCommand({ type: 'AgPositionWidgetCommand' }).apply({ op: 'patch', widgetId: move.widgetId, value: { xTrack: move.xTrack, xSpan: move.xSpan } }, { signal: ctx.signal });
+          if (!moved.success) return ctx.error(`Studio could not re-split the row for ${move.widgetId}: ${JSON.stringify(moved.error?.issues || moved.error?.message).slice(0, 300)}`);
+        }
+        const added = await api.defineAiCommand({ type: 'AgAddWidgetCommand' }).apply({ widgetId: args.widgetId, type: args.type, ...plan.add }, { signal: ctx.signal });
+        if (!added.success) return ctx.error(`Studio rejected the widget: ${JSON.stringify(added.error?.issues || added.error?.message || added.error).slice(0, 400)}`);
+        md.placements.push({ widgetId: args.widgetId, type: args.type, size: args.size || 'standard', layout: plan.add, reposition: plan.reposition });
+        return ctx.success(`Placed ${args.type} "${args.widgetId}" at xTrack ${plan.add.xTrack}, yTrack ${plan.add.yTrack}, ${plan.add.xSpan} of ${page?.layout?.columns || 24} columns wide. Now call configure_${args.type.replace(/-/g, '_')} for it.`, { widgetId: args.widgetId, layout: plan.add, resized: plan.reposition });
+      },
+    });
+    return placeToolCache;
   }
 
   // Studio's AgAddWidgetFilterCommand (ai-custom-tools.md, built-in command refs) so the agent can scope a widget
@@ -311,7 +380,7 @@
     if (configureToolCache) return configureToolCache;
     configureToolCache = AGENT_WIDGET_TYPES.map((widgetType) => api.defineAiTool({
       name: `configure_${widgetType.replace(/-/g, '_')}`,
-      description: `Configure a ${widgetType} widget already on the page (add it first with add_widget, type '${widgetType}'): set its dataMapping and format. Use op 'patch'.`,
+      description: `Configure a ${widgetType} widget already on the page (add it first with place_widget, type '${widgetType}'): set its dataMapping and format. Use op 'patch'.`,
       command: api.defineAiCommand({ type: 'AgConfigureWidgetCommand', params: { widgetType } }),
       result: async (_value, args) => {
         // Let the patched config settle before asking for health, otherwise the report can describe the pre-patch widget.
@@ -324,24 +393,46 @@
   // Must match AGENT_WIDGET_TYPES in src/studioBridge.ts (the server rejects any other configure_* tool).
   const AGENT_WIDGET_TYPES = ['column-chart-grouped', 'bar-chart-grouped', 'value', 'grid', 'refund-rate-tile', 'owed-scoreboard', 'dispute-countdown'];
 
+  /** One compact line per widget on the canvas, so the agent can tell what already exists before it adds anything. */
+  function canvasSummary(page) {
+    const fieldText = (f) => (f.aggregation ? `${f.aggregation}(${f.id})` : f.id);
+    const filterText = (f) => `${f.field?.id ?? '?'} ${f.model?.operator ?? ''} ${JSON.stringify(f.model?.value ?? f.model?.values ?? f.model?.range ?? '')}`.trim().slice(0, 120);
+    return Object.entries(page?.widgets || {}).map(([id, w]) => {
+      const title = w.format?.title?.text ? ` "${w.format.title.text}"` : '';
+      const fields = Object.entries(w.dataMapping || {}).map(([key, list]) => `${key}=${(list || []).map(fieldText).join('+')}`).join('; ');
+      const filters = (page.filter?.widget?.[id] || []).map(filterText);
+      const win = w.type === 'refund-rate-tile' ? ` window=${w.format?.window === 'calendar-week' ? 'calendar-week (Monday to today)' : `rolling last ${Number(w.format?.windowDays) || 7} days`}` : '';
+      const l = page.widgetLayout?.[id];
+      return `- ${id} [${w.type}]${title}: ${fields || 'no fields yet'}${filters.length ? `; widget filters: ${filters.join(', ')}` : ''}${win}${l ? `; at row ${l.yTrack}, ${l.xSpan} cols wide` : ''}`;
+    }).join('\n');
+  }
+
   function agentInstructions(api) {
     const context = api.getAiContext();
     const tables = context.schema().tables.map((t) => `- ${t.id}: ${t.fields.map((f) => `${t.id}.${f.id ?? f.name}`).join(', ')}`).join('\n');
     const state = api.getState();
     const page = state.pages.find((p) => p.id === state.selectedPageId);
-    const widgets = Object.entries(page?.widgets || {}).map(([id, w]) => `${id} (${w.type})`).join(', ');
-    const layout = Object.values(page?.widgetLayout || {});
-    const nextRow = layout.reduce((max, l) => Math.max(max, (l.yTrack || 0) + (l.ySpan || 0)), 0);
     return [
       'You are the Tillwise Money Desk analyst inside AG Studio. Build widgets on the current page with the Studio tools.',
       'Data tables and field ids (use these exact ids in dataMapping):',
       tables,
-      `Widgets on the page now: ${widgets || 'none'}. The page is 24 tracks wide; the first free row is yTrack ${nextRow}.`,
-      `To add a widget: call add_widget (it seeds type and position only), then the configure_<type> tool for that type with op 'patch' and a value containing dataMapping and a format title.`,
+      'Widgets on the canvas now (check these before adding; do not duplicate one that already shows the same measure for the same period):',
+      canvasSummary(page) || '- none',
+      'To add a widget: call place_widget (Studio picks the position and gives it the full free width), then the configure_<type> tool for that type with op \'patch\' and a value containing dataMapping and a format title.',
       'To limit a widget to a period or to some rows, call add_widget_filter on it after configuring it.',
-      'One yTrack is about 16px tall: charts and tables need ySpan 16 or more to be readable, KPI tiles about 12.',
-      `Today is ${new Date().toISOString().slice(0, 10)}.`,
+      `Today is ${new Date().toISOString().slice(0, 10)} (${new Date().toLocaleDateString('en-IE', { weekday: 'long', timeZone: 'UTC' })}).`,
     ].join('\n');
+  }
+
+  // The host grows with the canvas so the whole page (and a full-page screenshot) shows every widget instead of a
+  // scrolled canvas. One track is studioCanvasRowHeight = 16px by default (ag-studio theme.d.ts:31, modes-layout.md:632).
+  const ROW_PX = 16;
+  function fitStudioHeight(state) {
+    const page = state?.pages?.find((p) => p.id === state.selectedPageId);
+    const bottom = Object.values(page?.widgetLayout || {}).reduce((max, l) => Math.max(max, (l.yTrack || 0) + (l.ySpan || 0)), 0);
+    const needed = Math.max(1050, bottom * ROW_PX + 96);
+    const host = $('myStudio');
+    if (Math.abs(host.clientHeight - needed) > 8) host.style.height = `${needed}px`;
   }
 
   // ---------- boot ----------
@@ -394,7 +485,8 @@
         console.error('[money-desk] AG Studio error', event.errorType, event.fatal ? '(fatal)' : '', (event.errorDetails || []).join(' | '));
         showError(`AG Studio ${event.errorType} error: ${(event.errorDetails || []).join(' | ')}`);
       },
-      onStudioReady: () => { md.ready = true; },
+      onStateUpdated: (event) => fitStudioHeight(event.state || md.studioApi?.getState()),
+      onStudioReady: () => { md.ready = true; fitStudioHeight(md.studioApi?.getState() || initialState); },
     });
     md.studioApi = api;
   }

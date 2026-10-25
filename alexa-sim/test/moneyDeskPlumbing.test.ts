@@ -3,23 +3,33 @@ import assert from 'node:assert/strict';
 import { chromium } from 'playwright-core';
 import { startSimulator } from '../src/server.js';
 import type { SessionFactory } from '../src/studioBridge.js';
-import { askStudioPanel, canvasHasText, canvasWidgetCount, noOverlaysOverStudio, openMoneyDesk } from './moneyDeskHarness.js';
+import { askStudioPanel, canvasGeometry, canvasHasText, canvasWidgetCount, noOverlaysOverStudio, openMoneyDesk } from './moneyDeskHarness.js';
 
 /**
  * OFFLINE PLUMBING TEST — NOT EVIDENCE. A scripted fake replaces the Copilot SDK session so we can check the
- * browser half (AG Studio clientToolRunner → NDJSON → Studio executes add_widget / configure_grid → results
+ * browser half (AG Studio clientToolRunner → NDJSON → Studio executes place_widget / configure_* → results
  * fed back) without spending model turns. The live acceptance test is moneyDeskLive.test.ts (LIVE_LLM=1).
  * Needs Chrome and the MCP server on MCP_URL (default 127.0.0.1:3338). Run with MONEY_DESK_E2E=1.
  */
+let promptsSeen: string[] = [];
+const title = (text: string) => ({ title: { enabled: true, text } });
 const scriptedFakeModel: SessionFactory = async ({ invoke, onEvent }) => ({
-  send: async () => {
+  send: async (prompt: string) => {
+    promptsSeen.push(prompt);
     void (async () => {
       try {
-      onEvent({ type: 'text_delta', messageId: 'fake-1', delta: '[offline scripted fake] adding a grid.' });
-      const added = await invoke('add_widget', { widgetId: 'plumbing-grid', type: 'grid', xTrack: 0, yTrack: 46, xSpan: 24, ySpan: 12 }, 'fake-call-1');
-      const configured = await invoke('configure_grid', { op: 'patch', widgetId: 'plumbing-grid', value: { type: 'grid', dataMapping: { cols: [{ id: 'invoices.customer' }, { id: 'invoices.amount_due' }] }, format: { title: { enabled: true, text: 'Plumbing check grid' } } } }, 'fake-call-2');
-      const filtered = await invoke('add_widget_filter', { op: 'append', widgetId: 'plumbing-grid', value: { field: { id: 'invoices.amount_due' }, model: { operator: 'greaterThan', value: 0 } } }, 'fake-call-3');
-      onEvent({ type: 'text_delta', messageId: 'fake-2', delta: `[offline scripted fake] results: ${added.slice(0, 80)} | ${configured.slice(0, 80)} | ${filtered.slice(0, 80)}` });
+      onEvent({ type: 'text_delta', messageId: 'fake-1', delta: '[offline scripted fake] placing widgets.' });
+      const results: string[] = [];
+      results.push(await invoke('place_widget', { widgetId: 'plumbing-chart', type: 'column-chart-grouped' }, 'fake-call-1'));
+      results.push(await invoke('configure_column_chart_grouped', { op: 'patch', widgetId: 'plumbing-chart', value: { type: 'column-chart-grouped', dataMapping: { categoryKey: [{ id: 'captures.segment' }], valueKey: [{ id: 'captures.gross', aggregation: 'sum' }] }, format: title('PayPal Revenue by Customer Segment (This Month)') } }, 'fake-call-2'));
+      results.push(await invoke('place_widget', { widgetId: 'plumbing-week-tile', type: 'refund-rate-tile' }, 'fake-call-3'));
+      results.push(await invoke('configure_refund_rate_tile', { op: 'patch', widgetId: 'plumbing-week-tile', value: { type: 'refund-rate-tile', dataMapping: { refundAmount: [{ id: 'refunds.amount', aggregation: 'sum' }], refundDate: [{ id: 'refunds.date' }], capturedAmount: [{ id: 'captures.gross', aggregation: 'sum' }], captureDate: [{ id: 'captures.date' }] }, format: { ...title('Refund Rate (This Calendar Week)'), window: 'calendar-week' } } }, 'fake-call-4'));
+      results.push(await invoke('place_widget', { widgetId: 'plumbing-kpi', type: 'value', size: 'standard' }, 'fake-call-5'));
+      results.push(await invoke('configure_value', { op: 'patch', widgetId: 'plumbing-kpi', value: { type: 'value', dataMapping: { value: [{ id: 'invoices.amount_due', aggregation: 'sum' }] }, format: title('Outstanding on invoices') } }, 'fake-call-6'));
+      results.push(await invoke('place_widget', { widgetId: 'plumbing-grid', type: 'grid' }, 'fake-call-7'));
+      results.push(await invoke('configure_grid', { op: 'patch', widgetId: 'plumbing-grid', value: { type: 'grid', dataMapping: { cols: [{ id: 'invoices.customer' }, { id: 'invoices.invoice_number' }, { id: 'invoices.status' }, { id: 'invoices.due_date' }, { id: 'invoices.days_overdue' }, { id: 'invoices.amount_due' }] }, format: title('Plumbing check grid') } }, 'fake-call-8'));
+      results.push(await invoke('add_widget_filter', { op: 'append', widgetId: 'plumbing-grid', value: { field: { id: 'invoices.amount_due' }, model: { operator: 'greaterThan', value: 0 } } }, 'fake-call-9'));
+      onEvent({ type: 'text_delta', messageId: 'fake-2', delta: `[offline scripted fake] results: ${results.map((r) => r.slice(0, 60)).join(' | ')}` });
       onEvent({ type: 'idle' });
       } catch (error) { onEvent({ type: 'error', message: (error as Error).message }); }
     })();
@@ -42,17 +52,52 @@ test('offline plumbing: AI panel → client tool runner → bridge → Studio ex
     assert.deepEqual(await noOverlaysOverStudio(page), []);
     const canvasBefore = await canvasWidgetCount(page);
     assert.equal(canvasBefore, 7);
+    const seeded = await canvasGeometry(page);
+    for (const frame of seeded.frames) {
+      assert.equal(frame.titleTruncated, false, `seeded title cut off: ${frame.title}`);
+      assert.equal(frame.gridOverflowX, false, `seeded grid columns overflow: ${frame.title}`);
+      assert.deepEqual(frame.truncatedCells, [], `seeded cells cut off in ${frame.title}`);
+    }
+    promptsSeen = [];
     const result = await askStudioPanel(page, baseUrl, 'Plumbing check: who still owes us?', 60000);
-    assert.deepEqual(Object.keys(result.added), ['plumbing-grid']);
-    assert.equal(result.added['plumbing-grid'].type, 'grid');
-    assert.deepEqual(result.added['plumbing-grid'].dataMapping?.cols.map((c) => c.id), ['invoices.customer', 'invoices.amount_due']);
-    assert.deepEqual(result.added['plumbing-grid'].widgetFilters, [{ field: { id: 'invoices.amount_due' }, model: { operator: 'greaterThan', value: 0 } }]);
-    assert.equal(await canvasWidgetCount(page), canvasBefore + 1);
+    // The agent is told what is already on the canvas (the de-duplication context).
+    assert.match(promptsSeen[0], /- refund-rate \[refund-rate-tile\] "Refund rate · last 7 days": .*window=rolling last 7 days/);
+    assert.match(promptsSeen[0], /- refunds-grid \[grid\] "PayPal refunds": cols=refunds\.date\+refunds\.customer/);
+    assert.deepEqual(Object.keys(result.added).sort(), ['plumbing-chart', 'plumbing-grid', 'plumbing-kpi', 'plumbing-week-tile']);
+    const added = result.added;
+    assert.equal(added['plumbing-grid'].type, 'grid');
+    assert.deepEqual(added['plumbing-grid'].dataMapping?.cols.map((c) => c.id), ['invoices.customer', 'invoices.invoice_number', 'invoices.status', 'invoices.due_date', 'invoices.days_overdue', 'invoices.amount_due']);
+    assert.deepEqual(added['plumbing-grid'].widgetFilters, [{ field: { id: 'invoices.amount_due' }, model: { operator: 'greaterThan', value: 0 } }]);
+    assert.equal(added['plumbing-week-tile'].format?.window, 'calendar-week');
+    // Placement comes from TillwiseLayout.planPlacement: full width rows below the seeded widgets (bottom track 50);
+    // the KPI added right after the refund tile shares its row and both are re-split to 12 + 12 columns.
+    assert.deepEqual(added['plumbing-chart'].layout, { xTrack: 0, yTrack: 50, xSpan: 24, ySpan: 20 });
+    assert.deepEqual(added['plumbing-week-tile'].layout, { xTrack: 0, yTrack: 70, xSpan: 12, ySpan: 12 });
+    assert.deepEqual(added['plumbing-kpi'].layout, { xTrack: 12, yTrack: 70, xSpan: 12, ySpan: 12 });
+    assert.deepEqual(added['plumbing-grid'].layout, { xTrack: 0, yTrack: 82, xSpan: 24, ySpan: 18 });
+    assert.equal(await canvasWidgetCount(page), canvasBefore + 4);
     assert.equal(await canvasHasText(page, 'Plumbing check grid'), true);
-    const kinds = result.turnEvents.map((e) => `${e.kind}${e.name ? `:${e.name}` : ''}`);
-    assert.deepEqual(kinds.filter((k) => k.startsWith('TOOL_CALL_EMITTED') || k.startsWith('STUDIO_TOOL_RESULT')), ['TOOL_CALL_EMITTED:add_widget', 'STUDIO_TOOL_RESULT:add_widget', 'TOOL_CALL_EMITTED:configure_grid', 'STUDIO_TOOL_RESULT:configure_grid', 'TOOL_CALL_EMITTED:add_widget_filter', 'STUDIO_TOOL_RESULT:add_widget_filter']);
+    const tileText = await page.evaluate(() => [...document.querySelectorAll('#myStudio .tw-refund-rate')].map((el) => (el.textContent || '').replace(/\s+/g, ' ').trim()));
+    assert.ok(tileText.some((t) => t.startsWith('This calendar week')), `calendar-week tile text: ${JSON.stringify(tileText)}`);
+    const geometry = await canvasGeometry(page);
+    for (const frame of geometry.frames) {
+      assert.equal(frame.titleTruncated, false, `title cut off: ${frame.title}`);
+      assert.equal(frame.gridOverflowX, false, `grid columns overflow: ${frame.title}`);
+      assert.deepEqual(frame.truncatedCells, [], `cells cut off in ${frame.title}`);
+    }
+    for (const name of ['PayPal Revenue by Customer Segment (This Month)', 'Plumbing check grid']) {
+      const frame = geometry.frames.find((f) => f.title === name);
+      assert.ok(frame && frame.width >= geometry.canvasWidth - 24, `${name} should use the full canvas width (${frame?.width} of ${geometry.canvasWidth})`);
+    }
+    const hostHeight = await page.evaluate(() => document.getElementById('myStudio')!.getBoundingClientRect().height);
+    assert.ok(hostHeight >= 100 * 16, `the Studio host grows with the canvas (${hostHeight}px for 100 tracks)`);
+    const kinds = result.turnEvents.map((e) => `${e.kind}${e.name ? `:${e.name}` : ''}`).filter((k) => k.startsWith('TOOL_CALL_EMITTED') || k.startsWith('STUDIO_TOOL_RESULT'));
+    assert.deepEqual(kinds.filter((k) => k.startsWith('TOOL_CALL_EMITTED')), ['place_widget', 'configure_column_chart_grouped', 'place_widget', 'configure_refund_rate_tile', 'place_widget', 'configure_value', 'place_widget', 'configure_grid', 'add_widget_filter'].map((n) => `TOOL_CALL_EMITTED:${n}`));
     const studioResults = result.turnEvents.filter((e) => e.kind === 'STUDIO_TOOL_RESULT').map((e) => String(e.result));
-    assert.equal(studioResults.some((r) => /error/i.test(r)), false, `Studio tool results: ${studioResults.join(' || ')}`);
+    assert.equal(studioResults.length, 9);
+    assert.equal(studioResults.some((r) => /error|rejected/i.test(r)), false, `Studio tool results: ${studioResults.join(' || ')}`);
+    assert.deepEqual(await page.evaluate(() => (window as any).__moneyDesk.errors), []);
+    if (process.env.PLUMBING_SHOT) await page.screenshot({ path: process.env.PLUMBING_SHOT, fullPage: true });
   } finally {
     await browser.close();
     await studioBridge.close();

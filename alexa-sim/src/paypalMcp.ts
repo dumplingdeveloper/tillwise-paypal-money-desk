@@ -2,7 +2,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 /** The only PayPal MCP tools the Money Desk (page data and Studio agent) may call. None of them moves money. */
-export const READ_ONLY_PAYPAL_TOOLS = ['paypal_ledger_export', 'paypal_money_briefing', 'paypal_disputes_list', 'paypal_dispute_get'] as const;
+export const READ_ONLY_PAYPAL_TOOLS = ['paypal_ledger_export', 'paypal_refund_anomaly', 'paypal_money_briefing', 'paypal_disputes_list', 'paypal_dispute_get'] as const;
 export type ReadOnlyPayPalTool = typeof READ_ONLY_PAYPAL_TOOLS[number];
 
 export type McpToolInfo = { name: string; description?: string; inputSchema?: Record<string, unknown>; annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean } };
@@ -11,6 +11,9 @@ export type PayPalReadClient = {
   listReadOnlyTools(): Promise<McpToolInfo[]>;
   close(): Promise<void>;
 };
+
+/** A tool-level error reported by the MCP server (not a transport failure); never retried. */
+export class McpToolError extends Error {}
 
 export function isReadOnlyPayPalTool(name: string): name is ReadOnlyPayPalTool {
   return (READ_ONLY_PAYPAL_TOOLS as readonly string[]).includes(name);
@@ -56,13 +59,24 @@ export class PayPalMcpReadClient implements PayPalReadClient {
 
   async callReadOnly(name: string, args: Record<string, unknown> = {}) {
     if (!isReadOnlyPayPalTool(name)) throw new Error(`Refused: ${name} is not a read-only PayPal tool.`);
+    try {
+      return await this.callOnce(name, args);
+    } catch (error) {
+      if (error instanceof McpToolError || /^Refused:/.test((error as Error).message)) throw error;
+      // The MCP server may have restarted (stale session) or been briefly unreachable: reconnect once, then give up.
+      await this.close();
+      return this.callOnce(name, args);
+    }
+  }
+
+  private async callOnce(name: string, args: Record<string, unknown>) {
     const tools = await this.listReadOnlyTools();
     if (!tools.some((tool) => tool.name === name)) throw new Error(`Refused: MCP server does not advertise ${name} as readOnlyHint.`);
     const client = await this.connect();
     const result = await client.callTool({ name, arguments: args });
     if (result.isError) {
       const text = Array.isArray(result.content) ? result.content.map((c) => (c as { text?: string }).text || '').join(' ') : '';
-      throw new Error(`MCP ${name} failed: ${text || 'unknown error'}`);
+      throw new McpToolError(`MCP ${name} failed: ${text || 'unknown error'}`);
     }
     const structured = result.structuredContent as { speech?: string; data?: Record<string, unknown> } | undefined;
     return { speech: String(structured?.speech || ''), data: structured?.data || {} };

@@ -34,5 +34,5 @@ test('the MCP read client refuses money-moving tools before any network call', a
     assert.equal(isReadOnlyPayPalTool(tool), false);
     await assert.rejects(client.callReadOnly(tool), /Refused/);
   }
-  assert.deepEqual([...READ_ONLY_PAYPAL_TOOLS].sort(), ['paypal_dispute_get', 'paypal_disputes_list', 'paypal_ledger_export', 'paypal_money_briefing']);
+  assert.deepEqual([...READ_ONLY_PAYPAL_TOOLS].sort(), ['paypal_dispute_get', 'paypal_disputes_list', 'paypal_ledger_export', 'paypal_money_briefing', 'paypal_refund_anomaly']);
 });
