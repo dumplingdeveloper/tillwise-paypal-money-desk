@@ -1,0 +1,295 @@
+{
+  "generatedBy": "alexa-sim/test/moneyDeskLive.test.ts",
+  "prompt": "Add a tile for this week's refund rate",
+  "typedInto": "#myStudio textarea[aria-label=\"Message input\"] + [aria-label=\"Send message\"]",
+  "model": "claude-sonnet-5",
+  "threadId": "thread-86e20086-478f-4d54-b775-f0f9a15a1c3e",
+  "startedAt": "2026-10-25T18:41:08.377Z",
+  "finishedAt": "2026-10-25T18:41:21.778Z",
+  "modelCallsThisPrompt": 3,
+  "bridgeEvents": [
+    {
+      "seq": 22,
+      "at": "2026-10-25T18:41:09.210Z",
+      "kind": "USER_PROMPT",
+      "runId": "run-fa63dee7-978c-452a-84ce-6b3780f50802-r0",
+      "prompt": "Add a tile for this week's refund rate",
+      "instructionsChars": 2940
+    },
+    {
+      "seq": 23,
+      "at": "2026-10-25T18:41:12.832Z",
+      "kind": "MODEL_CALL",
+      "n": 4,
+      "model": "claude-sonnet-5"
+    },
+    {
+      "seq": 24,
+      "at": "2026-10-25T18:41:12.863Z",
+      "kind": "STUDIO_TOOL_PARKED",
+      "toolCallId": "toolu_01M3gkAVLJ3UQj2Jv7ocHcRc",
+      "name": "place_widget",
+      "args": "{\"type\":\"refund-rate-tile\",\"widgetId\":\"refund-rate-week\"}"
+    },
+    {
+      "seq": 25,
+      "at": "2026-10-25T18:41:12.863Z",
+      "kind": "TOOL_CALL_EMITTED",
+      "runId": "run-fa63dee7-978c-452a-84ce-6b3780f50802-r0",
+      "toolCallId": "toolu_01M3gkAVLJ3UQj2Jv7ocHcRc",
+      "name": "place_widget",
+      "args": "{\"type\":\"refund-rate-tile\",\"widgetId\":\"refund-rate-week\"}"
+    },
+    {
+      "seq": 26,
+      "at": "2026-10-25T18:41:13.263Z",
+      "kind": "ROUND_END",
+      "runId": "run-fa63dee7-978c-452a-84ce-6b3780f50802-r0",
+      "reason": "awaiting_studio_tool_results",
+      "toolCalls": 1,
+      "text": ""
+    },
+    {
+      "seq": 27,
+      "at": "2026-10-25T18:41:13.404Z",
+      "kind": "ROUND_START",
+      "runId": "run-fa63dee7-978c-452a-84ce-6b3780f50802-r1",
+      "messages": 11
+    },
+    {
+      "seq": 28,
+      "at": "2026-10-25T18:41:13.404Z",
+      "kind": "STUDIO_TOOL_RESULT",
+      "runId": "run-fa63dee7-978c-452a-84ce-6b3780f50802-r1",
+      "toolCallId": "toolu_01M3gkAVLJ3UQj2Jv7ocHcRc",
+      "name": "place_widget",
+      "result": "{\"success\":true,\"response\":\"Placed refund-rate-tile \\\"refund-rate-week\\\" at xTrack 0, yTrack 70, 24 of 24 columns wide. Now call configure_refund_rate_tile for it.\",\"data\":{\"widgetId\":\"refund-rate-week\",\"layout\":{\"xTrack\":0,\"yTrack\":70,\"xSpan\":24,\"ySpan\":12},\"resized\":[]}}"
+    },
+    {
+      "seq": 29,
+      "at": "2026-10-25T18:41:16.158Z",
+      "kind": "MODEL_CALL",
+      "n": 5,
+      "model": "claude-sonnet-5"
+    },
+    {
+      "seq": 30,
+      "at": "2026-10-25T18:41:16.170Z",
+      "kind": "STUDIO_TOOL_PARKED",
+      "toolCallId": "toolu_013ZxDnXh235uQtEn3gTwXsF",
+      "name": "configure_refund_rate_tile",
+      "args": "{\"op\":\"patch\",\"value\":{\"dataMapping\":{\"refundAmount\":[{\"aggregation\":\"sum\",\"id\":\"refunds.amount\"}],\"refundDate\":[{\"id\":\"refunds.date\"}],\"capturedAmount\":[{\"aggregation\":\"sum\",\"id\":\"captures.gross\"}],\"captureDate\":[{\"id\":\"captures.date\"}]},\"format\":{\"title\":{\"enabled\":true,\"text\":\"Refund rate · this week\"},\"window\":\"calendar-week\"}},\"widgetId\":\"refund-rate-week\"}"
+    },
+    {
+      "seq": 31,
+      "at": "2026-10-25T18:41:16.170Z",
+      "kind": "TOOL_CALL_EMITTED",
+      "runId": "run-fa63dee7-978c-452a-84ce-6b3780f50802-r1",
+      "toolCallId": "toolu_013ZxDnXh235uQtEn3gTwXsF",
+      "name": "configure_refund_rate_tile",
+      "args": "{\"op\":\"patch\",\"value\":{\"dataMapping\":{\"refundAmount\":[{\"aggregation\":\"sum\",\"id\":\"refunds.amount\"}],\"refundDate\":[{\"id\":\"refunds.date\"}],\"capturedAmount\":[{\"aggregation\":\"sum\",\"id\":\"captures.gross\"}],\"captureDate\":[{\"id\":\"captures.date\"}]},\"format\":{\"title\":{\"enabled\":true,\"text\":\"Refund rate · this week\"},\"window\":\"calendar-week\"}},\"widgetId\":\"refund-rate-week\"}"
+    },
+    {
+      "seq": 32,
+      "at": "2026-10-25T18:41:16.572Z",
+      "kind": "ROUND_END",
+      "runId": "run-fa63dee7-978c-452a-84ce-6b3780f50802-r1",
+      "reason": "awaiting_studio_tool_results",
+      "toolCalls": 1,
+      "text": ""
+    },
+    {
+      "seq": 33,
+      "at": "2026-10-25T18:41:17.024Z",
+      "kind": "ROUND_START",
+      "runId": "run-fa63dee7-978c-452a-84ce-6b3780f50802-r2",
+      "messages": 13
+    },
+    {
+      "seq": 34,
+      "at": "2026-10-25T18:41:17.024Z",
+      "kind": "STUDIO_TOOL_RESULT",
+      "runId": "run-fa63dee7-978c-452a-84ce-6b3780f50802-r2",
+      "toolCallId": "toolu_013ZxDnXh235uQtEn3gTwXsF",
+      "name": "configure_refund_rate_tile",
+      "result": "{\"success\":true,\"response\":\"{\\\"configured\\\":\\\"refund-rate-week\\\",\\\"health\\\":[]}\",\"data\":{\"configured\":\"refund-rate-week\",\"health\":[]}}"
+    },
+    {
+      "seq": 35,
+      "at": "2026-10-25T18:41:18.366Z",
+      "kind": "MODEL_CALL",
+      "n": 6,
+      "model": "claude-sonnet-5"
+    },
+    {
+      "seq": 36,
+      "at": "2026-10-25T18:41:18.395Z",
+      "kind": "ROUND_END",
+      "runId": "run-fa63dee7-978c-452a-84ce-6b3780f50802-r2",
+      "reason": "turn_complete",
+      "text": "Added a new \"Refund rate · this week\" tile, using a calendar-week window (distinct from the existing rolling-7-day tile), comparing refunds.amount against captures.gross for the current Sun–Sat week."
+    }
+  ],
+  "toolCalls": [
+    {
+      "kind": "TOOL_CALL_EMITTED",
+      "name": "place_widget",
+      "args": "{\"type\":\"refund-rate-tile\",\"widgetId\":\"refund-rate-week\"}"
+    },
+    {
+      "kind": "TOOL_CALL_EMITTED",
+      "name": "configure_refund_rate_tile",
+      "args": "{\"op\":\"patch\",\"value\":{\"dataMapping\":{\"refundAmount\":[{\"aggregation\":\"sum\",\"id\":\"refunds.amount\"}],\"refundDate\":[{\"id\":\"refunds.date\"}],\"capturedAmount\":[{\"aggregation\":\"sum\",\"id\":\"captures.gross\"}],\"captureDate\":[{\"id\":\"captures.date\"}]},\"format\":{\"title\":{\"enabled\":true,\"text\":\"Refund rate · this week\"},\"window\":\"calendar-week\"}},\"widgetId\":\"refund-rate-week\"}"
+    }
+  ],
+  "finalAssistantText": "Added a new \"Refund rate · this week\" tile, using a calendar-week window (distinct from the existing rolling-7-day tile), comparing refunds.amount against captures.gross for the current Sun–Sat week.",
+  "widgetDiff": {
+    "before": 8,
+    "after": 9,
+    "added": {
+      "refund-rate-week": {
+        "type": "refund-rate-tile",
+        "format": {
+          "title": {
+            "enabled": true,
+            "text": "Refund rate · this week"
+          },
+          "window": "calendar-week"
+        },
+        "dataMapping": {
+          "refundAmount": [
+            {
+              "id": "refunds.amount",
+              "aggregation": "sum"
+            }
+          ],
+          "refundDate": [
+            {
+              "id": "refunds.date"
+            }
+          ],
+          "capturedAmount": [
+            {
+              "id": "captures.gross",
+              "aggregation": "sum"
+            }
+          ],
+          "captureDate": [
+            {
+              "id": "captures.date"
+            }
+          ]
+        },
+        "layout": {
+          "xTrack": 0,
+          "yTrack": 70,
+          "xSpan": 24,
+          "ySpan": 12
+        },
+        "widgetFilters": []
+      }
+    },
+    "changed": {}
+  },
+  "canvas": {
+    "framesBefore": 8,
+    "framesAfter": 9,
+    "newFrames": [
+      {
+        "text": "Refund rate · this week This calendar week · Mon, 19 Oct – Sun, 25 Oct 35.3% €564.36 refunded of €1,597.80 captured Refund spike baseline 5.4% before this window Ask the AI panel: “Why are refunds spiking?” Loading... No data to display Til",
+        "height": 192
+      }
+    ],
+    "geometry": {
+      "canvasWidth": 984,
+      "frames": [
+        {
+          "title": "Captured · 45d",
+          "x": 467,
+          "width": 244,
+          "height": 192,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "Refunded · 45d",
+          "x": 711,
+          "width": 244,
+          "height": 192,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "Refund rate · last 7 days",
+          "x": 955,
+          "width": 488,
+          "height": 192,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "Daily PayPal revenue",
+          "x": 467,
+          "width": 569,
+          "height": 320,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "Who still owes us",
+          "x": 1036,
+          "width": 407,
+          "height": 320,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "Dispute deadlines",
+          "x": 467,
+          "width": 284,
+          "height": 288,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "PayPal refunds",
+          "x": 751,
+          "width": 692,
+          "height": 288,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "PayPal revenue by segment · this month",
+          "x": 467,
+          "width": 976,
+          "height": 320,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "Refund rate · this week",
+          "x": 467,
+          "width": 976,
+          "height": 192,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        }
+      ]
+    }
+  },
+  "studioOnErrorRaisedSoFar": [],
+  "screenshot": {
+    "path": "alexa-sim/screenshots/money-desk-agent-2.png",
+    "md5": "295e08bec35a086ff45e456b26dd131d"
+  }
+}

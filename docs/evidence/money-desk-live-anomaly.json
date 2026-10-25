@@ -1,0 +1,427 @@
+{
+  "generatedBy": "alexa-sim/test/moneyDeskLive.test.ts",
+  "prompt": "Why are refunds spiking?",
+  "model": "claude-sonnet-5",
+  "threadId": "thread-86e20086-478f-4d54-b775-f0f9a15a1c3e",
+  "startedAt": "2026-10-25T18:41:37.332Z",
+  "finishedAt": "2026-10-25T18:42:04.521Z",
+  "modelCallsThisPrompt": 4,
+  "bridgeEvents": [
+    {
+      "seq": 57,
+      "at": "2026-10-25T18:41:37.885Z",
+      "kind": "USER_PROMPT",
+      "runId": "run-196e36eb-0e35-4687-8f51-86ed7d1153db-r0",
+      "prompt": "Why are refunds spiking?",
+      "instructionsChars": 3398
+    },
+    {
+      "seq": 58,
+      "at": "2026-10-25T18:41:50.271Z",
+      "kind": "MODEL_CALL",
+      "n": 10,
+      "model": "claude-sonnet-5"
+    },
+    {
+      "seq": 59,
+      "at": "2026-10-25T18:41:50.299Z",
+      "kind": "PAYPAL_TOOL_CALL",
+      "toolCallId": "toolu_01CaAHHsmFjkYWS7K4Msgk6D",
+      "name": "paypal_refund_anomaly",
+      "args": "{}"
+    },
+    {
+      "seq": 60,
+      "at": "2026-10-25T18:41:50.305Z",
+      "kind": "PAYPAL_TOOL_RESULT",
+      "toolCallId": "toolu_01CaAHHsmFjkYWS7K4Msgk6D",
+      "name": "paypal_refund_anomaly",
+      "result": "{\"speech\":\"Refund rate 35.3% over the last 7 days (2026-10-19 to 2026-10-25) vs 5.4% before (6.5×). Top product: Stoneware Mug Set €564.36 (100.0% of refunded €). Top reason: Damaged in transit €564.36 (100.0% of refunded €).\",\"data\":{\"mode\":\"mock\",\"anchor_date\":\"2026-10-25\",\"window_days\":7,\"window\":{\"start\":\"2026-10-19\",\"end\":\"2026-10-25\"},\"baseline\":{\"start\":\"2026-09-11\",\"end\":\"2026-10-18\"},\"window_refunded\":564.36,\"window_captured\":1597.8,\"window_rate\":0.3532106646639129,\"baseline_refunded\":684.52,\"baseline_captured\":12592.74,\"baseline_rate\":0.054358304864548936,\"multiple\":6.497823387687492…[+6208 chars]"
+    },
+    {
+      "seq": 61,
+      "at": "2026-10-25T18:41:54.305Z",
+      "kind": "MODEL_CALL",
+      "n": 11,
+      "model": "claude-sonnet-5"
+    },
+    {
+      "seq": 62,
+      "at": "2026-10-25T18:41:54.317Z",
+      "kind": "STUDIO_TOOL_PARKED",
+      "toolCallId": "toolu_01HHrvzdyNumeSkHQCaVzdDa",
+      "name": "place_widget",
+      "args": "{\"type\":\"bar-chart-grouped\",\"widgetId\":\"refunds-by-product-reason\"}"
+    },
+    {
+      "seq": 63,
+      "at": "2026-10-25T18:41:54.317Z",
+      "kind": "TOOL_CALL_EMITTED",
+      "runId": "run-196e36eb-0e35-4687-8f51-86ed7d1153db-r0",
+      "toolCallId": "toolu_01HHrvzdyNumeSkHQCaVzdDa",
+      "name": "place_widget",
+      "args": "{\"type\":\"bar-chart-grouped\",\"widgetId\":\"refunds-by-product-reason\"}"
+    },
+    {
+      "seq": 64,
+      "at": "2026-10-25T18:41:54.718Z",
+      "kind": "ROUND_END",
+      "runId": "run-196e36eb-0e35-4687-8f51-86ed7d1153db-r0",
+      "reason": "awaiting_studio_tool_results",
+      "toolCalls": 1,
+      "text": "Refund rate is 35.3% over the last 7 days (Oct 19–25) vs. 5.4% before — a 6.5× spike. Top product: Stoneware Mug Set €564.36 (100.0% of refunded €). Top reason: Damaged in transit €564.36 (100.0% of refunded €). Essentially all of the spike traces back to one product/reason combo."
+    },
+    {
+      "seq": 65,
+      "at": "2026-10-25T18:41:54.978Z",
+      "kind": "ROUND_START",
+      "runId": "run-196e36eb-0e35-4687-8f51-86ed7d1153db-r1",
+      "messages": 25
+    },
+    {
+      "seq": 66,
+      "at": "2026-10-25T18:41:54.978Z",
+      "kind": "STUDIO_TOOL_RESULT",
+      "runId": "run-196e36eb-0e35-4687-8f51-86ed7d1153db-r1",
+      "toolCallId": "toolu_01HHrvzdyNumeSkHQCaVzdDa",
+      "name": "place_widget",
+      "result": "{\"success\":true,\"response\":\"Placed bar-chart-grouped \\\"refunds-by-product-reason\\\" at xTrack 0, yTrack 100, 24 of 24 columns wide. Now call configure_bar_chart_grouped for it.\",\"data\":{\"widgetId\":\"refunds-by-product-reason\",\"layout\":{\"xTrack\":0,\"yTrack\":100,\"xSpan\":24,\"ySpan\":20},\"resized\":[]}}"
+    },
+    {
+      "seq": 67,
+      "at": "2026-10-25T18:41:59.292Z",
+      "kind": "MODEL_CALL",
+      "n": 12,
+      "model": "claude-sonnet-5"
+    },
+    {
+      "seq": 68,
+      "at": "2026-10-25T18:41:59.313Z",
+      "kind": "STUDIO_TOOL_PARKED",
+      "toolCallId": "toolu_01W2KSuYTvB27kop82CQ9jS4",
+      "name": "configure_bar_chart_grouped",
+      "args": "{\"op\":\"patch\",\"value\":{\"dataMapping\":{\"categoryKey\":[{\"id\":\"refunds.product\"}],\"valueKey\":[{\"aggregation\":\"sum\",\"id\":\"refunds.amount\"}],\"legendKey\":[{\"id\":\"refunds.reason\"}]},\"format\":{\"title\":{\"enabled\":true,\"text\":\"Refund spike driver · last 7 days (by product/reason)\"}}},\"widgetId\":\"refunds-by-product-reason\"}"
+    },
+    {
+      "seq": 69,
+      "at": "2026-10-25T18:41:59.314Z",
+      "kind": "TOOL_CALL_EMITTED",
+      "runId": "run-196e36eb-0e35-4687-8f51-86ed7d1153db-r1",
+      "toolCallId": "toolu_01W2KSuYTvB27kop82CQ9jS4",
+      "name": "configure_bar_chart_grouped",
+      "args": "{\"op\":\"patch\",\"value\":{\"dataMapping\":{\"categoryKey\":[{\"id\":\"refunds.product\"}],\"valueKey\":[{\"aggregation\":\"sum\",\"id\":\"refunds.amount\"}],\"legendKey\":[{\"id\":\"refunds.reason\"}]},\"format\":{\"title\":{\"enabled\":true,\"text\":\"Refund spike driver · last 7 days (by product/reason)\"}}},\"widgetId\":\"refunds-by-product-reason\"}"
+    },
+    {
+      "seq": 70,
+      "at": "2026-10-25T18:41:59.316Z",
+      "kind": "STUDIO_TOOL_PARKED",
+      "toolCallId": "toolu_01AE4XagwmsAk65EqEChoJeU",
+      "name": "add_widget_filter",
+      "args": "{\"op\":\"append\",\"value\":{\"field\":{\"id\":\"refunds.date\"},\"model\":{\"operator\":\"inRelativeRange\",\"value\":{\"type\":\"last\",\"unit\":\"day\",\"value\":7,\"includeToday\":true}}},\"widgetId\":\"refunds-by-product-reason\"}"
+    },
+    {
+      "seq": 71,
+      "at": "2026-10-25T18:41:59.316Z",
+      "kind": "TOOL_CALL_EMITTED",
+      "runId": "run-196e36eb-0e35-4687-8f51-86ed7d1153db-r1",
+      "toolCallId": "toolu_01AE4XagwmsAk65EqEChoJeU",
+      "name": "add_widget_filter",
+      "args": "{\"op\":\"append\",\"value\":{\"field\":{\"id\":\"refunds.date\"},\"model\":{\"operator\":\"inRelativeRange\",\"value\":{\"type\":\"last\",\"unit\":\"day\",\"value\":7,\"includeToday\":true}}},\"widgetId\":\"refunds-by-product-reason\"}"
+    },
+    {
+      "seq": 72,
+      "at": "2026-10-25T18:41:59.717Z",
+      "kind": "ROUND_END",
+      "runId": "run-196e36eb-0e35-4687-8f51-86ed7d1153db-r1",
+      "reason": "awaiting_studio_tool_results",
+      "toolCalls": 2,
+      "text": ""
+    },
+    {
+      "seq": 73,
+      "at": "2026-10-25T18:42:00.194Z",
+      "kind": "ROUND_START",
+      "runId": "run-196e36eb-0e35-4687-8f51-86ed7d1153db-r2",
+      "messages": 28
+    },
+    {
+      "seq": 74,
+      "at": "2026-10-25T18:42:00.194Z",
+      "kind": "STUDIO_TOOL_RESULT",
+      "runId": "run-196e36eb-0e35-4687-8f51-86ed7d1153db-r2",
+      "toolCallId": "toolu_01W2KSuYTvB27kop82CQ9jS4",
+      "name": "configure_bar_chart_grouped",
+      "result": "{\"success\":true,\"response\":\"{\\\"configured\\\":\\\"refunds-by-product-reason\\\",\\\"health\\\":[{\\\"code\\\":\\\"category_density\\\",\\\"description\\\":\\\"1 categories × 1 series - 164px per element (ideal: 20-50px)\\\",\\\"suggestions\\\":\\\"Each element has 164px of space (ideal: 20-50px). Add more data points or series for a denser visualisation.\\\",\\\"score\\\":0.32,\\\"scope\\\":{\\\"kind\\\":\\\"widget\\\",\\\"widgetId\\\":\\\"refunds-by-product-reason\\\"}},{\\\"code\\\":\\\"data_variance\\\",\\\"description\\\":\\\"Insufficient data to assess variance\\\",\\\"score\\\":1,\\\"scope\\\":{\\\"kind\\\":\\\"widget\\\",\\\"widgetId\\\":\\\"refunds-by-product-reason\\\"}},{\\\"code\\\"…[+1134 chars]"
+    },
+    {
+      "seq": 75,
+      "at": "2026-10-25T18:42:00.194Z",
+      "kind": "STUDIO_TOOL_RESULT",
+      "runId": "run-196e36eb-0e35-4687-8f51-86ed7d1153db-r2",
+      "toolCallId": "toolu_01AE4XagwmsAk65EqEChoJeU",
+      "name": "add_widget_filter",
+      "result": "{\"success\":true,\"response\":\"{\\\"filtered\\\":\\\"refunds-by-product-reason\\\",\\\"health\\\":[{\\\"code\\\":\\\"category_density\\\",\\\"description\\\":\\\"1 categories × 1 series - 164px per element (ideal: 20-50px)\\\",\\\"suggestions\\\":\\\"Each element has 164px of space (ideal: 20-50px). Add more data points or series for a denser visualisation.\\\",\\\"score\\\":0.32,\\\"scope\\\":{\\\"kind\\\":\\\"widget\\\",\\\"widgetId\\\":\\\"refunds-by-product-reason\\\"}},{\\\"code\\\":\\\"data_variance\\\",\\\"description\\\":\\\"Insufficient data to assess variance\\\",\\\"score\\\":1,\\\"scope\\\":{\\\"kind\\\":\\\"widget\\\",\\\"widgetId\\\":\\\"refunds-by-product-reason\\\"}},{\\\"code\\\":\\…[+1130 chars]"
+    },
+    {
+      "seq": 76,
+      "at": "2026-10-25T18:42:01.649Z",
+      "kind": "MODEL_CALL",
+      "n": 13,
+      "model": "claude-sonnet-5"
+    },
+    {
+      "seq": 77,
+      "at": "2026-10-25T18:42:01.676Z",
+      "kind": "ROUND_END",
+      "runId": "run-196e36eb-0e35-4687-8f51-86ed7d1153db-r2",
+      "reason": "turn_complete",
+      "text": "I also added a bar chart \"Refund spike driver · last 7 days (by product/reason)\" breaking refund amounts down by product and reason, confirming Stoneware Mug Set / Damaged in transit as the sole driver."
+    }
+  ],
+  "toolCalls": [
+    {
+      "kind": "PAYPAL_TOOL_CALL",
+      "name": "paypal_refund_anomaly",
+      "args": "{}"
+    },
+    {
+      "kind": "TOOL_CALL_EMITTED",
+      "name": "place_widget",
+      "args": "{\"type\":\"bar-chart-grouped\",\"widgetId\":\"refunds-by-product-reason\"}"
+    },
+    {
+      "kind": "TOOL_CALL_EMITTED",
+      "name": "configure_bar_chart_grouped",
+      "args": "{\"op\":\"patch\",\"value\":{\"dataMapping\":{\"categoryKey\":[{\"id\":\"refunds.product\"}],\"valueKey\":[{\"aggregation\":\"sum\",\"id\":\"refunds.amount\"}],\"legendKey\":[{\"id\":\"refunds.reason\"}]},\"format\":{\"title\":{\"enabled\":true,\"text\":\"Refund spike driver · last 7 days (by product/reason)\"}}},\"widgetId\":\"refunds-by-product-reason\"}"
+    },
+    {
+      "kind": "TOOL_CALL_EMITTED",
+      "name": "add_widget_filter",
+      "args": "{\"op\":\"append\",\"value\":{\"field\":{\"id\":\"refunds.date\"},\"model\":{\"operator\":\"inRelativeRange\",\"value\":{\"type\":\"last\",\"unit\":\"day\",\"value\":7,\"includeToday\":true}}},\"widgetId\":\"refunds-by-product-reason\"}"
+    }
+  ],
+  "assistantTextThisTurn": "Refund rate is 35.3% over the last 7 days (Oct 19–25) vs. 5.4% before — a 6.5× spike. Top product: Stoneware Mug Set €564.36 (100.0% of refunded €). Top reason: Damaged in transit €564.36 (100.0% of refunded €). Essentially all of the spike traces back to one product/reason combo.\n\nI also added a bar chart \"Refund spike driver · last 7 days (by product/reason)\" breaking refund amounts down by product and reason, confirming Stoneware Mug Set / Damaged in transit as the sole driver.",
+  "finalAssistantText": "I also added a bar chart \"Refund spike driver · last 7 days (by product/reason)\" breaking refund amounts down by product and reason, confirming Stoneware Mug Set / Damaged in transit as the sole driver.",
+  "figureCheck": {
+    "figuresInReply": [
+      "35.3%",
+      "5.4%",
+      "6.5×",
+      "€564.36",
+      "100.0%"
+    ],
+    "notFoundInToolOutput": [],
+    "toolArgs": {},
+    "toolHeadline": "Refund rate 35.3% over the last 7 days (2026-10-19 to 2026-10-25) vs 5.4% before (6.5×). Top product: Stoneware Mug Set €564.36 (100.0% of refunded €). Top reason: Damaged in transit €564.36 (100.0% of refunded €).",
+    "toolFormatted": {
+      "window_rate": "35.3%",
+      "baseline_rate": "5.4%",
+      "multiple": "6.5×",
+      "window_refunded": "€564.36",
+      "window_captured": "€1,597.80",
+      "excess_refunded": "€477.51",
+      "top_product": "Stoneware Mug Set €564.36 (100.0% of refunded €)",
+      "top_reason": "Damaged in transit €564.36 (100.0% of refunded €)"
+    },
+    "topProduct": {
+      "key": "Stoneware Mug Set",
+      "refunds": 10,
+      "refunded": 564.36,
+      "share_of_window_refunds": 1,
+      "captured_in_window": 900.48,
+      "window_rate": 0.6267324093816631,
+      "baseline_rate": 0.0196672,
+      "excess_refunded": 546.65,
+      "share_of_excess": 1,
+      "text": "Stoneware Mug Set: 10 refunds, €564.36 (100.0% of refunded €), refund rate 62.7% vs 2.0% before"
+    },
+    "topReason": {
+      "key": "Damaged in transit",
+      "refunds": 10,
+      "refunded": 564.36,
+      "share_of_window_refunds": 1,
+      "captured_in_window": 0,
+      "window_rate": null,
+      "baseline_rate": null,
+      "excess_refunded": 532.26,
+      "share_of_excess": 1,
+      "text": "Damaged in transit: 10 refunds, €564.36 (100.0% of refunded €)"
+    }
+  },
+  "widgetDiff": {
+    "before": 10,
+    "after": 11,
+    "added": {
+      "refunds-by-product-reason": {
+        "type": "bar-chart-grouped",
+        "format": {
+          "title": {
+            "enabled": true,
+            "text": "Refund spike driver · last 7 days (by product/reason)"
+          }
+        },
+        "dataMapping": {
+          "categoryKey": [
+            {
+              "id": "refunds.product"
+            }
+          ],
+          "valueKey": [
+            {
+              "id": "refunds.amount",
+              "aggregation": "sum"
+            }
+          ],
+          "legendKey": [
+            {
+              "id": "refunds.reason"
+            }
+          ]
+        },
+        "layout": {
+          "xTrack": 0,
+          "yTrack": 100,
+          "xSpan": 24,
+          "ySpan": 20
+        },
+        "widgetFilters": [
+          {
+            "field": {
+              "id": "refunds.date"
+            },
+            "model": {
+              "operator": "inRelativeRange",
+              "value": {
+                "type": "last",
+                "value": 7,
+                "unit": "day",
+                "includeToday": true
+              }
+            }
+          }
+        ]
+      }
+    },
+    "changed": {}
+  },
+  "canvas": {
+    "newFrames": [
+      {
+        "text": "Who still owes us No Rows To Show Customer Amount due (sum) Days overdue (max) Status Dublin Pantry Ltd€480.000SENTCork Office Co€220.0011SENTGalway Gift House€400.0010PARTIALLY_PAIDMugs & Candles Club€96.0011UNPAIDTotal€1,196.0011 Loading.",
+        "height": 288
+      },
+      {
+        "text": "Refund spike driver · last 7 days (by product/reason) interactive chartinteractive chartPress Space or Enter to toggle visibility Loading... No data to display Bar Chart Grouped Y Axis Product X Axis Refund amount (sum)",
+        "height": 320
+      }
+    ],
+    "geometry": {
+      "canvasWidth": 984,
+      "frames": [
+        {
+          "title": "Captured · 45d",
+          "x": 467,
+          "width": 244,
+          "height": 192,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "Refunded · 45d",
+          "x": 711,
+          "width": 244,
+          "height": 192,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "Refund rate · last 7 days",
+          "x": 955,
+          "width": 488,
+          "height": 192,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "Daily PayPal revenue",
+          "x": 467,
+          "width": 569,
+          "height": 320,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "Who still owes us",
+          "x": 1036,
+          "width": 407,
+          "height": 320,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "Dispute deadlines",
+          "x": 467,
+          "width": 284,
+          "height": 288,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "PayPal refunds",
+          "x": 751,
+          "width": 692,
+          "height": 288,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "PayPal revenue by segment · this month",
+          "x": 467,
+          "width": 976,
+          "height": 320,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "Refund rate · this week",
+          "x": 467,
+          "width": 976,
+          "height": 192,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "Who still owes us",
+          "x": 467,
+          "width": 976,
+          "height": 288,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "Refund spike driver · last 7 days (by product/reason)",
+          "x": 467,
+          "width": 976,
+          "height": 320,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        }
+      ]
+    }
+  },
+  "screenshot": {
+    "path": "alexa-sim/screenshots/money-desk-anomaly.png",
+    "md5": "dfce780005f9f9087231b808c24127e6"
+  }
+}

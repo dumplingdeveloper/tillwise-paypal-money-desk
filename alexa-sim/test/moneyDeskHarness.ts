@@ -117,8 +117,11 @@ export async function askStudioPanel(page: Page, baseUrl: string, prompt: string
   const changed = Object.fromEntries(Object.entries(after).filter(([id, w]) => id in before && JSON.stringify(w) !== JSON.stringify(before[id])));
   const turnEvents = log!.events.filter((e) => Number(e.seq) >= promptSeq);
   const finalText = String([...turnEvents].reverse().find((e) => e.kind === 'ROUND_END' && e.reason === 'turn_complete')?.text || '');
+  // The whole reply to this prompt as the panel shows it: text the model streamed in every round, including rounds that
+  // ended with a Studio tool call.
+  const turnText = turnEvents.filter((e) => e.kind === 'ROUND_END' && typeof e.text === 'string' && e.text).map((e) => String(e.text)).join('\n\n');
   const panelText = await page.evaluate(() => document.querySelector('#myStudio .ag-studio-ai-panel, #myStudio [class*="ai-assistant"]')?.textContent || '');
-  return { threadId: threadId!, prompt, startedAt, finishedAt: new Date().toISOString(), before, after, added, changed, turnEvents, finalText, panelText, model: log!.model, modelCallsTotal: log!.modelCalls };
+  return { threadId: threadId!, prompt, startedAt, finishedAt: new Date().toISOString(), before, after, added, changed, turnEvents, finalText, turnText, panelText, model: log!.model, modelCallsTotal: log!.modelCalls };
 }
 
 export const fieldIds = (widget: { dataMapping?: Record<string, Array<{ id: string }>> }) => Object.values(widget.dataMapping || {}).flat().map((f) => f.id);

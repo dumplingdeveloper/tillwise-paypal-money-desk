@@ -1,0 +1,318 @@
+{
+  "generatedBy": "alexa-sim/test/moneyDeskLive.test.ts",
+  "prompt": "Show PayPal revenue by customer segment this month",
+  "typedInto": "#myStudio textarea[aria-label=\"Message input\"] + [aria-label=\"Send message\"]",
+  "model": "claude-sonnet-5",
+  "threadId": "thread-86e20086-478f-4d54-b775-f0f9a15a1c3e",
+  "startedAt": "2026-10-25T18:40:49.690Z",
+  "finishedAt": "2026-10-25T18:41:07.347Z",
+  "modelCallsThisPrompt": 3,
+  "bridgeEvents": [
+    {
+      "seq": 3,
+      "at": "2026-10-25T18:40:51.265Z",
+      "kind": "USER_PROMPT",
+      "runId": "run-5620de48-8405-434e-99ba-539a1cd0ada6-r0",
+      "prompt": "Show PayPal revenue by customer segment this month",
+      "instructionsChars": 2667
+    },
+    {
+      "seq": 4,
+      "at": "2026-10-25T18:40:57.546Z",
+      "kind": "MODEL_CALL",
+      "n": 1,
+      "model": "claude-sonnet-5"
+    },
+    {
+      "seq": 5,
+      "at": "2026-10-25T18:40:57.591Z",
+      "kind": "STUDIO_TOOL_PARKED",
+      "toolCallId": "toolu_019UzJbydSe6AanrSD7rm7bV",
+      "name": "place_widget",
+      "args": "{\"widgetId\":\"revenue-by-segment\",\"type\":\"column-chart-grouped\"}"
+    },
+    {
+      "seq": 6,
+      "at": "2026-10-25T18:40:57.591Z",
+      "kind": "TOOL_CALL_EMITTED",
+      "runId": "run-5620de48-8405-434e-99ba-539a1cd0ada6-r0",
+      "toolCallId": "toolu_019UzJbydSe6AanrSD7rm7bV",
+      "name": "place_widget",
+      "args": "{\"widgetId\":\"revenue-by-segment\",\"type\":\"column-chart-grouped\"}"
+    },
+    {
+      "seq": 7,
+      "at": "2026-10-25T18:40:57.993Z",
+      "kind": "ROUND_END",
+      "runId": "run-5620de48-8405-434e-99ba-539a1cd0ada6-r0",
+      "reason": "awaiting_studio_tool_results",
+      "toolCalls": 1,
+      "text": ""
+    },
+    {
+      "seq": 8,
+      "at": "2026-10-25T18:40:58.316Z",
+      "kind": "ROUND_START",
+      "runId": "run-5620de48-8405-434e-99ba-539a1cd0ada6-r1",
+      "messages": 3
+    },
+    {
+      "seq": 9,
+      "at": "2026-10-25T18:40:58.316Z",
+      "kind": "STUDIO_TOOL_RESULT",
+      "runId": "run-5620de48-8405-434e-99ba-539a1cd0ada6-r1",
+      "toolCallId": "toolu_019UzJbydSe6AanrSD7rm7bV",
+      "name": "place_widget",
+      "result": "{\"success\":true,\"response\":\"Placed column-chart-grouped \\\"revenue-by-segment\\\" at xTrack 0, yTrack 50, 24 of 24 columns wide. Now call configure_column_chart_grouped for it.\",\"data\":{\"widgetId\":\"revenue-by-segment\",\"layout\":{\"xTrack\":0,\"yTrack\":50,\"xSpan\":24,\"ySpan\":20},\"resized\":[]}}"
+    },
+    {
+      "seq": 10,
+      "at": "2026-10-25T18:41:01.478Z",
+      "kind": "MODEL_CALL",
+      "n": 2,
+      "model": "claude-sonnet-5"
+    },
+    {
+      "seq": 11,
+      "at": "2026-10-25T18:41:01.494Z",
+      "kind": "STUDIO_TOOL_PARKED",
+      "toolCallId": "toolu_0146TF5uQK4o7jppowEwKTuP",
+      "name": "configure_column_chart_grouped",
+      "args": "{\"widgetId\":\"revenue-by-segment\",\"op\":\"patch\",\"value\":{\"dataMapping\":{\"categoryKey\":[{\"id\":\"captures.segment\"}],\"valueKey\":[{\"id\":\"captures.gross\",\"aggregation\":\"sum\"}]},\"format\":{\"title\":{\"enabled\":true,\"text\":\"PayPal revenue by segment · this month\"}}}}"
+    },
+    {
+      "seq": 12,
+      "at": "2026-10-25T18:41:01.494Z",
+      "kind": "TOOL_CALL_EMITTED",
+      "runId": "run-5620de48-8405-434e-99ba-539a1cd0ada6-r1",
+      "toolCallId": "toolu_0146TF5uQK4o7jppowEwKTuP",
+      "name": "configure_column_chart_grouped",
+      "args": "{\"widgetId\":\"revenue-by-segment\",\"op\":\"patch\",\"value\":{\"dataMapping\":{\"categoryKey\":[{\"id\":\"captures.segment\"}],\"valueKey\":[{\"id\":\"captures.gross\",\"aggregation\":\"sum\"}]},\"format\":{\"title\":{\"enabled\":true,\"text\":\"PayPal revenue by segment · this month\"}}}}"
+    },
+    {
+      "seq": 13,
+      "at": "2026-10-25T18:41:01.496Z",
+      "kind": "STUDIO_TOOL_PARKED",
+      "toolCallId": "toolu_01Wicfyo89z9hsZr55oxyUKt",
+      "name": "add_widget_filter",
+      "args": "{\"widgetId\":\"revenue-by-segment\",\"op\":\"append\",\"value\":{\"field\":{\"id\":\"captures.date\"},\"model\":{\"operator\":\"inRelativeRange\",\"value\":{\"type\":\"this\",\"unit\":\"month\"}}}}"
+    },
+    {
+      "seq": 14,
+      "at": "2026-10-25T18:41:01.496Z",
+      "kind": "TOOL_CALL_EMITTED",
+      "runId": "run-5620de48-8405-434e-99ba-539a1cd0ada6-r1",
+      "toolCallId": "toolu_01Wicfyo89z9hsZr55oxyUKt",
+      "name": "add_widget_filter",
+      "args": "{\"widgetId\":\"revenue-by-segment\",\"op\":\"append\",\"value\":{\"field\":{\"id\":\"captures.date\"},\"model\":{\"operator\":\"inRelativeRange\",\"value\":{\"type\":\"this\",\"unit\":\"month\"}}}}"
+    },
+    {
+      "seq": 15,
+      "at": "2026-10-25T18:41:01.897Z",
+      "kind": "ROUND_END",
+      "runId": "run-5620de48-8405-434e-99ba-539a1cd0ada6-r1",
+      "reason": "awaiting_studio_tool_results",
+      "toolCalls": 2,
+      "text": ""
+    },
+    {
+      "seq": 16,
+      "at": "2026-10-25T18:41:02.343Z",
+      "kind": "ROUND_START",
+      "runId": "run-5620de48-8405-434e-99ba-539a1cd0ada6-r2",
+      "messages": 6
+    },
+    {
+      "seq": 17,
+      "at": "2026-10-25T18:41:02.343Z",
+      "kind": "STUDIO_TOOL_RESULT",
+      "runId": "run-5620de48-8405-434e-99ba-539a1cd0ada6-r2",
+      "toolCallId": "toolu_0146TF5uQK4o7jppowEwKTuP",
+      "name": "configure_column_chart_grouped",
+      "result": "{\"success\":true,\"response\":\"{\\\"configured\\\":\\\"revenue-by-segment\\\",\\\"health\\\":[{\\\"code\\\":\\\"category_density\\\",\\\"description\\\":\\\"3 categories × 1 series - 232px per element (ideal: 20-50px)\\\",\\\"suggestions\\\":\\\"Each element has 232px of space (ideal: 20-50px). Add more data points or series for a denser visualisation.\\\",\\\"score\\\":0.1,\\\"scope\\\":{\\\"kind\\\":\\\"widget\\\",\\\"widgetId\\\":\\\"revenue-by-segment\\\"}},{\\\"code\\\":\\\"data_variance\\\",\\\"description\\\":\\\"Values have variance\\\",\\\"score\\\":1,\\\"scope\\\":{\\\"kind\\\":\\\"widget\\\",\\\"widgetId\\\":\\\"revenue-by-segment\\\"}},{\\\"code\\\":\\\"axis_labels_configured\\\",\\\"descript…[+1030 chars]"
+    },
+    {
+      "seq": 18,
+      "at": "2026-10-25T18:41:02.343Z",
+      "kind": "STUDIO_TOOL_RESULT",
+      "runId": "run-5620de48-8405-434e-99ba-539a1cd0ada6-r2",
+      "toolCallId": "toolu_01Wicfyo89z9hsZr55oxyUKt",
+      "name": "add_widget_filter",
+      "result": "{\"success\":true,\"response\":\"{\\\"filtered\\\":\\\"revenue-by-segment\\\",\\\"health\\\":[{\\\"code\\\":\\\"category_density\\\",\\\"description\\\":\\\"3 categories × 1 series - 232px per element (ideal: 20-50px)\\\",\\\"suggestions\\\":\\\"Each element has 232px of space (ideal: 20-50px). Add more data points or series for a denser visualisation.\\\",\\\"score\\\":0.1,\\\"scope\\\":{\\\"kind\\\":\\\"widget\\\",\\\"widgetId\\\":\\\"revenue-by-segment\\\"}},{\\\"code\\\":\\\"data_variance\\\",\\\"description\\\":\\\"Values have variance\\\",\\\"score\\\":1,\\\"scope\\\":{\\\"kind\\\":\\\"widget\\\",\\\"widgetId\\\":\\\"revenue-by-segment\\\"}},{\\\"code\\\":\\\"axis_labels_configured\\\",\\\"descriptio…[+1026 chars]"
+    },
+    {
+      "seq": 19,
+      "at": "2026-10-25T18:41:03.918Z",
+      "kind": "MODEL_CALL",
+      "n": 3,
+      "model": "claude-sonnet-5"
+    },
+    {
+      "seq": 20,
+      "at": "2026-10-25T18:41:03.944Z",
+      "kind": "ROUND_END",
+      "runId": "run-5620de48-8405-434e-99ba-539a1cd0ada6-r2",
+      "reason": "turn_complete",
+      "text": "Added a new column chart \"PayPal revenue by segment · this month\", showing summed captures.gross grouped by captures.segment, filtered to the current calendar month."
+    }
+  ],
+  "toolCalls": [
+    {
+      "kind": "TOOL_CALL_EMITTED",
+      "name": "place_widget",
+      "args": "{\"widgetId\":\"revenue-by-segment\",\"type\":\"column-chart-grouped\"}"
+    },
+    {
+      "kind": "TOOL_CALL_EMITTED",
+      "name": "configure_column_chart_grouped",
+      "args": "{\"widgetId\":\"revenue-by-segment\",\"op\":\"patch\",\"value\":{\"dataMapping\":{\"categoryKey\":[{\"id\":\"captures.segment\"}],\"valueKey\":[{\"id\":\"captures.gross\",\"aggregation\":\"sum\"}]},\"format\":{\"title\":{\"enabled\":true,\"text\":\"PayPal revenue by segment · this month\"}}}}"
+    },
+    {
+      "kind": "TOOL_CALL_EMITTED",
+      "name": "add_widget_filter",
+      "args": "{\"widgetId\":\"revenue-by-segment\",\"op\":\"append\",\"value\":{\"field\":{\"id\":\"captures.date\"},\"model\":{\"operator\":\"inRelativeRange\",\"value\":{\"type\":\"this\",\"unit\":\"month\"}}}}"
+    }
+  ],
+  "finalAssistantText": "Added a new column chart \"PayPal revenue by segment · this month\", showing summed captures.gross grouped by captures.segment, filtered to the current calendar month.",
+  "widgetDiff": {
+    "before": 7,
+    "after": 8,
+    "added": {
+      "revenue-by-segment": {
+        "type": "column-chart-grouped",
+        "format": {
+          "title": {
+            "enabled": true,
+            "text": "PayPal revenue by segment · this month"
+          }
+        },
+        "dataMapping": {
+          "categoryKey": [
+            {
+              "id": "captures.segment"
+            }
+          ],
+          "valueKey": [
+            {
+              "id": "captures.gross",
+              "aggregation": "sum"
+            }
+          ]
+        },
+        "layout": {
+          "xTrack": 0,
+          "yTrack": 50,
+          "xSpan": 24,
+          "ySpan": 20
+        },
+        "widgetFilters": [
+          {
+            "field": {
+              "id": "captures.date"
+            },
+            "model": {
+              "operator": "inRelativeRange",
+              "value": {
+                "type": "this",
+                "unit": "month"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "changed": {}
+  },
+  "canvas": {
+    "framesBefore": 7,
+    "framesAfter": 8,
+    "newFrames": [
+      {
+        "text": "PayPal revenue by segment · this month interactive chartinteractive chartPress Space or Enter to toggle visibility Loading... No data to display Column Chart Grouped X Axis Segment Y Axis Gross (sum)",
+        "height": 320
+      }
+    ],
+    "geometry": {
+      "canvasWidth": 984,
+      "frames": [
+        {
+          "title": "Captured · 45d",
+          "x": 467,
+          "width": 244,
+          "height": 192,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "Refunded · 45d",
+          "x": 711,
+          "width": 244,
+          "height": 192,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "Refund rate · last 7 days",
+          "x": 955,
+          "width": 488,
+          "height": 192,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "Daily PayPal revenue",
+          "x": 467,
+          "width": 569,
+          "height": 320,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "Who still owes us",
+          "x": 1036,
+          "width": 407,
+          "height": 320,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "Dispute deadlines",
+          "x": 467,
+          "width": 284,
+          "height": 288,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "PayPal refunds",
+          "x": 751,
+          "width": 692,
+          "height": 288,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        },
+        {
+          "title": "PayPal revenue by segment · this month",
+          "x": 467,
+          "width": 976,
+          "height": 320,
+          "titleTruncated": false,
+          "gridOverflowX": false,
+          "truncatedCells": []
+        }
+      ]
+    }
+  },
+  "studioOnErrorRaisedSoFar": [],
+  "screenshot": {
+    "path": "alexa-sim/screenshots/money-desk-agent-1.png",
+    "md5": "98a160d1344993d0da1bac70dee414bd"
+  }
+}

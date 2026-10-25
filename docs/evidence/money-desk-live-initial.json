@@ -1,18 +1,18 @@
 {
   "generatedBy": "alexa-sim/test/moneyDeskLive.test.ts",
-  "at": "2026-10-17T22:03:30.547Z",
+  "at": "2026-10-25T18:40:49.678Z",
   "url": "http://127.0.0.1:4189/money-desk.html",
   "dataSource": {
     "tool": "paypal_ledger_export",
     "via": "mcp",
-    "speech": "PayPal ledger export (mock) for the last 45 days: 144 captures, 18 refunds, 6 invoices, 3 disputes, 8 tracking rows."
+    "speech": "PayPal ledger export (mock) for the last 45 days: 138 captures, 16 refunds, 6 invoices, 3 disputes, 8 tracking rows."
   },
   "ledger": {
     "mode": "mock",
-    "anchorDate": "2026-10-17",
+    "anchorDate": "2026-10-25",
     "counts": {
-      "captures": 144,
-      "refunds": 18,
+      "captures": 138,
+      "refunds": 16,
       "invoices": 6,
       "disputes": 3,
       "tracking": 8
@@ -20,8 +20,10 @@
   },
   "agentConfig": {
     "model": "claude-sonnet-5",
+    "llm": "GitHub Copilot SDK (logged-in Copilot account)",
     "readOnlyPayPalTools": [
       "paypal_ledger_export",
+      "paypal_refund_anomaly",
       "paypal_money_briefing",
       "paypal_disputes_list",
       "paypal_dispute_get"
@@ -79,17 +81,85 @@
       "fields": [
         "refunds.date",
         "refunds.customer",
-        "refunds.segment",
+        "refunds.product",
         "refunds.amount",
         "refunds.reason"
       ]
     }
   },
   "canvasWidgetFrames": 7,
+  "canvasGeometry": {
+    "canvasWidth": 984,
+    "frames": [
+      {
+        "title": "Captured · 45d",
+        "x": 467,
+        "width": 244,
+        "height": 192,
+        "titleTruncated": false,
+        "gridOverflowX": false,
+        "truncatedCells": []
+      },
+      {
+        "title": "Refunded · 45d",
+        "x": 711,
+        "width": 244,
+        "height": 192,
+        "titleTruncated": false,
+        "gridOverflowX": false,
+        "truncatedCells": []
+      },
+      {
+        "title": "Refund rate · last 7 days",
+        "x": 955,
+        "width": 488,
+        "height": 192,
+        "titleTruncated": false,
+        "gridOverflowX": false,
+        "truncatedCells": []
+      },
+      {
+        "title": "Daily PayPal revenue",
+        "x": 467,
+        "width": 569,
+        "height": 320,
+        "titleTruncated": false,
+        "gridOverflowX": false,
+        "truncatedCells": []
+      },
+      {
+        "title": "Who still owes us",
+        "x": 1036,
+        "width": 407,
+        "height": 320,
+        "titleTruncated": false,
+        "gridOverflowX": false,
+        "truncatedCells": []
+      },
+      {
+        "title": "Dispute deadlines",
+        "x": 467,
+        "width": 284,
+        "height": 288,
+        "titleTruncated": false,
+        "gridOverflowX": false,
+        "truncatedCells": []
+      },
+      {
+        "title": "PayPal refunds",
+        "x": 751,
+        "width": 692,
+        "height": 288,
+        "titleTruncated": false,
+        "gridOverflowX": false,
+        "truncatedCells": []
+      }
+    ]
+  },
   "customWidgetText": [
-    "Last 7 days of PayPal data 39.8% €768.05 refunded of €1,932.14 captured Refund spike baseline 7.4% before that",
+    "Last 7 days · Mon, 19 Oct – Sun, 25 Oct 35.3% €564.36 refunded of €1,597.80 captured Refund spike baseline 5.4% before this window Ask the AI panel: “Why are refunds spiking?”",
     "4 customers · €1,196.00 outstanding 1Dublin Pantry Ltdnot yet due€480.002Galway Gift House10 days overdue€400.003Cork Office Co11 days overdue€220.004Mugs & Candles Club11 days overdue€96.00",
-    "⏱PP-D-MOCK-1due 2026-10-19 23:00 UTC · €18.002d 0h⏱PP-D-MOCK-2due 2026-10-22 23:00 UTC · €202.035d 0h"
+    "⏱PP-D-MOCK-1due 2026-10-27 23:00 UTC · €18.002d 4h⏱PP-D-MOCK-2due 2026-10-30 23:00 UTC · €152.265d 4h"
   ],
   "licenceKeyConfigured": false,
   "licence": {
@@ -112,11 +182,9 @@
     "[error] * All AG Studio Pro with AI features are unlocked for trial. *",
     "[error] * If you want to hide the watermark please email info@ag-grid.com for a trial license key. *"
   ],
-  "otherConsoleErrors": [
-    "[error] Failed to load resource: the server responded with a status of 404 (Not Found)"
-  ],
+  "otherConsoleErrors": [],
   "screenshot": {
     "path": "alexa-sim/screenshots/money-desk-initial.png",
-    "md5": "4333224909e5604c4033a0f944489445"
+    "md5": "22673c232ea635951f45ffa9f5ad277e"
   }
 }
