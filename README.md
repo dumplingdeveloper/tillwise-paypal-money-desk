@@ -104,6 +104,8 @@ The MCP server exposes:
 - `guardrails_get`
 - `guardrails_update`
 - `paypal_money_briefing`
+- `paypal_ledger_export` (read-only)
+- `paypal_refund_anomaly` (read-only)
 - `paypal_refund_preview`
 - `paypal_refund_apply`
 - `paypal_invoice_create_preview`
@@ -136,7 +138,7 @@ Open `http://127.0.0.1:4179/money-desk.html` after starting the simulator and th
 
 The AI panel's agent is a `clientToolRunner`. Its rounds go to `/api/studio-agent/run`, where a GitHub Copilot SDK session decides which Studio tools to call. Studio runs those tools in the browser and sends the results back to the session.
 
-The agent only has Studio tools and read-only PayPal tools; no money-moving tool is exposed to Studio. See `docs/M2_AG_STUDIO_EVIDENCE.md`. The live acceptance test is `cd alexa-sim && npm run build && LIVE_LLM=1 EXPECTED_GITHUB_LOGIN=<login> SIM_PORT=4189 node --test dist/test/moneyDeskLive.test.js`.
+The agent only has Studio tools and read-only PayPal tools; no money-moving tool is exposed to Studio. New widgets are placed by our `place_widget` tool, which wraps Studio's `AgAddWidgetCommand` and gives each one the full free width of the 24-column canvas. Asking "Why are refunds spiking?" makes the agent call the read-only `paypal_refund_anomaly` tool and quote its figures. See `docs/M2_AG_STUDIO_EVIDENCE.md` and `docs/M3_EVIDENCE.md`. The live acceptance test is `cd alexa-sim && npm run build && LIVE_LLM=1 EXPECTED_GITHUB_LOGIN=<login> SIM_PORT=4189 node --test dist/test/moneyDeskLive.test.js`.
 
 AG Studio is a commercial product. This repo includes `ag-studio@3.0.0` for local hackathon testing only; no AG Studio license key is committed. If a trial key is provided later, keep it in the environment as `AG_STUDIO_LICENSE_KEY`.
 

@@ -1,5 +1,7 @@
 # M2 AG Studio Money Desk: evidence
 
+> **M3 note (2026-10-25).** The M2 live run's `docs/evidence/m2-live-*.json` and the screenshot md5s listed below belong to commit `b961f79` (`git show b961f79:docs/evidence/m2-live-1.json`). M3 re-ran the live test and replaced them with `docs/evidence/money-desk-live-*.json` and new screenshots. In M3, `add_widget` / `position_widget` were also replaced by `place_widget`. See `docs/M3_EVIDENCE.md`.
+
 This page records what is live, what is offline, and what is not verified. Earlier versions of M2 were faked: HTML overlays painted on top of an empty AG Studio canvas, regex-picked widgets, and a hardcoded agent answer. Commit `f5cd81f` deleted the evidence and screenshots from those attempts. Everything listed under "Live" below comes from one run of `alexa-sim/test/moneyDeskLive.test.ts` against the real Copilot SDK.
 
 ## What is live and what is offline
