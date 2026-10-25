@@ -55,10 +55,14 @@ Then pick ONE way to reach a model:
 `npm run demo` starts the MCP server on `127.0.0.1:3338` and the simulator on `127.0.0.1:4179`. Expected output (Copilot login):
 
 ```text
-Tillwise Store Agent MCP server listening on http://127.0.0.1:3338/mcp
+Tillwise MCP server listening on http://127.0.0.1:3338/mcp
+MCP LATEST_PROTOCOL_VERSION=2025-11-25
 Copilot SDK authenticated as <your login>
+Copilot SDK model count <n>
 Alexa+ simulator listening on http://127.0.0.1:4179
 ```
+
+Quick check: `curl -s http://127.0.0.1:4179/api/money-desk-data` returns `"source":{"tool":"paypal_ledger_export","via":"mcp",…}` with 138 captures, 16 refunds, 6 invoices, 3 disputes and 8 tracking rows (mock ledger, 45 days to today).
 
 With BYOK the second line is `LLM provider: BYOK openai · gpt-4o-mini @ api.openai.com (key set)` (the key itself is never printed). A wrong key is shown in the voice sim and in the Money Desk AI panel as `BYOK provider openai rejected the API key (HTTP 401). Check TILLWISE_LLM_API_KEY …`.
 

@@ -1,3 +1,4 @@
+import { createServer as createNetServer, type AddressInfo } from 'node:net';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
@@ -33,10 +34,19 @@ async function wcRegularPrice(env: Record<string, string>, productId: number): P
   return Number(product.regular_price);
 }
 
+async function freePort(): Promise<string> {
+  const probe = createNetServer();
+  await new Promise<void>((resolve) => probe.listen(0, '127.0.0.1', () => resolve()));
+  const { port } = probe.address() as AddressInfo;
+  await new Promise<void>((resolve) => probe.close(() => resolve()));
+  return String(port);
+}
+
 test('MCP live preview apply undo flow negotiates 2025-11-25', { timeout: 120000 }, async () => {
   const { root, env } = loadEnv();
   if (!env.WP_APPLICATION_PASSWORD) throw new Error('Run scripts/seed-local.sh before npm test so mcp-server/.env exists.');
-  const port = String(3338 + Math.floor(Math.random() * 100));
+  // A free ephemeral port (3338 + random collided with a running MCP server on 3338/3339/3348).
+  const port = await freePort();
   const started = await startHttpServer({ ...process.env, ...env, MCP_PORT: port, MCP_HOST: '127.0.0.1' });
   try {
     const transport = new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp`));
