@@ -118,6 +118,18 @@ export class LivePayPalClient implements PayPalClient {
   async createInvoice(input: CreateInvoiceInput): Promise<PayPalInvoice> {
     return this.paypalFetch<PayPalInvoice>('/v2/invoicing/invoices', { method: 'POST', requestId: input.request_id, headers: { Prefer: 'return=representation' }, body: JSON.stringify({ detail: { currency_code: input.currency_code, invoice_number: input.invoice_number, note: input.note }, primary_recipients: input.primary_recipients, items: input.items }) });
   }
+  /** Sandbox smoke only (src/sandboxSmoke.ts): proves OAuth works without exposing the token. */
+  async oauthProbe(): Promise<{ expires_in_s: number }> {
+    const token = await this.getAccessToken();
+    return { expires_in_s: Math.round((token.expiresAt - Date.now()) / 1000) };
+  }
+  async getInvoice(invoice_id: string): Promise<PayPalInvoice> {
+    return this.paypalFetch<PayPalInvoice>(`/v2/invoicing/invoices/${encodeURIComponent(invoice_id)}`);
+  }
+  /** PayPal only deletes DRAFT invoices; used to clean up the smoke test's own draft. */
+  async deleteDraftInvoice(invoice_id: string): Promise<void> {
+    await this.paypalFetch(`/v2/invoicing/invoices/${encodeURIComponent(invoice_id)}`, { method: 'DELETE' });
+  }
   async sendInvoice(input: SendInvoiceInput): Promise<PayPalInvoice> {
     return this.paypalFetch<PayPalInvoice>(`/v2/invoicing/invoices/${encodeURIComponent(input.invoice_id)}/send`, { method: 'POST', requestId: input.request_id, body: JSON.stringify({ note: input.note, send_to_recipient: input.send_to_recipient ?? true }) });
   }
