@@ -157,3 +157,68 @@ test('paypal_refund_anomaly is a read-only MCP tool', async () => {
     await server.close();
   }
 });
+
+test('refund anomaly returns a daily series by reason and product that adds up to the ledger', () => {
+  const ledger = buildMockLedger(Date.parse('2026-10-25T20:00:00Z'));
+  const anomaly = explainRefundAnomaly(ledger, 7);
+  assert.equal(anomaly.daily.length, 14);
+  assert.deepEqual(anomaly.daily.map((d) => d.period), [...Array(7).fill('before'), ...Array(7).fill('window')]);
+  assert.equal(anomaly.daily.at(-1)!.date, anomaly.window.end);
+  assert.equal(anomaly.daily.find((d) => d.period === 'window')!.date, anomaly.window.start);
+  for (const day of anomaly.daily) {
+    const rows = ledger.refunds.filter((r) => r.date === day.date);
+    const total = Math.round(rows.reduce((t, r) => t + r.amount, 0) * 100) / 100;
+    assert.equal(day.refunds, rows.length, day.date);
+    assert.equal(day.refunded, total, day.date);
+    assert.ok(Math.abs(Object.values(day.by_reason).reduce((t, v) => t + v, 0) - total) < 0.02, day.date);
+    assert.ok(Math.abs(Object.values(day.by_product).reduce((t, v) => t + v, 0) - total) < 0.02, day.date);
+  }
+  const windowSum = anomaly.daily.filter((d) => d.period === 'window').reduce((t, d) => t + d.refunded, 0);
+  assert.ok(Math.abs(windowSum - anomaly.window_refunded) < 0.02);
+  assert.equal(anomaly.daily[7].day, 'Mon 19 Oct');
+});
+
+test('the mock baseline has varied refunds while the spike keeps one clear cause', () => {
+  for (const at of ['2026-10-25T20:00:00Z', '2026-10-28T12:00:00Z', '2026-11-12T19:00:00Z']) {
+    const ledger = buildMockLedger(Date.parse(at));
+    const anomaly = explainRefundAnomaly(ledger, 7);
+    const before = ledger.refunds.filter((r) => r.date < anomaly.window.start);
+    assert.ok(new Set(before.map((r) => r.reason)).size >= 4, `${at}: baseline reasons ${[...new Set(before.map((r) => r.reason))]}`);
+    assert.ok(new Set(before.map((r) => r.product)).size >= 4, `${at}: baseline products`);
+    const chartReasons = new Set(anomaly.daily.flatMap((d) => Object.keys(d.by_reason)));
+    assert.ok(chartReasons.size >= 3, `${at}: the 14-day series should show several reasons: ${[...chartReasons]}`);
+    assert.ok(anomaly.daily.filter((d) => d.period === 'before' && d.refunds > 0).length >= 3, `${at}: baseline days with refunds`);
+    assert.equal(anomaly.breakdowns.reason[0].key, SPIKE_REASON);
+    assert.ok(anomaly.breakdowns.reason[0].share_of_window_refunds >= 0.8, `${at}: spike reason share`);
+  }
+});
+
+test('refund anomaly reports the calendar week with exact dates and whether it equals the rolling window', () => {
+  const sunday = explainRefundAnomaly(buildMockLedger(Date.parse('2026-10-25T20:00:00Z')), 7);
+  assert.equal(sunday.window.label, 'Mon 19 Oct – Sun 25 Oct');
+  assert.equal(sunday.calendar_week.start, '2026-10-19');
+  assert.equal(sunday.calendar_week.label, 'Mon 19 Oct – Sun 25 Oct');
+  assert.equal(sunday.calendar_week.same_dates_as_window, true);
+  assert.equal(sunday.calendar_week.formatted.rate, sunday.formatted.window_rate);
+  assert.equal(sunday.calendar_week.refunded, sunday.window_refunded);
+  assert.match(sunday.windows_note, /exactly the same dates/);
+
+  const ledger = buildMockLedger(Date.parse('2026-10-28T12:00:00Z'));
+  const wednesday = explainRefundAnomaly(ledger, 7);
+  assert.equal(wednesday.calendar_week.start, '2026-10-26');
+  assert.equal(wednesday.calendar_week.label, 'Mon 26 Oct – Wed 28 Oct');
+  assert.equal(wednesday.calendar_week.same_dates_as_window, false);
+  const inWeek = (d: string) => d >= '2026-10-26' && d <= '2026-10-28';
+  const refunded = ledger.refunds.filter((r) => inWeek(r.date)).reduce((t, r) => t + r.amount, 0);
+  const captured = ledger.captures.filter((c) => inWeek(c.date)).reduce((t, c) => t + c.gross, 0);
+  assert.ok(Math.abs(wednesday.calendar_week.rate - refunded / captured) < 1e-6);
+  assert.ok(wednesday.windows_note.includes('Mon 26 Oct – Wed 28 Oct') && wednesday.windows_note.includes(wednesday.calendar_week.formatted.rate));
+});
+
+test('refund anomaly anchors on the last data day, like the Money Desk tile', () => {
+  const ledger = buildMockLedger(Date.parse('2026-10-25T20:00:00Z'));
+  const trimmed = { ...ledger, captures: ledger.captures.filter((c) => c.date < '2026-10-25'), refunds: ledger.refunds.filter((r) => r.date < '2026-10-25') };
+  const anomaly = explainRefundAnomaly(trimmed, 7);
+  assert.equal(anomaly.window.end, '2026-10-24');
+  assert.equal(anomaly.window.start, '2026-10-18');
+});

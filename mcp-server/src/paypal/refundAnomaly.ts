@@ -20,11 +20,14 @@ export type AnomalyBreakdownRow = {
   text: string;
 };
 
+export type DailyRefunds = { date: string; day: string; period: 'window' | 'before'; refunds: number; refunded: number; captured: number; by_reason: Record<string, number>; by_product: Record<string, number> };
+export type WindowFigures = { start: string; end: string; label: string; refunded: number; captured: number; rate: number; formatted: { rate: string; refunded: string; captured: string } };
+
 export type RefundAnomaly = {
   mode: PayPalLedger['mode'];
   anchor_date: string;
   window_days: number;
-  window: { start: string; end: string };
+  window: { start: string; end: string; label: string };
   baseline: { start: string; end: string };
   window_refunded: number;
   window_captured: number;
@@ -37,10 +40,31 @@ export type RefundAnomaly = {
   excess_refunded: number;
   breakdowns: Record<AnomalyDimension, AnomalyBreakdownRow[]>;
   top_driver: { dimension: AnomalyDimension; key: string; share_of_excess: number } | null;
+  /** Refunds per day over twice the window (the window plus as many days before it), split by reason and product. */
+  daily: DailyRefunds[];
+  /** The calendar week (Monday to the last data day) with the same refund-rate definition, and whether its dates equal the rolling window's. */
+  calendar_week: WindowFigures & { same_dates_as_window: boolean };
+  windows_note: string;
   formatted: Record<string, string>;
   headline: string;
   definition: string;
 };
+
+/** "Mon 19 Oct": the same day label the Money Desk refund-rate tile prints (money-desk.js fmtDay). */
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+export const dayLabel = (iso: string) => { const d = new Date(`${iso}T00:00:00Z`); return `${WEEKDAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`; };
+const addDays = (iso: string, n: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * DAY).toISOString().slice(0, 10);
+
+/** Latest capture or refund date: the day both the tool and the Money Desk tile anchor their windows on. */
+export function lastDataDate(ledger: PayPalLedger) {
+  return [...ledger.captures.map((c) => c.date), ...ledger.refunds.map((r) => r.date)].sort().at(-1) ?? ledger.anchor_date;
+}
+
+/** Monday of the ISO week containing `end`, up to `end` (the tile's 'calendar-week' window). */
+export function calendarWeekStart(end: string) {
+  return addDays(end, -((new Date(`${end}T00:00:00Z`).getUTCDay() + 6) % 7));
+}
 
 /**
  * Read-only refund anomaly explanation computed from the ledger. Same definition as the Money Desk
@@ -49,11 +73,11 @@ export type RefundAnomaly = {
  */
 export function explainRefundAnomaly(ledger: PayPalLedger, windowDays = 7): RefundAnomaly {
   const days = Math.max(1, Math.min(30, Math.floor(windowDays)));
-  const anchor = Date.parse(`${ledger.anchor_date}T00:00:00Z`);
-  const start = new Date(anchor - (days - 1) * DAY).toISOString().slice(0, 10);
+  const end = lastDataDate(ledger);
+  const start = addDays(end, -(days - 1));
   const firstDay = [...ledger.captures.map((c) => c.date), ...ledger.refunds.map((r) => r.date)].sort()[0] ?? start;
-  const beforeStart = new Date(Date.parse(`${start}T00:00:00Z`) - DAY).toISOString().slice(0, 10);
-  const inWindow = (date: string) => date >= start && date <= ledger.anchor_date;
+  const beforeStart = addDays(start, -1);
+  const inWindow = (date: string) => date >= start && date <= end;
   const inBaseline = (date: string) => date < start;
   const sum = (values: number[]) => round2(values.reduce((t, v) => t + v, 0));
 
@@ -111,17 +135,42 @@ export function explainRefundAnomaly(ledger: PayPalLedger, windowDays = 7): Refu
     top_product: topProduct ? `${topProduct.key} ${eur(topProduct.refunded)} (${pct(topProduct.share_of_window_refunds)} of refunded €)` : 'none',
     top_reason: topReason ? `${topReason.key} ${eur(topReason.refunded)} (${pct(topReason.share_of_window_refunds)} of refunded €)` : 'none',
   };
+  const windowLabel = `${dayLabel(start)} – ${dayLabel(end)}`;
+
+  const daily: DailyRefunds[] = [];
+  for (let i = 2 * days - 1; i >= 0; i--) {
+    const date = addDays(end, -i);
+    if (date < firstDay) continue;
+    const dayRefunds = ledger.refunds.filter((r) => r.date === date);
+    const group = (key: 'reason' | 'product') => Object.fromEntries(Object.entries(dayRefunds.reduce<Record<string, number>>((acc, r) => ({ ...acc, [r[key]]: (acc[r[key]] ?? 0) + r.amount }), {})).map(([k, v]): [string, number] => [k, round2(v)]).sort((a, b) => b[1] - a[1]));
+    daily.push({ date, day: dayLabel(date), period: inWindow(date) ? 'window' : 'before', refunds: dayRefunds.length, refunded: sum(dayRefunds.map((r) => r.amount)), captured: sum(ledger.captures.filter((c) => c.date === date).map((c) => c.gross)), by_reason: group('reason'), by_product: group('product') });
+  }
+
+  const weekStart = calendarWeekStart(end);
+  const weekRefunded = sum(ledger.refunds.filter((r) => r.date >= weekStart && r.date <= end).map((r) => r.amount));
+  const weekCaptured = sum(ledger.captures.filter((c) => c.date >= weekStart && c.date <= end).map((c) => c.gross));
+  const weekRate = weekCaptured ? weekRefunded / weekCaptured : 0;
+  const calendarWeek = {
+    start: weekStart, end, label: `${dayLabel(weekStart)} – ${dayLabel(end)}`, refunded: weekRefunded, captured: weekCaptured, rate: weekRate,
+    formatted: { rate: pct(weekRate), refunded: eur(weekRefunded), captured: eur(weekCaptured) },
+    same_dates_as_window: weekStart === start,
+  };
+  const windowsNote = calendarWeek.same_dates_as_window
+    ? `The calendar week (Monday to the last data day, ${calendarWeek.label}) has exactly the same dates as the last ${days} days (${windowLabel}), so a "this week" refund rate equals the last-${days}-days figure: ${formatted.window_rate}.`
+    : `The calendar week runs ${calendarWeek.label} (refund rate ${calendarWeek.formatted.rate}); the last ${days} days run ${windowLabel} (refund rate ${formatted.window_rate}).`;
+
   const headline = windowRefunds.length === 0
-    ? `No refunds in the last ${days} days (${start} to ${ledger.anchor_date}).`
-    : `Refund rate ${formatted.window_rate} over the last ${days} days (${start} to ${ledger.anchor_date}) vs ${formatted.baseline_rate} before (${formatted.multiple}). ` +
+    ? `No refunds in the last ${days} days (${windowLabel}).`
+    : `Refund rate ${formatted.window_rate} over the last ${days} days (${windowLabel}) vs ${formatted.baseline_rate} before (${formatted.multiple}). ` +
       `Top product: ${formatted.top_product}. Top reason: ${formatted.top_reason}.`;
   return {
     mode: ledger.mode, anchor_date: ledger.anchor_date, window_days: days,
-    window: { start, end: ledger.anchor_date }, baseline: { start: firstDay < start ? firstDay : start, end: beforeStart },
+    window: { start, end, label: windowLabel }, baseline: { start: firstDay < start ? firstDay : start, end: beforeStart },
     window_refunded: windowRefunded, window_captured: windowCaptured, window_rate: windowRate,
     baseline_refunded: baselineRefunded, baseline_captured: baselineCaptured, baseline_rate: baselineRate,
     multiple, spike, excess_refunded: excess, breakdowns,
     top_driver: driver?.row ? { dimension: driver.dimension, key: driver.row.key, share_of_excess: driver.row.share_of_excess } : null,
+    daily, calendar_week: calendarWeek, windows_note: windowsNote,
     formatted, headline,
     definition: 'Refund rate = EUR refunded with a refund date in the window / EUR captured with a capture date in the window; baseline = the same ratio over all earlier ledger days. Same definition as the Money Desk refund-rate tile.',
   };

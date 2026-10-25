@@ -26,6 +26,7 @@ const PRODUCTS: Record<Customer['segment'], string[]> = {
 /** The mock spike has one cause, so a drill-down by product or reason can find it in the data. */
 export const SPIKE_PRODUCT = 'Stoneware Mug Set';
 export const SPIKE_REASON = 'Damaged in transit';
+const BASELINE_REFUND_RATE = 0.08;
 
 /** Mulberry32: tiny deterministic PRNG so the same anchor day always yields the same ledger. */
 function prng(seed: number) {
@@ -54,7 +55,7 @@ export function buildMockLedger(anchor: number = Date.now()): PayPalLedger {
   const captures: LedgerCapture[] = [];
   let orderId = 100;
   for (let daysAgo = LEDGER_DAYS - 1; daysAgo >= 0; daysAgo--) {
-    const perDay = 2 + Math.floor(rand() * 3);
+    const perDay = 5 + Math.floor(rand() * 5);
     for (let i = 0; i < perDay; i++) {
       const customer = pick(CUSTOMERS);
       const product = pick(PRODUCTS[customer.segment]);
@@ -74,10 +75,11 @@ export function buildMockLedger(anchor: number = Date.now()): PayPalLedger {
   captures.forEach((capture) => {
     const capturedAt = Date.parse(capture.captured_at);
     // The spike: Stoneware Mug Sets captured in the last ~9 days arrive broken (a bad courier batch) and
-    // ~85% of them are refunded as "Damaged in transit". Everything else keeps the ~6% baseline.
+    // ~85% of them are refunded as "Damaged in transit". Everything else keeps a ~8% baseline spread over
+    // every product and reason, so a day-by-day chart shows ordinary refunds before and during the spike.
     const spikeHit = capturedAt >= spikeStart - 2 * DAY && capture.product === SPIKE_PRODUCT;
     const roll = rand();
-    if (!(spikeHit ? roll < 0.85 : roll < 0.06)) return;
+    if (!(spikeHit ? roll < 0.85 : roll < BASELINE_REFUND_RATE)) return;
     let refundedAt = capturedAt + (1 + Math.floor(rand() * 2)) * DAY;
     if (refundedAt > anchor) refundedAt = capturedAt + Math.floor((anchor - capturedAt) / 2);
     const partial = rand() < 0.3;
