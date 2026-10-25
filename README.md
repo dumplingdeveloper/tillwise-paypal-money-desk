@@ -32,6 +32,45 @@ skills/ contains Agent Skills loaded by the Copilot SDK and exposed by the MCP s
 - PayPal mock mode is the default and requires no PayPal credentials. Sandbox mode is enabled with `PAYPAL_MODE=sandbox` only when `~/.config/tillwise/paypal-sandbox.env` exists with `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET`; secrets must not be printed or committed.
 - This build can only talk to the PayPal sandbox host `api-m.sandbox.paypal.com`; production PayPal hosts are refused in code.
 
+## Judge quick start
+
+Needs Docker, Node 22 (`^20.19.0 || >=22.12.0` for the Copilot SDK) and Google Chrome. PayPal runs in **mock mode** by default (a deterministic ledger in `mcp-server/src/paypal/mockLedger.ts`); no PayPal account is needed.
+
+```bash
+git clone <this repo> tillwise-paypal && cd tillwise-paypal
+docker compose up -d --wait               # WordPress + WooCommerce on http://127.0.0.1:8098 (project "tillwise-paypal")
+./scripts/seed-local.sh                   # installs WooCommerce, seeds the demo store, writes .env + mcp-server/.env
+(cd mcp-server && npm ci && npm run build)
+cd alexa-sim && npm ci
+```
+
+Then pick ONE way to reach a model:
+
+| Option | Command (from `alexa-sim/`) |
+| --- | --- |
+| GitHub Copilot (logged-in Copilot CLI user, or `COPILOT_GITHUB_TOKEN=github_pat_…`) | `ALLOW_ANY_GITHUB_LOGIN=1 npm run demo` |
+| Your own key (BYOK, no Copilot, no GitHub login) | `TILLWISE_LLM_PROVIDER=openai TILLWISE_LLM_API_KEY=… TILLWISE_LLM_MODEL=gpt-4o-mini npm run demo` |
+| Anthropic / Azure / local Ollama | `TILLWISE_LLM_PROVIDER=anthropic` (or `azure` + `TILLWISE_LLM_BASE_URL`, or `ollama` with no key) + `TILLWISE_LLM_MODEL` |
+
+`npm run demo` starts the MCP server on `127.0.0.1:3338` and the simulator on `127.0.0.1:4179`. Expected output (Copilot login):
+
+```text
+Tillwise Store Agent MCP server listening on http://127.0.0.1:3338/mcp
+Copilot SDK authenticated as <your login>
+Alexa+ simulator listening on http://127.0.0.1:4179
+```
+
+With BYOK the second line is `LLM provider: BYOK openai · gpt-4o-mini @ api.openai.com (key set)` (the key itself is never printed). A wrong key is shown in the voice sim and in the Money Desk AI panel as `BYOK provider openai rejected the API key (HTTP 401). Check TILLWISE_LLM_API_KEY …`.
+
+Open:
+
+- `http://127.0.0.1:4179/` — voice/text store agent. Try "How did the shop do today?", then "Refund order 136" (preview → you confirm → apply).
+- `http://127.0.0.1:4179/money-desk.html` — AG Studio Money Desk. Type in the AI panel on the left: "Show PayPal revenue by customer segment this month", "Why are refunds spiking?". The Studio agent is read-only; refunds stay in the confirmed voice flow.
+
+Ports are configurable if 8098 / 3338 / 4179 are taken: `TILLWISE_WP_PORT=8108 COMPOSE_PROJECT_NAME=tillwise-judge docker compose up -d --wait` and the same two variables for `./scripts/seed-local.sh`; then `MCP_PORT=3348 MCP_URL=http://127.0.0.1:3348/mcp SIM_PORT=4193 npm run demo`. Tear down with `docker compose down -v` (same variables).
+
+PayPal sandbox (optional): `./scripts/save-paypal-sandbox-creds.sh` stores sandbox REST credentials in `~/.config/tillwise/paypal-sandbox.env` (mode 600); then `cd mcp-server && npm run sandbox:smoke` runs OAuth, Transaction Search, Disputes, and creates + reads back + deletes one draft invoice against `api-m.sandbox.paypal.com`, printing a summary without secrets. Without that file it prints `PayPal sandbox smoke: NO CREDENTIALS …` and exits 2.
+
 ## Quick start
 
 ```bash
