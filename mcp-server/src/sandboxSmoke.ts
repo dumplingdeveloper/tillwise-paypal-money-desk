@@ -9,7 +9,7 @@ import type { PayPalDispute, PayPalInvoice, PayPalTransaction } from './paypal/t
 /**
  * `npm run sandbox:smoke` — one command to prove the live PayPal path once sandbox credentials exist.
  *
- * Reads ~/.config/tillwise/paypal-sandbox.env (PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET; see submission/save-paypal-sandbox-creds.sh),
+ * Reads ~/.config/tillwise/paypal-sandbox.env (PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET; see scripts/save-paypal-sandbox-creds.sh),
  * then against https://api-m.sandbox.paypal.com only:
  *   1. OAuth client-credentials token            (read)
  *   2. Transaction Search, last 30 days          (read)
@@ -45,7 +45,7 @@ export async function runSandboxSmoke(options: {
   if (!creds) {
     log(`PayPal sandbox smoke: NO CREDENTIALS — ${credentialsPath.replace(homedir(), '~')} is missing or lacks PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET.`);
     log('Nothing was called. Create sandbox REST app credentials at developer.paypal.com (Apps & Credentials → Sandbox), then run');
-    log('  ./submission/save-paypal-sandbox-creds.sh   # writes that file with mode 600, never echoes the secret');
+    log('  ./scripts/save-paypal-sandbox-creds.sh   # writes that file with mode 600, never echoes the secret');
     log('  cd mcp-server && npm run sandbox:smoke');
     return { exitCode: 2, host: HOST, steps: [], startedAt, finishedAt: now().toISOString() };
   }

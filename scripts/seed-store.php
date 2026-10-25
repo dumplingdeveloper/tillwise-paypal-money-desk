@@ -15,7 +15,8 @@ foreach ( WP_Application_Passwords::get_user_application_passwords( $user->ID ) 
 }
 $created = WP_Application_Passwords::create_new_application_password( $user->ID, array( 'name' => 'Tillwise MCP Server' ) );
 $password = $created[0];
-$env = "WP_BASE_URL=http://127.0.0.1:8098
+$wp_port = getenv( 'TILLWISE_WP_PORT' ) ?: '8098';
+$env = "WP_BASE_URL=http://127.0.0.1:" . $wp_port . "
 WP_USERNAME=shopmanager
 WP_APPLICATION_PASSWORD=" . $password . "
 MCP_HOST=127.0.0.1
