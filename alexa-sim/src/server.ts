@@ -2,7 +2,7 @@ import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import { createReadStream, existsSync } from 'node:fs';
 import { dirname, extname, join, normalize } from 'node:path';
 import { createRequire } from 'node:module';
-import { CopilotAgentRuntime } from './copilotAgent.js';
+import { CopilotAgentRuntime, voiceModel } from './copilotAgent.js';
 import { loadAllEnvFiles } from './env.js';
 import { PUBLIC_DIR } from './config.js';
 import { cardFromStructured } from './cards.js';
@@ -74,7 +74,7 @@ export type SimulatorOptions = {
 export async function startSimulator(host = process.env.SIM_HOST || '127.0.0.1', port = Number(process.env.SIM_PORT || 4179), options: SimulatorOptions = {}) {
   if (!(options.skipRuntimeStart && options.studioSessionFactory)) await runtime.start();
   else loadAllEnvFiles();
-  const studioBridge = new StudioBridge({ createSession: options.studioSessionFactory || createCopilotSessionFactory(runtime), paypal: paypalRead });
+  const studioBridge = new StudioBridge({ createSession: options.studioSessionFactory || createCopilotSessionFactory(runtime), paypal: paypalRead, model: runtime.byok?.model });
   const sweeper = setInterval(() => { studioBridge.sweep().catch(() => {}); }, 60_000);
   sweeper.unref();
   const server = http.createServer(async (req, res) => {
@@ -84,7 +84,7 @@ export async function startSimulator(host = process.env.SIM_HOST || '127.0.0.1',
       if (req.method === 'GET' && url.pathname === '/api/money-desk-data') {
         // Rows come from the MCP server's read-only paypal_ledger_export tool, never from this file.
         const { ledger, source } = await loadMoneyDeskLedger(paypalRead);
-        return json(res, 200, { ledger, source, sources: MONEY_DESK_SOURCES, licenseKey: process.env.AG_STUDIO_LICENSE_KEY || null, agent: { model: studioBridge.model, readOnlyPayPalTools: READ_ONLY_PAYPAL_TOOLS } });
+        return json(res, 200, { ledger, source, sources: MONEY_DESK_SOURCES, licenseKey: process.env.AG_STUDIO_LICENSE_KEY || null, agent: { model: studioBridge.model, llm: runtime.byok ? runtime.byok.label : 'GitHub Copilot SDK (logged-in Copilot account)', readOnlyPayPalTools: READ_ONLY_PAYPAL_TOOLS } });
       }
       if (req.method === 'POST' && url.pathname === '/api/studio-agent/run') {
         const body = await readJson(req, 4 * 1024 * 1024);
@@ -102,7 +102,7 @@ export async function startSimulator(host = process.env.SIM_HOST || '127.0.0.1',
         const threadId = url.searchParams.get('threadId');
         return json(res, 200, threadId ? studioBridge.threadLog(threadId) : studioBridge.summary());
       }
-      if (req.method === 'GET' && url.pathname === '/api/status') return json(res, 200, { login: runtime.authLogin, model: process.env.COPILOT_MODEL || 'gpt-6-luna', models: runtime.models.map((m) => (m as { id?: string; name?: string }).id || (m as { name?: string }).name).filter(Boolean) });
+      if (req.method === 'GET' && url.pathname === '/api/status') return json(res, 200, { login: runtime.authLogin, model: voiceModel(runtime.byok), llm: runtime.llmLabel, models: runtime.models.map((m) => (m as { id?: string; name?: string }).id || (m as { name?: string }).name).filter(Boolean) });
       if (req.method === 'POST' && url.pathname === '/api/conversations') {
         await readJson(req);
         let conversationId = '';
@@ -127,7 +127,7 @@ export async function startSimulator(host = process.env.SIM_HOST || '127.0.0.1',
           broadcast(message[1], { type: 'confirmation_reprompt', data: { text: 'Please say yes or no.' } });
           return json(res, 202, { ok: true, reprompt: true });
         }
-        runtime.send(message[1], prompt).catch((error) => broadcast(message[1], { type: 'error', data: { message: error.message } }));
+        runtime.send(message[1], prompt).catch((error) => broadcast(message[1], { type: 'error', data: { message: runtime.explainError(error.message) } }));
         return json(res, 202, { ok: true });
       }
       const confirm = url.pathname.match(/^\/api\/conversations\/([^/]+)\/confirm$/);

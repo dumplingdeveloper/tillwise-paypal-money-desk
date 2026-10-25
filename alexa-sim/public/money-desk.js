@@ -443,7 +443,7 @@
     if (!response.ok) { showError(`Money Desk data unavailable: ${payload.error || response.status}`); $('mdDataSource').textContent = 'unavailable'; return; }
     md.meta = { source: payload.source, ledgerMode: payload.ledger.mode, anchorDate: payload.ledger.anchor_date, counts: payload.ledger.counts, licenseKeyPresent: Boolean(payload.licenseKey), agent: payload.agent };
     $('mdDataSource').textContent = `MCP ${payload.source.tool} · ${payload.ledger.mode} mode · ${payload.ledger.counts.captures} captures, anchor ${payload.ledger.anchor_date}`;
-    $('mdAgent').textContent = `Copilot SDK bridge · model ${payload.agent.model}`;
+    $('mdAgent').textContent = `Copilot SDK bridge · ${payload.agent.llm || 'Copilot'} · model ${payload.agent.model}`;
     $('mdLicence').textContent = payload.licenseKey ? 'AG Studio licence key supplied via env' : 'no AG Studio licence key (local evaluation)';
 
     // licence-install.md: AgStudioLicenseManager.setLicenseKey; key comes from AG_STUDIO_LICENSE_KEY env, never the repo.

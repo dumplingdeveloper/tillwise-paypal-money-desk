@@ -375,7 +375,10 @@ export class StudioBridge {
 }
 
 /** Real SessionFactory: a GitHub Copilot SDK session with only our custom tools (no built-ins, no MCP servers). */
-export function createCopilotSessionFactory(runtime: { createStudioSession(config: Record<string, unknown>): Promise<unknown> }): SessionFactory {
+export function createCopilotSessionFactory(runtime: { createStudioSession(config: Record<string, unknown>): Promise<unknown>; explainError?(message: string): string }): SessionFactory {
+  // BYOK: provider failures (e.g. HTTP 401 for a bad key) become an actionable RUN_ERROR message in the Studio panel.
+  const explain = (message: string) => (runtime.explainError ? runtime.explainError(message) : message);
+  const explained = (error: unknown) => new Error(explain(error instanceof Error ? error.message : String(error)));
   return async ({ model, systemMessage, tools, invoke, onEvent }) => {
     const sdk = await import('@github/copilot-sdk');
     const toolSet = new sdk.ToolSet();
@@ -393,15 +396,15 @@ export function createCopilotSessionFactory(runtime: { createStudioSession(confi
       systemMessage: { mode: 'replace', content: systemMessage },
       streaming: true,
       onPermissionRequest: async () => ({ kind: 'reject', feedback: 'The Money Desk agent has no permission-gated tools.' }),
-    })) as { on(handler: (event: { type: string; data?: Record<string, unknown> }) => void): () => void; send(options: { prompt: string }): Promise<string>; abort(): Promise<void>; disconnect(): Promise<void> };
+    }).catch((error) => { throw explained(error); })) as { on(handler: (event: { type: string; data?: Record<string, unknown> }) => void): () => void; send(options: { prompt: string }): Promise<string>; abort(): Promise<void>; disconnect(): Promise<void> };
     session.on((event) => {
       const data = event.data || {};
       if (event.type === 'assistant.message_delta' && typeof data.deltaContent === 'string') onEvent({ type: 'text_delta', messageId: String(data.messageId || 'msg'), delta: data.deltaContent });
       else if (event.type === 'assistant.message') onEvent({ type: 'message', messageId: String(data.messageId || 'msg'), content: typeof data.content === 'string' ? data.content : '' });
       else if (event.type === 'assistant.usage') onEvent({ type: 'usage', model: typeof data.model === 'string' ? data.model : undefined });
       else if (event.type === 'session.idle') onEvent({ type: 'idle' });
-      else if (event.type === 'session.error') onEvent({ type: 'error', message: String(data.message || 'Copilot SDK session error') });
+      else if (event.type === 'session.error') onEvent({ type: 'error', message: explain(String(data.message || 'Copilot SDK session error')) });
     });
-    return { send: (prompt) => session.send({ prompt }), abort: () => session.abort(), disconnect: () => session.disconnect() };
+    return { send: (prompt) => session.send({ prompt }).catch((error) => { throw explained(error); }), abort: () => session.abort(), disconnect: () => session.disconnect() };
   };
 }

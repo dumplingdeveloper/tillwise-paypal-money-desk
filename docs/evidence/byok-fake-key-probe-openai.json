@@ -1,0 +1,45 @@
+{
+  "generatedBy": "alexa-sim/test/byokProbe.test.ts",
+  "startedAt": "2026-10-25T18:34:44.119Z",
+  "finishedAt": "2026-10-25T18:34:51.919Z",
+  "env": {
+    "TILLWISE_LLM_PROVIDER": "openai",
+    "TILLWISE_LLM_MODEL": "gpt-4o-mini",
+    "TILLWISE_LLM_API_KEY": "<random fake key, not recorded>",
+    "githubTokensInEnv": false
+  },
+  "status": {
+    "login": "byok:openai",
+    "model": "gpt-4o-mini",
+    "llm": "BYOK openai · gpt-4o-mini @ api.openai.com (key set)"
+  },
+  "moneyDeskAgent": {
+    "model": "gpt-4o-mini",
+    "llm": "BYOK openai · gpt-4o-mini @ api.openai.com (key set)",
+    "readOnlyPayPalTools": [
+      "paypal_ledger_export",
+      "paypal_refund_anomaly",
+      "paypal_money_briefing",
+      "paypal_disputes_list",
+      "paypal_dispute_get"
+    ]
+  },
+  "studio": {
+    "events": [
+      {
+        "type": "RUN_ERROR",
+        "message": "BYOK provider openai rejected the API key (HTTP 401). Check TILLWISE_LLM_API_KEY / TILLWISE_LLM_BASE_URL. Provider said: Authentication failed with provider at https://api.openai.com/v1 (HTTP 401)."
+      }
+    ],
+    "elapsedMs": 3730
+  },
+  "voice": {
+    "conversation": {
+      "login": "byok:openai",
+      "model": "gpt-4o-mini",
+      "llm": "BYOK openai · gpt-4o-mini @ api.openai.com (key set)"
+    },
+    "error": "BYOK provider openai rejected the API key (HTTP 401). Check TILLWISE_LLM_API_KEY / TILLWISE_LLM_BASE_URL. Provider said: Authentication failed with provider at https://api.openai.com/v1 (HTTP 401).",
+    "elapsedMs": 2601
+  }
+}

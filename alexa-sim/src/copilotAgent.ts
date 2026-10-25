@@ -5,6 +5,7 @@ import { buildToolSet, MCP_ALLOWLIST, MCP_SERVER_KEY, PROJECT_ROOT, SKILLS_DIR }
 import { ConfirmationBroker, createPermissionHandler, type ConfirmationView } from './permissionGate.js';
 import { assistantText, hasToolRequests, mapSessionEvent, sanitizePlainText, type UiEvent } from './eventMapper.js';
 import { loadAllEnvFiles, assertAllowedLogin } from './env.js';
+import { byokFromEnv, byokBaseDirectory, byokRuntimeEnv, explainLlmError, type ByokSettings } from './llmProvider.js';
 import { createNodeSessionFsProvider, SESSION_FS_CONFIG } from './sessionFs.js';
 
 function money(value: unknown, currency = 'EUR') { return new Intl.NumberFormat('en-IE', { style: 'currency', currency }).format(Number(value || 0)); }
@@ -146,9 +147,11 @@ export function buildSessionConfig(params: {
   toolState: ToolState;
 }): SessionConfig {
   const systemContent = params.storeContext ? `${PERSONA}\n${params.storeContext}` : PERSONA;
+  const byok = byokFromEnv();
   return {
     clientName: 'tillwise-alexa-sim',
-    model: process.env.COPILOT_MODEL || 'gpt-6-luna',
+    model: voiceModel(byok),
+    ...(byok ? { provider: byok.provider } : {}),
     workingDirectory: PROJECT_ROOT,
     mcpServers: { [MCP_SERVER_KEY]: { type: 'http', url: process.env.MCP_URL || 'http://127.0.0.1:3338/mcp', headers: params.headers, tools: ['*'], timeout: 60000 } },
     skillDirectories: [SKILLS_DIR],
@@ -183,16 +186,37 @@ export function buildSessionConfig(params: {
   };
 }
 
+/** Voice-sim model: the BYOK model when a provider is configured, else COPILOT_MODEL on the logged-in Copilot account. */
+export function voiceModel(byok: ByokSettings | null = byokFromEnv()): string {
+  return byok ? byok.model : (process.env.COPILOT_MODEL || 'gpt-6-luna');
+}
+
 export class CopilotAgentRuntime {
   private client: CopilotClient | null = null;
   private conversations = new Map<string, Conversation>();
   authLogin: string | undefined;
   models: ModelInfo[] = [];
   skillsLoaded: unknown[] = [];
+  byok: ByokSettings | null = null;
+
+  /** Safe to show: "copilot-login:<user>" or the BYOK label (provider, model, host; never the key). */
+  get llmLabel(): string { return this.byok ? this.byok.label : `Copilot login ${this.authLogin || '(not started)'}`; }
+
+  explainError(message: string): string { return explainLlmError(message, this.byok); }
 
   async start() {
     loadAllEnvFiles();
     if (this.client) return;
+    this.byok = byokFromEnv();
+    if (this.byok) {
+      // BYOK: no GitHub login and no GitHub token reach the runtime; sessions carry `provider` (types.d.ts:2009-2012).
+      this.client = new CopilotClient({ mode: 'copilot-cli', useLoggedInUser: false, baseDirectory: byokBaseDirectory(), env: byokRuntimeEnv(), workingDirectory: PROJECT_ROOT, sessionFs: SESSION_FS_CONFIG, logLevel: process.env.COPILOT_LOG_LEVEL as 'none' | 'error' | 'warning' | 'info' | 'debug' | 'all' | undefined, onListModels: () => [] });
+      await this.client.start();
+      this.authLogin = `byok:${this.byok.providerName}`;
+      this.models = [];
+      console.log(`LLM provider: ${this.byok.label}`);
+      return;
+    }
     const token = process.env.COPILOT_GITHUB_TOKEN;
     if (token && token.startsWith('ghp_')) throw new Error('Classic ghp_ tokens are not supported; use Copilot CLI login or a fine-grained github_pat_ token with Copilot Requests.');
     this.client = new CopilotClient({ mode: 'copilot-cli', useLoggedInUser: !token, gitHubToken: token, workingDirectory: PROJECT_ROOT, sessionFs: SESSION_FS_CONFIG, logLevel: process.env.COPILOT_LOG_LEVEL as 'none' | 'error' | 'warning' | 'info' | 'debug' | 'all' | undefined });
@@ -256,7 +280,7 @@ export class CopilotAgentRuntime {
     this.conversations.set(id, conversation);
     const mcpData = { clientInfo: latestMcpSession?.clientInfo, requestedProtocolVersion: latestMcpSession?.requestedProtocolVersion, negotiatedProtocolVersion: latestMcpSession?.negotiatedProtocolVersion };
     if (latestMcpSession) console.log('MCP negotiated:', JSON.stringify(mcpData));
-    push({ type: 'conversation_started', data: { id, tools: MCP_ALLOWLIST, login: this.authLogin, skills, model: process.env.COPILOT_MODEL || 'gpt-6-luna', mcpUrl: process.env.MCP_URL || 'http://127.0.0.1:3338/mcp', protocolVersion: latestMcpSession?.negotiatedProtocolVersion || 'unknown', mcpClient: latestMcpSession?.clientInfo } });
+    push({ type: 'conversation_started', data: { id, tools: MCP_ALLOWLIST, login: this.authLogin, skills, model: voiceModel(this.byok), llm: this.llmLabel, mcpUrl: process.env.MCP_URL || 'http://127.0.0.1:3338/mcp', protocolVersion: latestMcpSession?.negotiatedProtocolVersion || 'unknown', mcpClient: latestMcpSession?.clientInfo } });
     push({ type: 'mcp_status', data: mcpData });
     return conversation;
   }
@@ -282,6 +306,7 @@ export class CopilotAgentRuntime {
   async createStudioSession(config: Record<string, unknown>) {
     if (!this.client) await this.start();
     return this.client!.createSession({
+      ...(this.byok ? { provider: this.byok.provider } : {}),
       workingDirectory: PROJECT_ROOT,
       enableSessionTelemetry: false,
       skipEmbeddingRetrieval: true,

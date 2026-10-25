@@ -1,0 +1,45 @@
+{
+  "generatedBy": "alexa-sim/test/byokProbe.test.ts",
+  "startedAt": "2026-10-25T18:34:57.250Z",
+  "finishedAt": "2026-10-25T18:34:59.102Z",
+  "env": {
+    "TILLWISE_LLM_PROVIDER": "anthropic",
+    "TILLWISE_LLM_MODEL": "claude-3-5-haiku-latest",
+    "TILLWISE_LLM_API_KEY": "<random fake key, not recorded>",
+    "githubTokensInEnv": false
+  },
+  "status": {
+    "login": "byok:anthropic",
+    "model": "claude-3-5-haiku-latest",
+    "llm": "BYOK anthropic · claude-3-5-haiku-latest @ api.anthropic.com (key set)"
+  },
+  "moneyDeskAgent": {
+    "model": "claude-3-5-haiku-latest",
+    "llm": "BYOK anthropic · claude-3-5-haiku-latest @ api.anthropic.com (key set)",
+    "readOnlyPayPalTools": [
+      "paypal_ledger_export",
+      "paypal_refund_anomaly",
+      "paypal_money_briefing",
+      "paypal_disputes_list",
+      "paypal_dispute_get"
+    ]
+  },
+  "studio": {
+    "events": [
+      {
+        "type": "RUN_ERROR",
+        "message": "BYOK provider anthropic rejected the API key (HTTP 401). Check TILLWISE_LLM_API_KEY / TILLWISE_LLM_BASE_URL. Provider said: Authentication failed with provider at https://api.anthropic.com (HTTP 401)."
+      }
+    ],
+    "elapsedMs": 681
+  },
+  "voice": {
+    "conversation": {
+      "login": "byok:anthropic",
+      "model": "claude-3-5-haiku-latest",
+      "llm": "BYOK anthropic · claude-3-5-haiku-latest @ api.anthropic.com (key set)"
+    },
+    "error": "BYOK provider anthropic rejected the API key (HTTP 401). Check TILLWISE_LLM_API_KEY / TILLWISE_LLM_BASE_URL. Provider said: Authentication failed with provider at https://api.anthropic.com (HTTP 401).",
+    "elapsedMs": 206
+  }
+}
