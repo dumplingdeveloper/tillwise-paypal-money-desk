@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { buildMockLedger, REFUND_SPIKE_DAYS } from '../src/paypal/mockLedger.js';
+import { buildMockLedger, REFUND_SPIKE_DAYS, SPIKE_PRODUCT, SPIKE_REASON } from '../src/paypal/mockLedger.js';
+import { explainRefundAnomaly } from '../src/paypal/refundAnomaly.js';
 import { MockPayPalClient } from '../src/paypal/mockClient.js';
 import { PayPalService } from '../src/paypal/service.js';
 import { createServer } from '../src/server.js';
@@ -100,4 +101,59 @@ test('ledger export reflects an applied mock refund', async () => {
   await service.refundApply({ preview_id: String(preview.data.preview_id) });
   const after = (await service.ledgerExport({})).data as { counts: { refunds: number } };
   assert.equal(after.counts.refunds, before.counts.refunds + 1);
+});
+
+test('the refund spike has one cause in the data: one product, one reason', () => {
+  // Check every hour of two different days so the story does not depend on when the demo runs.
+  for (const base of [ANCHOR, Date.parse('2026-11-12T00:30:00Z')]) {
+    for (let hour = 0; hour < 24; hour += 3) {
+      const ledger = buildMockLedger(base + hour * 3_600_000);
+      assert.ok(ledger.captures.every((c) => c.product) && ledger.refunds.every((r) => r.product));
+      const anomaly = explainRefundAnomaly(ledger, REFUND_SPIKE_DAYS);
+      const label = `${new Date(base + hour * 3_600_000).toISOString()}: ${anomaly.headline}`;
+      assert.ok(anomaly.spike && anomaly.window_rate > anomaly.baseline_rate * 3, label);
+      assert.equal(anomaly.breakdowns.product[0].key, SPIKE_PRODUCT, label);
+      assert.equal(anomaly.breakdowns.reason[0].key, SPIKE_REASON, label);
+      assert.ok(anomaly.breakdowns.product[0].share_of_window_refunds >= 0.6, label);
+      assert.deepEqual(anomaly.top_driver?.key, SPIKE_PRODUCT, label);
+    }
+  }
+});
+
+test('refund anomaly figures add up to the ledger rows they summarise', () => {
+  const ledger = buildMockLedger(ANCHOR);
+  const anomaly = explainRefundAnomaly(ledger, 7);
+  assert.equal(anomaly.window.end, ledger.anchor_date);
+  const windowRefunds = ledger.refunds.filter((r) => r.date >= anomaly.window.start);
+  const total = Math.round(windowRefunds.reduce((t, r) => t + r.amount, 0) * 100) / 100;
+  assert.equal(anomaly.window_refunded, total);
+  for (const dimension of ['reason', 'product', 'segment'] as const) {
+    const rows = anomaly.breakdowns[dimension];
+    assert.equal(rows.reduce((t, r) => t + r.refunds, 0), windowRefunds.length, dimension);
+    assert.ok(Math.abs(rows.reduce((t, r) => t + r.refunded, 0) - total) < 0.05, dimension);
+  }
+  const captured = ledger.captures.filter((c) => c.date >= anomaly.window.start).reduce((t, c) => t + c.gross, 0);
+  assert.ok(Math.abs(anomaly.window_rate - total / captured) < 1e-3);
+  assert.ok(anomaly.headline.includes(anomaly.formatted.window_rate) && anomaly.headline.includes(anomaly.formatted.baseline_rate));
+});
+
+test('paypal_refund_anomaly is a read-only MCP tool', async () => {
+  const server = createServer(fakeWp(), { PAYPAL_MODE: 'mock' });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await server.connect(serverTransport);
+  const client = new Client({ name: 'anomaly-test', version: '0.0.0' });
+  await client.connect(clientTransport);
+  try {
+    const tool = (await client.listTools()).tools.find((t) => t.name === 'paypal_refund_anomaly');
+    assert.ok(tool);
+    assert.equal(tool.annotations?.readOnlyHint, true);
+    assert.equal(tool.annotations?.destructiveHint, false);
+    const result = await client.callTool({ name: 'paypal_refund_anomaly', arguments: { window_days: 7 } });
+    const data = (result.structuredContent as { data: { window_days: number; breakdowns: { product: Array<{ key: string }> } } }).data;
+    assert.equal(data.window_days, 7);
+    assert.equal(data.breakdowns.product[0].key, SPIKE_PRODUCT);
+  } finally {
+    await client.close();
+    await server.close();
+  }
 });

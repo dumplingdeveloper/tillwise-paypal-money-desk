@@ -39,8 +39,8 @@ export interface PayPalClient {
 }
 
 export type LedgerSegment = 'Retail' | 'Wholesale' | 'Subscription' | 'Unknown';
-export type LedgerCapture = { capture_id: string; order_id: number | null; date: string; captured_at: string; customer: string; segment: LedgerSegment; gross: number; fee: number; net: number; currency: string; status: string };
-export type LedgerRefund = { refund_id: string; capture_id: string | null; order_id: number | null; date: string; refunded_at: string; customer: string; segment: LedgerSegment; amount: number; currency: string; reason: string; status: string };
+export type LedgerCapture = { capture_id: string; order_id: number | null; date: string; captured_at: string; customer: string; segment: LedgerSegment; product: string; gross: number; fee: number; net: number; currency: string; status: string };
+export type LedgerRefund = { refund_id: string; capture_id: string | null; order_id: number | null; date: string; refunded_at: string; customer: string; segment: LedgerSegment; product: string; amount: number; currency: string; reason: string; status: string };
 export type LedgerInvoice = { invoice_id: string; invoice_number: string; customer: string; segment: LedgerSegment; recipient_email: string; status: 'DRAFT' | 'SENT' | 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' | 'CANCELLED'; issue_date: string; due_date: string; amount: number; amount_paid: number; amount_due: number; currency: string; days_overdue: number; overdue: boolean };
 export type LedgerDispute = { dispute_id: string; capture_id: string | null; order_id: number | null; customer: string; segment: LedgerSegment; reason: string; status: string; dispute_state: string; amount: number; currency: string; created_date: string; seller_response_due_date: string | null; days_to_respond: number | null };
 export type LedgerTracking = { tracking_id: string; capture_id: string; order_id: number | null; customer: string; carrier: string; tracking_number: string; status: string; shipped_date: string };

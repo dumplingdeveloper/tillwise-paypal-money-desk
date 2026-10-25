@@ -50,7 +50,7 @@ export class MockPayPalClient implements PayPalClient {
       this.refunds.set(refund.id, refund);
       const at = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
       const capture = this.ledgerBase.captures.find((c) => c.capture_id === input.capture_id);
-      this.agentRefunds.push({ refund_id: refund.id, capture_id: input.capture_id, order_id: capture?.order_id ?? null, date: at.slice(0, 10), refunded_at: at, customer: capture?.customer || 'Unknown', segment: capture?.segment || 'Unknown', amount: Number(refund.amount.value), currency: refund.amount.currency_code, reason: input.note_to_payer || 'Owner-approved refund', status: refund.status });
+      this.agentRefunds.push({ refund_id: refund.id, capture_id: input.capture_id, order_id: capture?.order_id ?? null, date: at.slice(0, 10), refunded_at: at, customer: capture?.customer || 'Unknown', segment: capture?.segment || 'Unknown', product: capture?.product || 'Unknown', amount: Number(refund.amount.value), currency: refund.amount.currency_code, reason: input.note_to_payer || 'Owner-approved refund', status: refund.status });
       this.transactions.unshift({ transaction_info: { transaction_id: refund.id, transaction_event_code: 'T1107', transaction_status: 'S', transaction_amount: { ...refund.amount, value: `-${refund.amount.value}` }, transaction_updated_date: new Date().toISOString() } });
       return refund;
     });

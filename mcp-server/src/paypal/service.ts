@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { WpAbilityClient, type AbilityResult } from '../wpClient.js';
 import { MockPayPalClient } from './mockClient.js';
 import { LivePayPalClient, readSandboxCredentials } from './liveClient.js';
+import { explainRefundAnomaly } from './refundAnomaly.js';
 import { PayPalApiError, type PayPalClient, type PayPalLedger } from './types.js';
 
 function stable(value: unknown): string {
@@ -78,13 +79,19 @@ export class PayPalService {
     return { speech: `PayPal ledger export (${data.mode}) for the last ${days} days: ${counts.captures} captures, ${counts.refunds} refunds, ${counts.invoices} invoices, ${counts.disputes} disputes, ${counts.tracking} tracking rows.`, data: { ...data, days, counts } as unknown as Record<string, unknown> };
   }
 
+  async refundAnomaly(input: { window_days?: number } = {}): Promise<AbilityResult> {
+    const ledger = this.client.ledger ? this.client.ledger() : await this.sandboxLedger(45);
+    const anomaly = explainRefundAnomaly(ledger, input.window_days ?? 7);
+    return { speech: anomaly.headline, data: anomaly as unknown as Record<string, unknown> };
+  }
+
   private async sandboxLedger(days: number): Promise<PayPalLedger> {
     const end = new Date(this.now()); const start = new Date(this.now() - days * 86400_000);
     const fmt = (d: Date) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
     const transactions = await this.client.listTransactions({ start_date: fmt(start), end_date: fmt(end), page_size: 500, page: 1 });
     const disputes = await this.client.listDisputes({ page_size: 50, page: 1 });
-    const captures = transactions.filter((t) => t.transaction_info.transaction_event_code === 'T0006').map((t) => { const at = String(t.transaction_info.transaction_updated_date || ''); const gross = Number(t.transaction_info.transaction_amount?.value || 0); return { capture_id: t.transaction_info.transaction_id, order_id: null, date: at.slice(0, 10), captured_at: at, customer: 'Unknown', segment: 'Unknown' as const, gross, fee: 0, net: gross, currency: t.transaction_info.transaction_amount?.currency_code || 'EUR', status: t.transaction_info.transaction_status || '' }; });
-    const refunds = transactions.filter((t) => String(t.transaction_info.transaction_event_code || '').startsWith('T11')).map((t) => { const at = String(t.transaction_info.transaction_updated_date || ''); return { refund_id: t.transaction_info.transaction_id, capture_id: null, order_id: null, date: at.slice(0, 10), refunded_at: at, customer: 'Unknown', segment: 'Unknown' as const, amount: Math.abs(Number(t.transaction_info.transaction_amount?.value || 0)), currency: t.transaction_info.transaction_amount?.currency_code || 'EUR', reason: '', status: t.transaction_info.transaction_status || '' }; });
+    const captures = transactions.filter((t) => t.transaction_info.transaction_event_code === 'T0006').map((t) => { const at = String(t.transaction_info.transaction_updated_date || ''); const gross = Number(t.transaction_info.transaction_amount?.value || 0); return { capture_id: t.transaction_info.transaction_id, order_id: null, date: at.slice(0, 10), captured_at: at, customer: 'Unknown', segment: 'Unknown' as const, product: 'Unknown', gross, fee: 0, net: gross, currency: t.transaction_info.transaction_amount?.currency_code || 'EUR', status: t.transaction_info.transaction_status || '' }; });
+    const refunds = transactions.filter((t) => String(t.transaction_info.transaction_event_code || '').startsWith('T11')).map((t) => { const at = String(t.transaction_info.transaction_updated_date || ''); return { refund_id: t.transaction_info.transaction_id, capture_id: null, order_id: null, date: at.slice(0, 10), refunded_at: at, customer: 'Unknown', segment: 'Unknown' as const, product: 'Unknown', amount: Math.abs(Number(t.transaction_info.transaction_amount?.value || 0)), currency: t.transaction_info.transaction_amount?.currency_code || 'EUR', reason: '', status: t.transaction_info.transaction_status || '' }; });
     const disputeRows = disputes.map((d) => ({ dispute_id: d.dispute_id, capture_id: null, order_id: null, customer: 'Unknown', segment: 'Unknown' as const, reason: d.reason || '', status: d.status, dispute_state: d.dispute_state || '', amount: Number(d.dispute_amount?.value || 0), currency: d.dispute_amount?.currency_code || 'EUR', created_date: String(d.create_time || d.update_time || '').slice(0, 10), seller_response_due_date: d.seller_response_due_date || null, days_to_respond: d.seller_response_due_date ? Math.ceil((Date.parse(d.seller_response_due_date) - this.now()) / 86400_000) : null }));
     return { mode: 'sandbox', generated_at: fmt(end), anchor_date: fmt(end).slice(0, 10), currency: 'EUR', captures, refunds, invoices: [], disputes: disputeRows, tracking: [], notes: ['Sandbox mode: invoices and tracking are not listed by this build; customer segments are unknown.'] };
   }

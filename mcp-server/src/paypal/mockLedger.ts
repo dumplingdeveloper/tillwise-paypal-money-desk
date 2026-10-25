@@ -18,6 +18,14 @@ const CUSTOMERS: Customer[] = [
   { name: 'Desk Refresh Box', email: 'billing@deskrefresh.example.test', segment: 'Subscription' },
 ];
 const REFUND_REASONS = ['Damaged in transit', 'Wrong size', 'Changed mind', 'Late delivery', 'Duplicate order'];
+const PRODUCTS: Record<Customer['segment'], string[]> = {
+  Retail: ['Stoneware Mug Set', 'Soy Candle Trio', 'Linen Notebook Bundle'],
+  Wholesale: ['Stoneware Mug Set', 'Gift Hamper', 'Desk Organiser'],
+  Subscription: ['Monthly Candle Box', 'Desk Refresh Box'],
+};
+/** The mock spike has one cause, so a drill-down by product or reason can find it in the data. */
+export const SPIKE_PRODUCT = 'Stoneware Mug Set';
+export const SPIKE_REASON = 'Damaged in transit';
 
 /** Mulberry32: tiny deterministic PRNG so the same anchor day always yields the same ledger. */
 function prng(seed: number) {
@@ -49,13 +57,14 @@ export function buildMockLedger(anchor: number = Date.now()): PayPalLedger {
     const perDay = 2 + Math.floor(rand() * 3);
     for (let i = 0; i < perDay; i++) {
       const customer = pick(CUSTOMERS);
+      const product = pick(PRODUCTS[customer.segment]);
       const base = customer.segment === 'Wholesale' ? 140 + rand() * 260 : customer.segment === 'Subscription' ? 29 + rand() * 16 : 14 + rand() * 60;
       const gross = money(base);
       const fee = money(gross * 0.029 + 0.35);
       const at = today - daysAgo * DAY + (9 + i * 3) * 3_600_000 + Math.floor(rand() * 50) * 60_000;
       orderId++;
       if (at > anchor) continue;
-      captures.push({ capture_id: `MOCKCAPTURE${orderId}`, order_id: orderId, date: isoDate(at), captured_at: isoTime(at), customer: customer.name, segment: customer.segment, gross, fee, net: money(gross - fee), currency: 'EUR', status: 'COMPLETED' });
+      captures.push({ capture_id: `MOCKCAPTURE${orderId}`, order_id: orderId, date: isoDate(at), captured_at: isoTime(at), customer: customer.name, segment: customer.segment, product, gross, fee, net: money(gross - fee), currency: 'EUR', status: 'COMPLETED' });
     }
   }
 
@@ -64,14 +73,16 @@ export function buildMockLedger(anchor: number = Date.now()): PayPalLedger {
   const spikeStart = today - (REFUND_SPIKE_DAYS - 1) * DAY;
   captures.forEach((capture) => {
     const capturedAt = Date.parse(capture.captured_at);
-    const inSpike = capturedAt >= spikeStart - 2 * DAY;
+    // The spike: Stoneware Mug Sets captured in the last ~9 days arrive broken (a bad courier batch) and
+    // ~85% of them are refunded as "Damaged in transit". Everything else keeps the ~6% baseline.
+    const spikeHit = capturedAt >= spikeStart - 2 * DAY && capture.product === SPIKE_PRODUCT;
     const roll = rand();
-    // Baseline ~6% of captures are refunded; captures from the last ~9 days are refunded at ~45% (the spike).
-    if (!(inSpike ? roll < 0.45 : roll < 0.06)) return;
+    if (!(spikeHit ? roll < 0.85 : roll < 0.06)) return;
     let refundedAt = capturedAt + (1 + Math.floor(rand() * 2)) * DAY;
     if (refundedAt > anchor) refundedAt = capturedAt + Math.floor((anchor - capturedAt) / 2);
     const partial = rand() < 0.3;
-    refunds.push({ refund_id: `MOCK-RFND-${++refundSeq}`, capture_id: capture.capture_id, order_id: capture.order_id, date: isoDate(refundedAt), refunded_at: isoTime(refundedAt), customer: capture.customer, segment: capture.segment, amount: money(partial ? capture.gross / 2 : capture.gross), currency: 'EUR', reason: pick(REFUND_REASONS), status: 'COMPLETED' });
+    const reason = spikeHit ? SPIKE_REASON : pick(REFUND_REASONS);
+    refunds.push({ refund_id: `MOCK-RFND-${++refundSeq}`, capture_id: capture.capture_id, order_id: capture.order_id, date: isoDate(refundedAt), refunded_at: isoTime(refundedAt), customer: capture.customer, segment: capture.segment, product: capture.product, amount: money(partial ? capture.gross / 2 : capture.gross), currency: 'EUR', reason, status: 'COMPLETED' });
   });
 
   const invoiceRow = (seq: number, customer: Customer, status: LedgerInvoice['status'], issuedDaysAgo: number, termDays: number, amount: number, paid: number): LedgerInvoice => {
