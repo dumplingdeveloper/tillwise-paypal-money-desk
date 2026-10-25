@@ -18,6 +18,24 @@ export function readSandboxCredentials(path = join(homedir(), '.config', 'tillwi
   return env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET ? { clientId: env.PAYPAL_CLIENT_ID, clientSecret: env.PAYPAL_CLIENT_SECRET } : null;
 }
 
+/** The SDK deserialises Transaction Search rows into camelCase models; the rest of this server uses PayPal's wire (snake_case) names. */
+export function normalizeTransaction(row: Record<string, unknown>): PayPalTransaction {
+  const info = (row.transaction_info || row.transactionInfo || {}) as Record<string, any>;
+  const pick = (snake: string, camel: string) => info[snake] ?? info[camel];
+  const amount = pick('transaction_amount', 'transactionAmount') as { currency_code?: string; currencyCode?: string; value?: string } | undefined;
+  return { transaction_info: {
+    transaction_id: String(pick('transaction_id', 'transactionId') ?? ''),
+    transaction_event_code: pick('transaction_event_code', 'transactionEventCode'),
+    transaction_status: pick('transaction_status', 'transactionStatus'),
+    transaction_amount: amount ? { currency_code: String(amount.currency_code ?? amount.currencyCode ?? ''), value: String(amount.value ?? '0') } : undefined,
+    transaction_updated_date: pick('transaction_updated_date', 'transactionUpdatedDate'),
+    transaction_initiation_date: pick('transaction_initiation_date', 'transactionInitiationDate'),
+    paypal_reference_id: pick('paypal_reference_id', 'paypalReferenceId'),
+    invoice_id: pick('invoice_id', 'invoiceId'),
+    custom_field: pick('custom_field', 'customField'),
+  } };
+}
+
 export class LivePayPalClient implements PayPalClient {
   readonly mode = 'sandbox' as const;
   private readonly fetchImpl: typeof fetch;
@@ -149,8 +167,14 @@ export class LivePayPalClient implements PayPalClient {
     return { dispute_id: input.dispute_id, status: 'ACCEPTED' };
   }
   async listTransactions(input: ListTransactionsInput): Promise<PayPalTransaction[]> {
-    const response = await this.sdkCall(() => this.txns.searchTransactions({ startDate: input.start_date, endDate: input.end_date, transactionId: input.transaction_id, pageSize: input.page_size, page: input.page }));
-    return ((response.result as Record<string, unknown>).transactionDetails as PayPalTransaction[]) || ((response.result as Record<string, unknown>).transaction_details as PayPalTransaction[]) || [];
+    const response = await this.sdkCall(() => this.txns.searchTransactions({ startDate: input.start_date, endDate: input.end_date, transactionId: input.transaction_id, pageSize: input.page_size, page: input.page, fields: 'transaction_info' }));
+    const result = response.result as Record<string, unknown>;
+    const rows = (result.transactionDetails || result.transaction_details || []) as Array<Record<string, unknown>>;
+    return rows.map(normalizeTransaction);
+  }
+  async listInvoices(input: { page_size?: number } = {}): Promise<PayPalInvoice[]> {
+    const response = await this.paypalFetch<{ items?: PayPalInvoice[] }>(`/v2/invoicing/invoices?page=1&page_size=${Math.min(Math.max(input.page_size || 50, 1), 100)}&total_required=false`);
+    return response.items || [];
   }
   async createOrder(input: CreateOrderInput): Promise<PayPalOrder> {
     const response = await this.sdkCall(() => this.orders.createOrder({ paypalRequestId: input.request_id, prefer: 'return=representation', body: { intent: 'CAPTURE', purchaseUnits: [{ invoiceId: input.invoice_id, customId: input.custom_id, amount: { currencyCode: input.currency_code, value: input.value } }], paymentSource: input.payment_source } as never }));

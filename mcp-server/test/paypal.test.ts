@@ -120,13 +120,15 @@ test('live client contract sends cached bearer token and required headers on SDK
     const url = String(config.url);
     if (url.includes('/v2/checkout/orders') && config.method === 'post') return { data: JSON.stringify({ id: 'ORDER1', status: 'CREATED' }), status: 201, statusText: 'Created', headers: { 'content-type': 'application/json' }, config };
     if (url.includes('/v2/payments/captures/CAPTURE1/refund')) return { data: JSON.stringify({ id: 'REFUND1', status: 'COMPLETED', amount: { currency_code: 'EUR', value: '1.00' } }), status: 201, statusText: 'Created', headers: { 'content-type': 'application/json' }, config };
-    if (url.includes('/v1/reporting/transactions')) return { data: JSON.stringify({ transaction_details: [{ transaction_info: { transaction_id: 'T1' } }] }), status: 200, statusText: 'OK', headers: { 'content-type': 'application/json' }, config };
+    if (url.includes('/v1/reporting/transactions')) return { data: JSON.stringify({ transaction_details: [{ transaction_info: { transaction_id: 'T1', transaction_event_code: 'T0006', transaction_status: 'S', transaction_amount: { currency_code: 'EUR', value: '24.00' }, transaction_updated_date: '2026-10-01T10:00:00+0000', invoice_id: 'TW-DEMO-CAP-01', custom_field: 'tillwise-demo;seg=Retail;cust=Aoife Byrne;prod=Stoneware Mug Set' } }] }), status: 200, statusText: 'OK', headers: { 'content-type': 'application/json' }, config };
     throw new Error(`Unexpected sdk ${config.method} ${url}`);
   };
   const client = new LivePayPalClient({ clientId: 'id', clientSecret: 'secret', fetchImpl, sdkAdapter });
   await client.createOrder({ currency_code: 'EUR', value: '1.00', request_id: 'rid-order' });
   await client.createRefund({ capture_id: 'CAPTURE1', amount: { currency_code: 'EUR', value: '1.00' }, request_id: 'rid-refund' });
-  await client.listTransactions({ start_date: '2026-10-01T00:00:00Z', end_date: '2026-10-02T00:00:00Z' });
+  const transactions = await client.listTransactions({ start_date: '2026-10-01T00:00:00Z', end_date: '2026-10-02T00:00:00Z' });
+  // The SDK deserialises to camelCase models; the client must hand back PayPal's snake_case wire names.
+  assert.deepEqual(transactions[0].transaction_info, { transaction_id: 'T1', transaction_event_code: 'T0006', transaction_status: 'S', transaction_amount: { currency_code: 'EUR', value: '24.00' }, transaction_updated_date: '2026-10-01T10:00:00+0000', transaction_initiation_date: undefined, paypal_reference_id: undefined, invoice_id: 'TW-DEMO-CAP-01', custom_field: 'tillwise-demo;seg=Retail;cust=Aoife Byrne;prod=Stoneware Mug Set' });
   await client.createInvoice({ currency_code: 'EUR', primary_recipients: [{ billing_info: { email_address: 'x@example.test' } }], items: [{ name: 'Mug', quantity: '1', unit_amount: { currency_code: 'EUR', value: '1.00' } }], request_id: 'rid-invoice' });
   await client.createShipmentTracking({ transaction_id: 'CAPTURE1', tracking_number: '1Z', carrier: 'UPS', status: 'SHIPPED', request_id: 'rid-track' });
   await client.listDisputes();
@@ -188,3 +190,35 @@ test('live client parses PayPal error envelopes on fetch and SDK paths', async (
   await assert.rejects(() => sdkClient.createRefund({ capture_id: 'CAPTURE1', amount: { currency_code: 'EUR', value: '1.00' }, request_id: 'rid-sdk-fail' }), (err) => err instanceof PayPalApiError && err.envelope.name === 'SDK_FAIL' && err.envelope.debug_id === 'DBG-SDK' && err.envelope.details?.[0].issue === 'BAD_SDK');
 });
 
+
+test('sandbox ledger: 31-day Transaction Search chunks, seed tags -> segment/customer/product, refunds joined to captures, invoices mapped', async () => {
+  const now = Date.parse('2026-10-26T12:00:00Z');
+  const searches: Array<{ start: string; end: string }> = [];
+  const client = new MockPayPalClient() as unknown as PayPalClient & Record<string, unknown>;
+  delete (client as { ledger?: unknown }).ledger;
+  Object.assign(client, {
+    mode: 'sandbox',
+    ledger: undefined,
+    async listTransactions(input: { start_date: string; end_date: string }) {
+      searches.push({ start: input.start_date, end: input.end_date });
+      if (searches.length > 1) return [];
+      return [
+        { transaction_info: { transaction_id: 'CAP-1', transaction_event_code: 'T0006', transaction_status: 'S', transaction_amount: { currency_code: 'EUR', value: '24.00' }, transaction_updated_date: '2026-10-25T10:00:00+0000', custom_field: 'tillwise-demo;seg=Retail;cust=Aoife Byrne;prod=Stoneware Mug Set' } },
+        { transaction_info: { transaction_id: 'CAP-2', transaction_event_code: 'T0005', transaction_status: 'S', transaction_amount: { currency_code: 'EUR', value: '64.50' }, transaction_updated_date: '2026-10-25T11:00:00+0000' } },
+        { transaction_info: { transaction_id: 'RF-1', transaction_event_code: 'T1107', transaction_status: 'S', transaction_amount: { currency_code: 'EUR', value: '-24.00' }, transaction_updated_date: '2026-10-26T09:00:00+0000', paypal_reference_id: 'CAP-1' } },
+        { transaction_info: { transaction_id: 'HOLD-1', transaction_event_code: 'T1110', transaction_amount: { currency_code: 'EUR', value: '-5.00' }, transaction_updated_date: '2026-10-26T09:00:00+0000' } },
+      ];
+    },
+    async listDisputes() { return []; },
+    async listInvoices() { return [{ id: 'INV2-1', status: 'UNPAID', detail: { invoice_number: 'TW-DEMO-INV-01', invoice_date: '2026-10-01', payment_term: { due_date: '2026-10-15' } }, primary_recipients: [{ billing_info: { business_name: 'Galway Gift House', email_address: 'orders@galwaygift.example.test' } }], amount: { currency_code: 'EUR', value: '180.00' }, due_amount: { currency_code: 'EUR', value: '180.00' } }]; },
+  });
+  const service = new PayPalService(fakeWp(), client, { now: () => now });
+  const ledger = (await service.ledgerExport({ days: 45 })).data as any;
+  assert.equal(ledger.mode, 'sandbox');
+  assert.equal(searches.length, 2);
+  for (const range of searches) assert.ok(Date.parse(range.end) - Date.parse(range.start) <= 31 * 86400_000, JSON.stringify(range));
+  assert.deepEqual(ledger.captures.map((c: any) => [c.capture_id, c.segment, c.customer, c.product, c.gross]), [['CAP-1', 'Retail', 'Aoife Byrne', 'Stoneware Mug Set', 24], ['CAP-2', 'Unknown', 'Unknown', 'Unknown', 64.5]]);
+  assert.deepEqual(ledger.refunds.map((r: any) => [r.refund_id, r.capture_id, r.segment, r.product, r.amount]), [['RF-1', 'CAP-1', 'Retail', 'Stoneware Mug Set', 24]]);
+  assert.deepEqual(ledger.invoices.map((i: any) => [i.invoice_number, i.customer, i.status, i.amount_due, i.days_overdue, i.overdue]), [['TW-DEMO-INV-01', 'Galway Gift House', 'UNPAID', 180, 11, true]]);
+  assert.ok(ledger.notes.some((n: string) => n.startsWith('Live PayPal sandbox')));
+});

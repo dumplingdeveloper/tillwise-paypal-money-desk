@@ -3,7 +3,8 @@ import { WpAbilityClient, type AbilityResult } from '../wpClient.js';
 import { MockPayPalClient } from './mockClient.js';
 import { LivePayPalClient, readSandboxCredentials } from './liveClient.js';
 import { explainRefundAnomaly } from './refundAnomaly.js';
-import { PayPalApiError, type PayPalClient, type PayPalLedger } from './types.js';
+import { PayPalApiError, type LedgerInvoice, type PayPalClient, type PayPalLedger, type PayPalTransaction } from './types.js';
+import { parseSeedCustomId } from './seedTags.js';
 
 function stable(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`;
@@ -88,12 +89,33 @@ export class PayPalService {
   private async sandboxLedger(days: number): Promise<PayPalLedger> {
     const end = new Date(this.now()); const start = new Date(this.now() - days * 86400_000);
     const fmt = (d: Date) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
-    const transactions = await this.client.listTransactions({ start_date: fmt(start), end_date: fmt(end), page_size: 500, page: 1 });
+    // Transaction Search: "The maximum supported range is 31 days" (reporting_transactions_v1 end_date), so query in chunks.
+    const transactions: PayPalTransaction[] = [];
+    for (let from = start.getTime(); from < end.getTime(); from += 31 * 86400_000) {
+      const to = new Date(Math.min(from + 31 * 86400_000, end.getTime()));
+      transactions.push(...await this.client.listTransactions({ start_date: fmt(new Date(from)), end_date: fmt(to), page_size: 500, page: 1 }));
+    }
     const disputes = await this.client.listDisputes({ page_size: 50, page: 1 });
-    const captures = transactions.filter((t) => t.transaction_info.transaction_event_code === 'T0006').map((t) => { const at = String(t.transaction_info.transaction_updated_date || ''); const gross = Number(t.transaction_info.transaction_amount?.value || 0); return { capture_id: t.transaction_info.transaction_id, order_id: null, date: at.slice(0, 10), captured_at: at, customer: 'Unknown', segment: 'Unknown' as const, product: 'Unknown', gross, fee: 0, net: gross, currency: t.transaction_info.transaction_amount?.currency_code || 'EUR', status: t.transaction_info.transaction_status || '' }; });
-    const refunds = transactions.filter((t) => String(t.transaction_info.transaction_event_code || '').startsWith('T11')).map((t) => { const at = String(t.transaction_info.transaction_updated_date || ''); return { refund_id: t.transaction_info.transaction_id, capture_id: null, order_id: null, date: at.slice(0, 10), refunded_at: at, customer: 'Unknown', segment: 'Unknown' as const, product: 'Unknown', amount: Math.abs(Number(t.transaction_info.transaction_amount?.value || 0)), currency: t.transaction_info.transaction_amount?.currency_code || 'EUR', reason: '', status: t.transaction_info.transaction_status || '' }; });
+    const invoices = this.client.listInvoices ? await this.client.listInvoices({ page_size: 100 }) : [];
+    const when = (t: PayPalTransaction) => String(t.transaction_info.transaction_updated_date || t.transaction_info.transaction_initiation_date || '');
+    const tags = (t: PayPalTransaction) => parseSeedCustomId(t.transaction_info.custom_field) || { segment: 'Unknown' as const, customer: 'Unknown', product: 'Unknown' };
+    // T-codes (developer.paypal.com/reports/reference/t-codes): T0005 "Credit card payment", T0006 "Express Checkout payment", T1107 "Payment refund".
+    const captureRows = transactions.filter((t) => t.transaction_info.transaction_event_code === 'T0005' || t.transaction_info.transaction_event_code === 'T0006');
+    const captures = captureRows.map((t) => { const at = when(t); const gross = Number(t.transaction_info.transaction_amount?.value || 0); const tag = tags(t); return { capture_id: t.transaction_info.transaction_id, order_id: null, date: at.slice(0, 10), captured_at: at, customer: tag.customer, segment: tag.segment, product: tag.product, gross, fee: 0, net: gross, currency: t.transaction_info.transaction_amount?.currency_code || 'EUR', status: t.transaction_info.transaction_status || '' }; });
+    const byCapture = new Map(captureRows.map((t) => [t.transaction_info.transaction_id, t]));
+    const refunds = transactions.filter((t) => t.transaction_info.transaction_event_code === 'T1107').map((t) => { const at = when(t); const original = t.transaction_info.paypal_reference_id ? byCapture.get(t.transaction_info.paypal_reference_id) : undefined; const tag = original ? tags(original) : tags(t); return { refund_id: t.transaction_info.transaction_id, capture_id: original ? original.transaction_info.transaction_id : (t.transaction_info.paypal_reference_id || null), order_id: null, date: at.slice(0, 10), refunded_at: at, customer: tag.customer, segment: tag.segment, product: tag.product, amount: Math.abs(Number(t.transaction_info.transaction_amount?.value || 0)), currency: t.transaction_info.transaction_amount?.currency_code || 'EUR', reason: '', status: t.transaction_info.transaction_status || '' }; });
     const disputeRows = disputes.map((d) => ({ dispute_id: d.dispute_id, capture_id: null, order_id: null, customer: 'Unknown', segment: 'Unknown' as const, reason: d.reason || '', status: d.status, dispute_state: d.dispute_state || '', amount: Number(d.dispute_amount?.value || 0), currency: d.dispute_amount?.currency_code || 'EUR', created_date: String(d.create_time || d.update_time || '').slice(0, 10), seller_response_due_date: d.seller_response_due_date || null, days_to_respond: d.seller_response_due_date ? Math.ceil((Date.parse(d.seller_response_due_date) - this.now()) / 86400_000) : null }));
-    return { mode: 'sandbox', generated_at: fmt(end), anchor_date: fmt(end).slice(0, 10), currency: 'EUR', captures, refunds, invoices: [], disputes: disputeRows, tracking: [], notes: ['Sandbox mode: invoices and tracking are not listed by this build; customer segments are unknown.'] };
+    const today = fmt(end).slice(0, 10);
+    const invoiceRows = invoices.map((inv) => {
+      const detail = (inv.detail || {}) as { invoice_number?: string; invoice_date?: string; payment_term?: { due_date?: string } };
+      const billing = ((inv.primary_recipients || [])[0]?.billing_info || {}) as { business_name?: string; email_address?: string; name?: { full_name?: string; given_name?: string; surname?: string } };
+      const amount = Number(inv.amount?.value || 0); const due = inv.due_amount ? Number(inv.due_amount.value) : (inv.status === 'PAID' || inv.status === 'MARKED_AS_PAID' ? 0 : amount);
+      const dueDate = detail.payment_term?.due_date || detail.invoice_date || '';
+      const daysOverdue = dueDate && due > 0 && dueDate < today ? Math.round((Date.parse(today) - Date.parse(dueDate)) / 86400_000) : 0;
+      const status = (({ MARKED_AS_PAID: 'PAID', PAID_EXTERNAL: 'PAID', SCHEDULED: 'DRAFT', SHARED: 'SENT', PAYMENT_PENDING: 'UNPAID', AUTO_CANCELLED: 'CANCELLED' } as Record<string, string>)[inv.status] || inv.status) as LedgerInvoice['status'];
+      return { invoice_id: inv.id, invoice_number: detail.invoice_number || '', customer: billing.business_name || billing.name?.full_name || [billing.name?.given_name, billing.name?.surname].filter(Boolean).join(' ') || billing.email_address || 'Unknown', segment: 'Unknown' as const, recipient_email: billing.email_address || '', status, issue_date: detail.invoice_date || '', due_date: dueDate, amount, amount_paid: Math.max(0, amount - due), amount_due: due, currency: inv.amount?.currency_code || 'EUR', days_overdue: daysOverdue, overdue: daysOverdue > 0 };
+    });
+    return { mode: 'sandbox', generated_at: fmt(end), anchor_date: today, currency: 'EUR', captures, refunds, invoices: invoiceRows, disputes: disputeRows, tracking: [], notes: ['Live PayPal sandbox: captures/refunds from Transaction Search (PayPal: "It takes a maximum of three hours for executed transactions to appear"), invoices from Invoicing v2, disputes from Disputes v1.', 'Customer/segment/product come from tags written by npm run sandbox:seed (custom_id); other sandbox transactions show "Unknown". Refund reasons and shipment tracking are not available from these read APIs in this build.'] };
   }
 
   async refundPreview(input: { order_id: number; amount?: number; note_to_payer?: string }): Promise<AbilityResult> {

@@ -8,10 +8,10 @@ export class PayPalApiError extends Error {
 }
 
 export type PayPalRefund = { id: string; status: string; amount: Money; capture_id: string; debug_id?: string };
-export type PayPalInvoice = { id: string; status: string; detail?: Record<string, unknown>; href?: string };
+export type PayPalInvoice = { id: string; status: string; detail?: Record<string, unknown>; href?: string; primary_recipients?: Array<Record<string, unknown>>; amount?: { currency_code?: string; value?: string }; due_amount?: Money };
 export type PayPalShipment = { id: string; status: string; transaction_id: string; tracking_number?: string; carrier?: string };
 export type PayPalDispute = { dispute_id: string; status: string; dispute_state?: string; reason?: string; dispute_amount?: Money; update_time?: string; create_time?: string; seller_response_due_date?: string };
-export type PayPalTransaction = { transaction_info: { transaction_id: string; transaction_event_code?: string; transaction_status?: string; transaction_amount?: Money; transaction_updated_date?: string } };
+export type PayPalTransaction = { transaction_info: { transaction_id: string; transaction_event_code?: string; transaction_status?: string; transaction_amount?: Money; transaction_updated_date?: string; transaction_initiation_date?: string; paypal_reference_id?: string; invoice_id?: string; custom_field?: string } };
 export type PayPalOrder = { id: string; status: string; purchase_units?: Array<Record<string, unknown>>; links?: Array<Record<string, unknown>> };
 
 export type CreateRefundInput = { capture_id: string; amount?: Money; invoice_id?: string; note_to_payer?: string; request_id: string };
@@ -34,6 +34,8 @@ export interface PayPalClient {
   listTransactions(input: ListTransactionsInput): Promise<PayPalTransaction[]>;
   createOrder(input: CreateOrderInput): Promise<PayPalOrder>;
   captureOrder(input: { id: string; request_id: string }): Promise<PayPalOrder>;
+  /** Sandbox-only: invoices for the sandbox ledger (GET /v2/invoicing/invoices). */
+  listInvoices?(input?: { page_size?: number }): Promise<PayPalInvoice[]>;
   /** Mock-only: the full deterministic ledger. Sandbox mode builds a partial ledger from transactions and disputes instead. */
   ledger?(): PayPalLedger;
 }
