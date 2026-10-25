@@ -115,7 +115,12 @@ test('offline plumbing: AI panel → client tool runner → bridge → Studio ex
     assert.equal(studioResults.length, 12);
     // Health once the 14-day filter is applied: no density/variance hints (the M3 one-bar driver chart had one).
     const dailyHealth = await page.evaluate(async () => (await (window as any).__moneyDesk.studioApi.getAiContext().health.widget('plumbing-daily')).issues.map((i: { code: string; description: string }) => `${i.code}: ${i.description}`));
-    assert.deepEqual(dailyHealth, [], 'the per-day stacked refunds chart is healthy');
+    assert.equal(dailyHealth.some((i: string) => i.startsWith('data_mapping_complete')), false, `fields mapped: ${dailyHealth}`);
+    // Studio's own density check counts the categories it plots: one per day with refunds in the 14-day filter, not one bar.
+    const categories = Number(/category_density: (\d+) categories/.exec(dailyHealth.join('\n'))?.[1]);
+    const ledgerDays = new Set((anomaly as unknown as { daily: Array<{ date: string; refunds: number }> }).daily.filter((d) => d.refunds > 0).map((d) => d.date)).size;
+    assert.equal(categories, ledgerDays, `one column per refund day in the last 14 days: ${dailyHealth}`);
+    assert.ok(categories >= 7, `the drill-down shows baseline and spike days: ${categories}`);
     assert.equal(studioResults.some((r) => /error|rejected/i.test(r)), false, `Studio tool results: ${studioResults.join(' || ')}`);
     assert.deepEqual(await page.evaluate(() => (window as any).__moneyDesk.errors), []);
   } finally {
