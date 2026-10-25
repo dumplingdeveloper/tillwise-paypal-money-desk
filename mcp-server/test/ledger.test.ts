@@ -51,6 +51,10 @@ test('mock ledger has invoices across statuses, disputes with due dates, and tra
   assert.ok(ledger.invoices.some((i) => i.overdue && i.days_overdue > 0 && i.amount_due > 0));
   assert.ok(ledger.invoices.filter((i) => i.status !== 'DRAFT').every((i) => Math.abs(i.amount - i.amount_paid - i.amount_due) < 0.011));
   assert.ok(ledger.invoices.filter((i) => i.status === 'DRAFT' || i.status === 'PAID').every((i) => i.amount_due === 0));
+  // `outstanding` is the explicit "still owes us" flag: billed, unpaid and something left to pay.
+  for (const i of ledger.invoices) assert.equal(i.outstanding, ['SENT', 'UNPAID', 'PARTIALLY_PAID'].includes(i.status) && i.amount_due > 0, i.invoice_number);
+  assert.deepEqual(ledger.invoices.filter((i) => i.outstanding).map((i) => i.status).sort(), ['PARTIALLY_PAID', 'SENT', 'SENT', 'UNPAID']);
+  assert.equal(ledger.invoices.filter((i) => i.outstanding).reduce((sum, i) => sum + i.amount_due, 0), 1196);
   const awaiting = ledger.disputes.filter((d) => d.seller_response_due_date);
   assert.ok(awaiting.length >= 2);
   assert.ok(awaiting.every((d) => Date.parse(d.seller_response_due_date!) > ANCHOR));
@@ -229,4 +233,11 @@ test('refund anomaly daily rows carry pre-formatted text the agent can quote', (
     assert.ok(day.text.startsWith(`${day.day}: ${day.refunds} refund`), day.text);
     assert.ok(day.text.includes(new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR' }).format(day.refunded)), day.text);
   }
+});
+
+test('mock ledger: no customer is named like a product', () => {
+  const ledger = buildMockLedger(ANCHOR);
+  const products = new Set(ledger.captures.map((c) => c.product));
+  const customers = new Set([...ledger.captures.map((c) => c.customer), ...ledger.invoices.map((i) => i.customer)]);
+  assert.deepEqual([...customers].filter((c) => products.has(c)), []);
 });

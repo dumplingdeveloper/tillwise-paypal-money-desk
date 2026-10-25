@@ -325,3 +325,26 @@ The evidence files from these runs replace M2's `m2-live-*.json`, which remain i
 - `docs/DEVPOST.md`: the Devpost draft.
 - `docs/VIDEO_SCRIPT.md`: the video script.
 - `video/scenes/m5-money-desk.json`: the scene file for the existing video pipeline. Neither the script nor the scene has been rendered or dry-run.
+
+## 9. M5 pre-video fixes (offline; no live run)
+- **Customer named like a product.** The mock customer "Desk Refresh Box" (also a Subscription product) is now "Kilkenny Workspace Co" (`billing@kilkennyworkspace.example.test`, mcp-server/src/paypal/mockLedger.ts:18 and :105).
+  - The PRNG never reads names, so every money figure is unchanged. A scratch script compared the old and new `buildMockLedger` JSON at three anchors (2026-10-25, 10-28, 11-12). Apart from the renamed customer and the new `outstanding` field, they are identical.
+  - Test: mcp-server/test/ledger.test.ts "no customer is named like a product".
+- **"Who still owes us" listed DRAFT/PAID €0 rows.**
+  - `paypal_ledger_export` invoices now carry `outstanding`: SENT, UNPAID or PARTIALLY_PAID with amount_due > 0, in both mock and sandbox (service.ts). The tool description says to list only outstanding invoices.
+  - The Money Desk adds a Studio table `receivables`. It is the exported invoices filtered on that flag (alexa-sim/src/moneyDesk.ts:34, :58), with an AI-facing description: 'Use this table for "who still owes us"…'.
+  - The agent's instructions now include each table's description (money-desk.js:466).
+  - The seeded scoreboard reads `receivables.*` (money-desk.js:252).
+  - The live test's prompt-3 check now requires `receivables.*`, or `invoices.*` with an outstanding/amount_due/status widget filter.
+  - Tests:
+    - ledger.test.ts: outstanding = 4 invoices, €1,196.00;
+    - moneyDesk.test.ts: projection, where a missing flag never counts as owed;
+    - plumbing: Studio's receivables rows equal the MCP export's outstanding invoices.
+- **Stacked chart legend.** AG Studio supports a chart legend at `format.style.theme.common.legend`:
+  - ag-studio/dist/types/api/widgets/shared/agChartShared.d.ts:17-26 `AgChartLegend { enabled?; position? }`;
+  - :302-306 `AgCommonTheme.legend`;
+  - :424-433 `AgChartStyle.theme`;
+  - agWidget.d.ts:24 `style?: TStyle`.
+  - The form default is off (dist/umd/ag-studio.js:297844 `chartLegendGroup({ defaultEnabled = false })`).
+  - money-desk.js:425 `showLegendForSplitChart`: after a `configure_*` patch that maps a `legendKey`, unless the agent set the legend itself, the page turns the legend on at the bottom with `AgConfigureWidgetCommand`. `patch` replaces `format` as a whole, so the title is carried over. The first attempt lost it, and the plumbing test caught that.
+  - Plumbing test: legend `{enabled:true, position:'bottom'}` on the stacked chart, the title is kept, and the single-series chart has no legend. A scratch screenshot (not committed) showed "Damaged in transit / Duplicate order / Late delivery" under the chart.

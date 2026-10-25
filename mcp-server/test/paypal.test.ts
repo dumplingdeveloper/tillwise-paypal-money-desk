@@ -219,6 +219,6 @@ test('sandbox ledger: 31-day Transaction Search chunks, seed tags -> segment/cus
   for (const range of searches) assert.ok(Date.parse(range.end) - Date.parse(range.start) <= 31 * 86400_000, JSON.stringify(range));
   assert.deepEqual(ledger.captures.map((c: any) => [c.capture_id, c.segment, c.customer, c.product, c.gross]), [['CAP-1', 'Retail', 'Aoife Byrne', 'Stoneware Mug Set', 24], ['CAP-2', 'Unknown', 'Unknown', 'Unknown', 64.5]]);
   assert.deepEqual(ledger.refunds.map((r: any) => [r.refund_id, r.capture_id, r.segment, r.product, r.amount]), [['RF-1', 'CAP-1', 'Retail', 'Stoneware Mug Set', 24]]);
-  assert.deepEqual(ledger.invoices.map((i: any) => [i.invoice_number, i.customer, i.status, i.amount_due, i.days_overdue, i.overdue]), [['TW-DEMO-INV-01', 'Galway Gift House', 'UNPAID', 180, 11, true]]);
+  assert.deepEqual(ledger.invoices.map((i: any) => [i.invoice_number, i.customer, i.status, i.amount_due, i.days_overdue, i.overdue, i.outstanding]), [['TW-DEMO-INV-01', 'Galway Gift House', 'UNPAID', 180, 11, true, true]]);
   assert.ok(ledger.notes.some((n: string) => n.startsWith('Live PayPal sandbox')));
 });

@@ -209,9 +209,9 @@
     {
       id: 'owed-scoreboard', label: 'Who still owes (scoreboard)', comp: OwedScoreboard,
       dataMapping: {
-        customer: category('Customer field, e.g. invoices.customer'),
-        amountDue: numeric('Amount still owed measure, e.g. invoices.amount_due with aggregation sum'),
-        daysOverdue: numeric('Optional days-overdue measure, e.g. invoices.days_overdue with aggregation max', false),
+        customer: category('Customer field, e.g. receivables.customer'),
+        amountDue: numeric('Amount still owed measure, e.g. receivables.amount_due with aggregation sum'),
+        daysOverdue: numeric('Optional days-overdue measure, e.g. receivables.days_overdue with aggregation max', false),
       },
       formatShape: formatShape(() => ({})),
       ai: { description: 'Scoreboard ranking customers by money they still owe on PayPal invoices, with days overdue.', usage: 'Use for "who owes us" / unpaid invoice questions.' },
@@ -249,7 +249,7 @@
         'kpi-refunded': { type: 'value', dataMapping: { value: [sum('refunds.amount')] }, format: title('Refunded · 45d') },
         'refund-rate': { type: 'refund-rate-tile', dataMapping: { refundAmount: [sum('refunds.amount')], refundDate: [{ id: 'refunds.date' }], capturedAmount: [sum('captures.gross')], captureDate: [{ id: 'captures.date' }] }, format: { ...title('Refund rate · last 7 days'), window: 'rolling-days', windowDays: 7 } },
         'daily-revenue': { type: 'column-chart-grouped', dataMapping: { categoryKey: [{ id: 'captures.date' }], valueKey: [sum('captures.gross')] }, format: title('Daily PayPal revenue') },
-        'owed-board': { type: 'owed-scoreboard', dataMapping: { customer: [{ id: 'invoices.customer' }], amountDue: [sum('invoices.amount_due')], daysOverdue: [{ id: 'invoices.days_overdue', aggregation: 'max' }] }, format: title('Who still owes us') },
+        'owed-board': { type: 'owed-scoreboard', dataMapping: { customer: [{ id: 'receivables.customer' }], amountDue: [sum('receivables.amount_due')], daysOverdue: [{ id: 'receivables.days_overdue', aggregation: 'max' }] }, format: title('Who still owes us') },
         'dispute-clock': { type: 'dispute-countdown', dataMapping: { dispute: [{ id: 'disputes.dispute_id' }], dueDate: [{ id: 'disputes.seller_response_due_date' }], amount: [sum('disputes.amount')] }, format: title('Dispute deadlines') },
         'refunds-grid': { type: 'grid', dataMapping: { cols: [{ id: 'refunds.date' }, { id: 'refunds.customer' }, { id: 'refunds.product' }, { id: 'refunds.amount' }, { id: 'refunds.reason' }] }, format: title('PayPal refunds') },
       },
@@ -407,16 +407,33 @@
       result: async (_value, args) => {
         // Let the patched config settle before asking for health, otherwise the report can describe the pre-patch widget
         // (an unmapped-fields issue right after a patch that mapped them); re-check a few times before reporting it.
+        const legend = await showLegendForSplitChart(api, widgetType, args.widgetId);
         let issues = [];
         for (let attempt = 0; attempt < 5; attempt++) {
           await new Promise((resolve) => setTimeout(resolve, 300));
           issues = (await api.getAiContext().health.widget(args.widgetId)).issues;
           if (!issues.some((issue) => issue.code === 'data_mapping_complete')) break;
         }
-        return { response: { configured: args.widgetId, health: issues } };
+        return { response: { configured: args.widgetId, ...(legend ? { legend } : {}), health: issues } };
       },
     }));
     return configureToolCache;
+  }
+
+  // A chart split by legendKey draws one colour per member, but Studio's chart legend defaults to off
+  // (format.style.theme.common.legend, agChartShared.d.ts:17-26 / :302-306). Turn it on unless the agent set it.
+  async function showLegendForSplitChart(api, widgetType, widgetId) {
+    const state = api.getState();
+    const widget = state.pages.find((p) => p.id === state.selectedPageId)?.widgets?.[widgetId];
+    if (!widget?.dataMapping?.legendKey?.length || widget.format?.style?.theme?.common?.legend?.enabled !== undefined) return null;
+    const legend = { enabled: true, position: 'bottom' };
+    // patch replaces `format` as a whole, so carry the agent's title and other format settings over.
+    const format = widget.format || {};
+    const style = format.style || {};
+    const theme = style.theme || {};
+    const applied = await api.defineAiCommand({ type: 'AgConfigureWidgetCommand', params: { widgetType } })
+      .apply({ op: 'patch', widgetId, value: { type: widgetType, format: { ...format, style: { ...style, theme: { ...theme, common: { ...(theme.common || {}), legend } } } } } });
+    return applied.success ? 'shown at the bottom (one colour per legendKey member)' : null;
   }
   // Must match AGENT_WIDGET_TYPES in src/studioBridge.ts (the server rejects any other configure_* tool).
   const AGENT_WIDGET_TYPES = ['column-chart-grouped', 'column-chart-stacked', 'bar-chart-grouped', 'value', 'grid', 'refund-rate-tile', 'owed-scoreboard', 'dispute-countdown'];
@@ -446,7 +463,7 @@
 
   function agentInstructions(api) {
     const context = api.getAiContext();
-    const tables = context.schema().tables.map((t) => `- ${t.id}: ${t.fields.map((f) => `${t.id}.${f.id ?? f.name}`).join(', ')}`).join('\n');
+    const tables = context.schema().tables.map((t) => `- ${t.id}${t.description ? ` (${t.description})` : ''}: ${t.fields.map((f) => `${t.id}.${f.id ?? f.name}`).join(', ')}`).join('\n');
     const state = api.getState();
     const page = state.pages.find((p) => p.id === state.selectedPageId);
     return [

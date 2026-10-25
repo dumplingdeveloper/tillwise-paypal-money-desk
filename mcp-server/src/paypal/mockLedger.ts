@@ -15,7 +15,7 @@ const CUSTOMERS: Customer[] = [
   { name: 'Cork Office Co', email: 'ap@corkoffice.example.test', segment: 'Wholesale' },
   { name: 'Galway Gift House', email: 'orders@galwaygift.example.test', segment: 'Wholesale' },
   { name: 'Mugs & Candles Club', email: 'club@mugsandcandles.example.test', segment: 'Subscription' },
-  { name: 'Desk Refresh Box', email: 'billing@deskrefresh.example.test', segment: 'Subscription' },
+  { name: 'Kilkenny Workspace Co', email: 'billing@kilkennyworkspace.example.test', segment: 'Subscription' },
 ];
 const REFUND_REASONS = ['Damaged in transit', 'Wrong size', 'Changed mind', 'Late delivery', 'Duplicate order'];
 const PRODUCTS: Record<Customer['segment'], string[]> = {
@@ -94,7 +94,7 @@ export function buildMockLedger(anchor: number = Date.now()): PayPalLedger {
     // Drafts have not been billed yet, so nothing is owed on them.
     const amountDue = unpaid ? money(amount - paid) : 0;
     const daysOverdue = unpaid && due < today ? Math.round((today - due) / DAY) : 0;
-    return { invoice_id: `INV2-MOCK-${seq}`, invoice_number: `TW-${seq}`, customer: customer.name, segment: customer.segment, recipient_email: customer.email, status, issue_date: isoDate(issue), due_date: isoDate(due), amount, amount_paid: paid, amount_due: amountDue, currency: 'EUR', days_overdue: daysOverdue, overdue: daysOverdue > 0 };
+    return { invoice_id: `INV2-MOCK-${seq}`, invoice_number: `TW-${seq}`, customer: customer.name, segment: customer.segment, recipient_email: customer.email, status, issue_date: isoDate(issue), due_date: isoDate(due), amount, amount_paid: paid, amount_due: amountDue, currency: 'EUR', days_overdue: daysOverdue, overdue: daysOverdue > 0, outstanding: amountDue > 0 };
   };
   const byName = (name: string) => CUSTOMERS.find((c) => c.name === name)!;
   const invoices: LedgerInvoice[] = [
@@ -102,7 +102,7 @@ export function buildMockLedger(anchor: number = Date.now()): PayPalLedger {
     invoiceRow(7002, byName('Cork Office Co'), 'SENT', 25, 14, 220, 0),
     invoiceRow(7003, byName('Galway Gift House'), 'PARTIALLY_PAID', 40, 30, 650, 250),
     invoiceRow(7004, byName('Dublin Pantry Ltd'), 'PAID', 30, 14, 310, 310),
-    invoiceRow(7005, byName('Desk Refresh Box'), 'DRAFT', 1, 14, 145, 0),
+    invoiceRow(7005, byName('Kilkenny Workspace Co'), 'DRAFT', 1, 14, 145, 0),
     invoiceRow(7006, byName('Mugs & Candles Club'), 'UNPAID', 18, 7, 96, 0),
   ];
 

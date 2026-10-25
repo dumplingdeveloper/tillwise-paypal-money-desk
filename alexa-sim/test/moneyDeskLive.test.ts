@@ -92,8 +92,12 @@ const PROMPTS = [
     key: '3', prompt: 'Who still owes us money? Make it a table',
     check(widget: WidgetSnapshot[string], ids: string[]) {
       assert.ok(['grid', 'owed-scoreboard'].includes(widget.type), `prompt 3 expects a grid or the owed scoreboard, got ${widget.type}`);
-      assert.ok(ids.includes('invoices.customer'), `prompt 3 should list invoices.customer: ${ids.join(', ')}`);
-      assert.ok(ids.some((id) => /^invoices\.(amount_due|total)/.test(id)), `prompt 3 should show an invoice amount: ${ids.join(', ')}`);
+      const table = ids.some((id) => id.startsWith('receivables.')) ? 'receivables' : 'invoices';
+      assert.ok(ids.includes(`${table}.customer`), `prompt 3 should list the customer: ${ids.join(', ')}`);
+      assert.ok(ids.some((id) => id.startsWith(`${table}.amount_due`) || id.startsWith(`${table}.total`)), `prompt 3 should show an amount owed: ${ids.join(', ')}`);
+      // "Who still owes us" must not list DRAFT/PAID €0 invoices: use the receivables view (outstanding invoices only)
+      // or filter the invoices table on the outstanding flag / amount due.
+      if (table === 'invoices') assert.ok((widget.widgetFilters || []).some((f) => /^invoices\.(outstanding|amount_due|status)$/.test(f.field?.id || '')), `prompt 3 on invoices must filter to money still owed: ${JSON.stringify(widget.widgetFilters)}`);
     },
   },
 ];

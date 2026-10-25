@@ -27,8 +27,7 @@ const scriptedFakeModel: SessionFactory = async ({ invoke, onEvent }) => ({
       results.push(await invoke('place_widget', { widgetId: 'plumbing-kpi', type: 'value', size: 'standard' }, 'fake-call-5'));
       results.push(await invoke('configure_value', { op: 'patch', widgetId: 'plumbing-kpi', value: { type: 'value', dataMapping: { value: [{ id: 'invoices.amount_due', aggregation: 'sum' }] }, format: title('Outstanding on invoices') } }, 'fake-call-6'));
       results.push(await invoke('place_widget', { widgetId: 'plumbing-grid', type: 'grid' }, 'fake-call-7'));
-      results.push(await invoke('configure_grid', { op: 'patch', widgetId: 'plumbing-grid', value: { type: 'grid', dataMapping: { cols: [{ id: 'invoices.customer' }, { id: 'invoices.invoice_number' }, { id: 'invoices.status' }, { id: 'invoices.due_date' }, { id: 'invoices.days_overdue' }, { id: 'invoices.amount_due' }] }, format: title('Plumbing check grid') } }, 'fake-call-8'));
-      results.push(await invoke('add_widget_filter', { op: 'append', widgetId: 'plumbing-grid', value: { field: { id: 'invoices.amount_due' }, model: { operator: 'greaterThan', value: 0 } } }, 'fake-call-9'));
+      results.push(await invoke('configure_grid', { op: 'patch', widgetId: 'plumbing-grid', value: { type: 'grid', dataMapping: { cols: [{ id: 'receivables.customer' }, { id: 'receivables.invoice_number' }, { id: 'receivables.status' }, { id: 'receivables.due_date' }, { id: 'receivables.days_overdue' }, { id: 'receivables.amount_due' }] }, format: title('Plumbing check grid') } }, 'fake-call-8'));
       // Refund drill-down shape: one column per day (date bucket field id ::day), stacked by reason, last 14 days.
       results.push(await invoke('place_widget', { widgetId: 'plumbing-daily', type: 'column-chart-stacked' }, 'fake-call-10'));
       results.push(await invoke('configure_column_chart_stacked', { op: 'patch', widgetId: 'plumbing-daily', value: { type: 'column-chart-stacked', dataMapping: { categoryKey: [{ id: 'refunds.date::day' }], valueKey: [{ id: 'refunds.amount', aggregation: 'sum' }], legendKey: [{ id: 'refunds.reason' }] }, format: title('Refunds per day by reason · last 14 days') } }, 'fake-call-11'));
@@ -82,8 +81,18 @@ test('offline plumbing: AI panel → client tool runner → bridge → Studio ex
     assert.deepEqual(Object.keys(result.added).sort(), ['plumbing-chart', 'plumbing-daily', 'plumbing-grid', 'plumbing-kpi', 'plumbing-week-tile']);
     const added = result.added;
     assert.equal(added['plumbing-grid'].type, 'grid');
-    assert.deepEqual(added['plumbing-grid'].dataMapping?.cols.map((c) => c.id), ['invoices.customer', 'invoices.invoice_number', 'invoices.status', 'invoices.due_date', 'invoices.days_overdue', 'invoices.amount_due']);
-    assert.deepEqual(added['plumbing-grid'].widgetFilters, [{ field: { id: 'invoices.amount_due' }, model: { operator: 'greaterThan', value: 0 } }]);
+    assert.deepEqual(added['plumbing-grid'].dataMapping?.cols.map((c) => c.id), ['receivables.customer', 'receivables.invoice_number', 'receivables.status', 'receivables.due_date', 'receivables.days_overdue', 'receivables.amount_due']);
+    // The receivables table Studio holds is exactly the MCP export's outstanding invoices: no DRAFT, PAID or €0 rows.
+    const exported = (await paypalRead.callReadOnly('paypal_ledger_export', { days: 45 })).data as { invoices: Array<{ invoice_number: string; status: string; amount_due: number; outstanding: boolean }> };
+    const receivables = await page.evaluate(() => (window as any).__moneyDesk.ledger.receivables as Array<{ invoice_number: string; status: string; amount_due: number }>);
+    assert.deepEqual(receivables.map((r) => r.invoice_number), exported.invoices.filter((i) => i.outstanding).map((i) => i.invoice_number));
+    assert.ok(receivables.length >= 1 && receivables.every((r) => r.amount_due > 0 && !['DRAFT', 'PAID'].includes(r.status)), JSON.stringify(receivables));
+    assert.ok(exported.invoices.some((i) => !i.outstanding), 'the export still has DRAFT/PAID invoices that the receivables view leaves out');
+    assert.match(promptsSeen[0], /- receivables \(Only the PayPal invoices with money still owed/);
+    // A legendKey split gets Studio's chart legend (format.style.theme.common.legend); a single-series chart does not.
+    assert.deepEqual((added['plumbing-daily'].format as any)?.style?.theme?.common?.legend, { enabled: true, position: 'bottom' });
+    assert.equal((added['plumbing-daily'].format as any)?.title?.text, 'Refunds per day by reason · last 14 days', 'the legend patch keeps the title');
+    assert.equal((added['plumbing-chart'].format as any)?.style?.theme?.common?.legend, undefined);
     assert.equal(added['plumbing-week-tile'].format?.window, 'calendar-week');
     // Placement comes from TillwiseLayout.planPlacement: full width rows below the seeded widgets (bottom track 50);
     // the KPI added right after the refund tile shares its row and both are re-split to 12 + 12 columns.
@@ -110,9 +119,9 @@ test('offline plumbing: AI panel → client tool runner → bridge → Studio ex
     const hostHeight = await page.evaluate(() => document.getElementById('myStudio')!.getBoundingClientRect().height);
     assert.ok(hostHeight >= 100 * 16, `the Studio host grows with the canvas (${hostHeight}px for 100 tracks)`);
     const kinds = result.turnEvents.map((e) => `${e.kind}${e.name ? `:${e.name}` : ''}`).filter((k) => k.startsWith('TOOL_CALL_EMITTED') || k.startsWith('STUDIO_TOOL_RESULT'));
-    assert.deepEqual(kinds.filter((k) => k.startsWith('TOOL_CALL_EMITTED')), ['place_widget', 'configure_column_chart_grouped', 'place_widget', 'configure_refund_rate_tile', 'place_widget', 'configure_value', 'place_widget', 'configure_grid', 'add_widget_filter', 'place_widget', 'configure_column_chart_stacked', 'add_widget_filter'].map((n) => `TOOL_CALL_EMITTED:${n}`));
+    assert.deepEqual(kinds.filter((k) => k.startsWith('TOOL_CALL_EMITTED')), ['place_widget', 'configure_column_chart_grouped', 'place_widget', 'configure_refund_rate_tile', 'place_widget', 'configure_value', 'place_widget', 'configure_grid', 'place_widget', 'configure_column_chart_stacked', 'add_widget_filter'].map((n) => `TOOL_CALL_EMITTED:${n}`));
     const studioResults = result.turnEvents.filter((e) => e.kind === 'STUDIO_TOOL_RESULT').map((e) => String(e.result));
-    assert.equal(studioResults.length, 12);
+    assert.equal(studioResults.length, 11);
     // Health once the 14-day filter is applied: no density/variance hints (the M3 one-bar driver chart had one).
     const dailyHealth = await page.evaluate(async () => (await (window as any).__moneyDesk.studioApi.getAiContext().health.widget('plumbing-daily')).issues.map((i: { code: string; description: string }) => `${i.code}: ${i.description}`));
     assert.equal(dailyHealth.some((i: string) => i.startsWith('data_mapping_complete')), false, `fields mapped: ${dailyHealth}`);
