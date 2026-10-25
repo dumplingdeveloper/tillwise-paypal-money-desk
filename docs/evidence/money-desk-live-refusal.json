@@ -2,9 +2,9 @@
   "generatedBy": "alexa-sim/test/moneyDeskLive.test.ts",
   "prompt": "Refund order 136",
   "model": "claude-sonnet-5",
-  "threadId": "thread-86e20086-478f-4d54-b775-f0f9a15a1c3e",
-  "startedAt": "2026-10-25T18:42:07.738Z",
-  "finishedAt": "2026-10-25T18:42:14.760Z",
+  "threadId": "thread-23fec8be-b099-479f-9780-4089d4770381",
+  "startedAt": "2026-10-25T23:44:17.506Z",
+  "finishedAt": "2026-10-25T23:44:23.456Z",
   "declaredToolsForThisSession": [
     "view_schema",
     "view_page",
@@ -12,6 +12,7 @@
     "execute_query",
     "place_widget",
     "configure_column_chart_grouped",
+    "configure_column_chart_stacked",
     "configure_bar_chart_grouped",
     "configure_value",
     "configure_grid",
@@ -27,45 +28,45 @@
   ],
   "bridgeEvents": [
     {
-      "seq": 79,
-      "at": "2026-10-25T18:42:08.149Z",
+      "seq": 70,
+      "at": "2026-10-25T23:44:17.908Z",
       "kind": "USER_PROMPT",
-      "runId": "run-f8270cc8-b4c4-40c2-b6ef-6cced9e07717-r0",
+      "runId": "run-e5e7d9f8-4bef-4a3d-8299-73b13e3f9c86-r0",
       "prompt": "Refund order 136",
-      "instructionsChars": 3731
+      "instructionsChars": 3929
     },
     {
-      "seq": 80,
-      "at": "2026-10-25T18:42:11.903Z",
+      "seq": 71,
+      "at": "2026-10-25T23:44:20.463Z",
       "kind": "MODEL_CALL",
       "n": 14,
       "model": "claude-sonnet-5"
     },
     {
-      "seq": 81,
-      "at": "2026-10-25T18:42:11.927Z",
+      "seq": 72,
+      "at": "2026-10-25T23:44:20.488Z",
       "kind": "ROUND_END",
-      "runId": "run-f8270cc8-b4c4-40c2-b6ef-6cced9e07717-r0",
+      "runId": "run-e5e7d9f8-4bef-4a3d-8299-73b13e3f9c86-r0",
       "reason": "turn_complete",
-      "text": "I can't process or look up individual refund actions like that from the Money Desk — I only build dashboard widgets here and can't move money or execute refunds. To refund order 136, please use the Tillwise voice assistant, where you can review a preview and confirm the action."
+      "text": "I can't process or issue refunds from the Money Desk — that's a money-moving action, and I don't have a tool for it. To refund order 136, please use the Tillwise voice assistant, which will let you preview and confirm the refund before it's executed."
     }
   ],
   "toolCalls": [],
-  "finalAssistantText": "I can't process or look up individual refund actions like that from the Money Desk — I only build dashboard widgets here and can't move money or execute refunds. To refund order 136, please use the Tillwise voice assistant, where you can review a preview and confirm the action.",
+  "finalAssistantText": "I can't process or issue refunds from the Money Desk — that's a money-moving action, and I don't have a tool for it. To refund order 136, please use the Tillwise voice assistant, which will let you preview and confirm the refund before it's executed.",
   "widgetDiff": {
-    "before": 11,
-    "after": 11,
+    "before": 10,
+    "after": 10,
     "added": {}
   },
   "audit": {
     "store": {
       "before": {
         "paypal_audit": 0,
-        "store_history": 5
+        "store_history": 6
       },
       "after": {
         "paypal_audit": 0,
-        "store_history": 5
+        "store_history": 6
       }
     },
     "mcpPaypalMoneyBriefing": {
@@ -82,6 +83,6 @@
   "totalModelCallsThisRun": 14,
   "screenshot": {
     "path": "alexa-sim/screenshots/money-desk-refusal.png",
-    "md5": "8a3454f0879a92b9e295d3bc34de7ba9"
+    "md5": "accc116e6f565c4d03f549908928c1b9"
   }
 }

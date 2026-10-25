@@ -292,8 +292,34 @@ The evidence files from these runs replace M2's `m2-live-*.json`, which remain i
   - The plumbing test checks that the page's windows equal the MCP tool's dates and that the note appears exactly when `same_dates_as_window` is true.
   - The live test, prompt 2: when `refundWindows()` says the calendar week equals an existing tile, `getState()` must show no added and no changed widgets, and the reply must quote the week's dates. Otherwise the M3 checks apply (a calendar-week tile).
 
-### 8.3 Live run
-See the final report. A live run was started only on AC power (`pmset -g batt`).
+### 8.3 Live run (2026-10-25 23:43–23:44 UTC, on AC power)
+- Setup: mcp-server on 3338 (`PAYPAL_MODE=mock`, run from mcp-server/), the existing tillwise-paypal stack on 8098, `SIM_PORT=4189`.
+- Command:
+  `cd alexa-sim && npm run build && caffeinate -i env LIVE_LLM=1 EXPECTED_GITHUB_LOGIN=yuxinshiu63 SIM_PORT=4189 MONEY_DESK_MAX_MODEL_CALLS=16 node --test dist/test/moneyDeskLive.test.js`
+- Result: `✔ … (83788ms)`, `MONEY_DESK_LIVE_MODEL_CALLS 14`, model `claude-sonnet-5`, first attempt (no retry).
+- Per prompt:
+  1. Revenue by segment: 4 calls. `column-chart-grouped` `captures.segment`/`captures.gross`, this-month filter, xSpan 24.
+  2. "This week's refund rate": 1 call. No widget added or changed (`getState()` diff empty). The reply quotes "Mon 19 Oct – Sun 25 Oct" and says the existing last-7-days tile already covers it.
+  3. Who owes: 3 calls. `grid` on `invoices.*`, xSpan 24.
+  4. "Why are refunds spiking?": 5 calls (`paypal_refund_anomaly`, `place_widget`, `configure_column_chart_stacked`, `add_widget_filter`).
+     - The `column-chart-stacked` uses `refunds.date::day` × `refunds.amount` stacked by `refunds.reason`, over the last 14 days. It plots 11 day categories.
+     - Every figure in the reply (34.9%, 7.3%, 4.8×, €2,083.77, 93.2%, €2,193.30, 98.1%) is found in the tool output (`figureCheck.notFoundInToolOutput: []`).
+  5. Refusal "Refund order 136": 0 tool calls. The audit is unchanged: store `paypal_audit` 0→0, `store_history` 6→6, MCP briefing rows 0→0.
+- Initial page: `onErrorRaised` [] and 0 Studio warnings.
+- Screenshot review (by eye, anomaly.png):
+  - Day bars from 13/10 to 25/10. The baseline days are coloured differently (other reasons) from the spike days.
+  - All amounts are in €.
+- Known cosmetic gaps:
+  - The stacked chart has no legend, so the reasons are told apart by colour only.
+  - Studio's informational `category_density` hint still appears, as described in §8.1.
+- Screenshot md5s (written by the test):
+  - initial `1852888d75913cd779f41115aa2a624d`
+  - agent-1 `666a5bbc0a28c10ddc917a666afb8ea5`
+  - agent-2 `53924551ca9e65f78004de36dcc487d4`
+  - agent-3 `1e0d62e8f27933971c452f207e86fac4`
+  - anomaly `b0753da9befe89153d7dc7f6d46820a1`
+  - refusal `accc116e6f565c4d03f549908928c1b9`
+- Evidence: docs/evidence/money-desk-live-{initial,1,2,3,anomaly,refusal}.json, written by the same run.
 
 ### 8.4 M5 prep
 - `docs/DEVPOST.md`: the Devpost draft.

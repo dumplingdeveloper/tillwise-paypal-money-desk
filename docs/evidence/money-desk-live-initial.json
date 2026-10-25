@@ -1,18 +1,18 @@
 {
   "generatedBy": "alexa-sim/test/moneyDeskLive.test.ts",
-  "at": "2026-10-25T18:40:49.678Z",
+  "at": "2026-10-25T23:43:10.366Z",
   "url": "http://127.0.0.1:4189/money-desk.html",
   "dataSource": {
     "tool": "paypal_ledger_export",
     "via": "mcp",
-    "speech": "PayPal ledger export (mock) for the last 45 days: 138 captures, 16 refunds, 6 invoices, 3 disputes, 8 tracking rows."
+    "speech": "PayPal ledger export (mock) for the last 45 days: 322 captures, 44 refunds, 6 invoices, 3 disputes, 8 tracking rows."
   },
   "ledger": {
     "mode": "mock",
     "anchorDate": "2026-10-25",
     "counts": {
-      "captures": 138,
-      "refunds": 16,
+      "captures": 322,
+      "refunds": 44,
       "invoices": 6,
       "disputes": 3,
       "tracking": 8
@@ -157,9 +157,9 @@
     ]
   },
   "customWidgetText": [
-    "Last 7 days · Mon, 19 Oct – Sun, 25 Oct 35.3% €564.36 refunded of €1,597.80 captured Refund spike baseline 5.4% before this window Ask the AI panel: “Why are refunds spiking?”",
+    "Last 7 days · Mon 19 Oct – Sun 25 Oct 34.9% €2,236.51 refunded of €6,401.37 captured Refund spike baseline 7.3% before this window Ask the AI panel: “Why are refunds spiking?”",
     "4 customers · €1,196.00 outstanding 1Dublin Pantry Ltdnot yet due€480.002Galway Gift House10 days overdue€400.003Cork Office Co11 days overdue€220.004Mugs & Candles Club11 days overdue€96.00",
-    "⏱PP-D-MOCK-1due 2026-10-27 23:00 UTC · €18.002d 4h⏱PP-D-MOCK-2due 2026-10-30 23:00 UTC · €152.265d 4h"
+    "⏱PP-D-MOCK-1due 2026-10-27 23:00 UTC · €18.001d 23h⏱PP-D-MOCK-2due 2026-10-30 23:00 UTC · €382.134d 23h"
   ],
   "licenceKeyConfigured": false,
   "licence": {
@@ -185,6 +185,6 @@
   "otherConsoleErrors": [],
   "screenshot": {
     "path": "alexa-sim/screenshots/money-desk-initial.png",
-    "md5": "22673c232ea635951f45ffa9f5ad277e"
+    "md5": "1852888d75913cd779f41115aa2a624d"
   }
 }
