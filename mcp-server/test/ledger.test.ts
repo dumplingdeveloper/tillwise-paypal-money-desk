@@ -222,3 +222,11 @@ test('refund anomaly anchors on the last data day, like the Money Desk tile', ()
   assert.equal(anomaly.window.end, '2026-10-24');
   assert.equal(anomaly.window.start, '2026-10-18');
 });
+
+test('refund anomaly daily rows carry pre-formatted text the agent can quote', () => {
+  const anomaly = explainRefundAnomaly(buildMockLedger(Date.parse('2026-10-25T20:00:00Z')), 7);
+  for (const day of anomaly.daily) {
+    assert.ok(day.text.startsWith(`${day.day}: ${day.refunds} refund`), day.text);
+    assert.ok(day.text.includes(new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR' }).format(day.refunded)), day.text);
+  }
+});

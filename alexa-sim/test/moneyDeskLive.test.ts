@@ -77,6 +77,8 @@ const PROMPTS = [
   },
   {
     key: '2', prompt: "Add a tile for this week's refund rate",
+    // On a Sunday (or whenever the calendar week equals the seeded rolling 7 days) a new tile would only repeat the
+    // seeded one, so the agent must say so instead of adding it; see the windows check in the loop below.
     check(widget: WidgetSnapshot[string], ids: string[]) {
       assert.ok(['value', 'refund-rate-tile'].includes(widget.type), `prompt 2 expects a value/KPI or refund-rate tile, got ${widget.type}`);
       assert.ok(ids.some((id) => id.startsWith('refunds.')), `prompt 2 tile should read refunds: ${ids.join(', ')}`);
@@ -137,6 +139,8 @@ test('LIVE AG Studio Money Desk: prompts typed into the AI panel build real widg
     for (const step of PROMPTS) {
       await markCanvasFrames(page);
       const canvasBefore = await canvasWidgetCount(page);
+      const windows = await page.evaluate(() => (window as any).__moneyDesk.refundWindows()) as { lastDataDay: string; calendarWeek: { dates: string }; tiles: Array<{ id: string; dates: string; sameDatesAsCalendarWeek: boolean }> };
+      const duplicateWeek = step.key === '2' && windows.tiles.some((t) => t.sameDatesAsCalendarWeek);
       const result = await askStudioPanel(page, baseUrl, step.prompt);
       const turnModelCalls = result.turnEvents.filter((e) => e.kind === 'MODEL_CALL').length;
       modelCalls += turnModelCalls;
@@ -149,7 +153,8 @@ test('LIVE AG Studio Money Desk: prompts typed into the AI panel build real widg
       const evidence = {
         generatedBy: 'alexa-sim/test/moneyDeskLive.test.ts', prompt: step.prompt, typedInto: '#myStudio textarea[aria-label="Message input"] + [aria-label="Send message"]',
         model: result.model, threadId: result.threadId, startedAt: result.startedAt, finishedAt: result.finishedAt, modelCallsThisPrompt: turnModelCalls,
-        bridgeEvents: result.turnEvents, toolCalls: calls, finalAssistantText: result.finalText,
+        bridgeEvents: result.turnEvents, toolCalls: calls, assistantTextThisTurn: result.turnText, finalAssistantText: result.finalText,
+        refundWindowsBefore: step.key === '2' ? { ...windows, calendarWeekEqualsExistingTile: duplicateWeek } : undefined,
         widgetDiff: { before: Object.keys(result.before).length, after: Object.keys(result.after).length, added: result.added, changed: result.changed },
         canvas: { framesBefore: canvasBefore, framesAfter: await canvasWidgetCount(page), newFrames: frames, geometry },
         studioOnErrorRaisedSoFar: await page.evaluate(() => (window as any).__moneyDesk.errors),
@@ -161,6 +166,15 @@ test('LIVE AG Studio Money Desk: prompts typed into the AI panel build real widg
       assert.equal(result.turnEvents.some((e) => e.kind === 'RUN_ERROR'), false, `bridge RUN_ERROR: ${JSON.stringify(result.turnEvents.filter((e) => e.kind === 'RUN_ERROR'))}`);
       for (const call of calls) assert.ok(isAllowedStudioTool(call.name) || isReadOnlyPayPalTool(call.name), `non-allowlisted tool ${call.name}`);
       assert.equal(calls.some((c) => c.kind === 'TOOL_REJECTED'), false);
+      if (duplicateWeek) {
+        // getState(): nothing added, and the seeded tile is untouched; the reply quotes the exact (identical) dates.
+        assert.deepEqual(Object.keys(result.added), [], `prompt 2: the calendar week ${windows.calendarWeek.dates} equals an existing tile's window, so no new tile`);
+        assert.deepEqual(Object.keys(result.changed), [], 'prompt 2: existing widgets unchanged');
+        const [from, to] = windows.calendarWeek.dates.split(' – ').map((d) => d.split(' ').slice(1).join(' '));
+        assert.ok(result.turnText.includes(from) && result.turnText.includes(to), `prompt 2: the reply should quote the week's dates (${windows.calendarWeek.dates}): ${result.turnText}`);
+        assertCanvasPolish(`prompt ${step.key}`, geometry);
+        continue;
+      }
       const added = Object.values(result.added);
       assert.ok(added.length >= 1, `prompt ${step.key}: widget count must increase (before ${Object.keys(result.before).length}, after ${Object.keys(result.after).length})`);
       const failures: string[] = [];
@@ -211,6 +225,14 @@ test('LIVE AG Studio Money Desk: prompts typed into the AI panel build real widg
         assert.ok(fieldIds(widget).some((f) => f.startsWith('refunds.')), `anomaly widget ${id} should read refunds: ${fieldIds(widget).join(', ')}`);
         assertFullWidth('anomaly', id, result.after);
       }
+      // The drill-down chart must show the spike against the days before it: a refunds time axis with several categories
+      // (Studio's own density check reports how many it plots), not a single bar for the spike window.
+      const timeline = Object.entries(result.added).find(([, w]) => (w.dataMapping?.categoryKey || []).some((f) => /^refunds\.(date|refunded_at)(::|$)/.test(f.id)));
+      assert.ok(timeline, `the anomaly answer should add a refunds-over-time chart: ${JSON.stringify(Object.fromEntries(Object.entries(result.added).map(([id, w]) => [id, w.dataMapping])))}`);
+      const health = await page.evaluate(async (id) => (await (window as any).__moneyDesk.studioApi.getAiContext().health.widget(id)).issues.map((i: { code: string; description: string }) => `${i.code}: ${i.description}`), timeline[0]);
+      const plotted = Number(/category_density: (\d+) categories/.exec(health.join('\n'))?.[1] || 0);
+      console.log(`MONEY_DESK_LIVE anomaly timeline=${timeline[0]} plottedCategories=${plotted} health=${JSON.stringify(health)}`);
+      assert.ok(plotted >= 2, `the drill-down chart should plot several days, got ${plotted}: ${health.join(' | ')}`);
       assertCanvasPolish('anomaly', geometry);
     }
 

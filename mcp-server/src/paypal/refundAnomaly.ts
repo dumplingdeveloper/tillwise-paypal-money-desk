@@ -20,7 +20,7 @@ export type AnomalyBreakdownRow = {
   text: string;
 };
 
-export type DailyRefunds = { date: string; day: string; period: 'window' | 'before'; refunds: number; refunded: number; captured: number; by_reason: Record<string, number>; by_product: Record<string, number> };
+export type DailyRefunds = { date: string; day: string; period: 'window' | 'before'; refunds: number; refunded: number; captured: number; by_reason: Record<string, number>; by_product: Record<string, number>; text: string };
 export type WindowFigures = { start: string; end: string; label: string; refunded: number; captured: number; rate: number; formatted: { rate: string; refunded: string; captured: string } };
 
 export type RefundAnomaly = {
@@ -143,7 +143,10 @@ export function explainRefundAnomaly(ledger: PayPalLedger, windowDays = 7): Refu
     if (date < firstDay) continue;
     const dayRefunds = ledger.refunds.filter((r) => r.date === date);
     const group = (key: 'reason' | 'product') => Object.fromEntries(Object.entries(dayRefunds.reduce<Record<string, number>>((acc, r) => ({ ...acc, [r[key]]: (acc[r[key]] ?? 0) + r.amount }), {})).map(([k, v]): [string, number] => [k, round2(v)]).sort((a, b) => b[1] - a[1]));
-    daily.push({ date, day: dayLabel(date), period: inWindow(date) ? 'window' : 'before', refunds: dayRefunds.length, refunded: sum(dayRefunds.map((r) => r.amount)), captured: sum(ledger.captures.filter((c) => c.date === date).map((c) => c.gross)), by_reason: group('reason'), by_product: group('product') });
+    const byReason = group('reason');
+    const refunded = sum(dayRefunds.map((r) => r.amount));
+    const text = `${dayLabel(date)}: ${dayRefunds.length} refund${dayRefunds.length === 1 ? '' : 's'}, ${eur(refunded)}${dayRefunds.length ? ` (${Object.entries(byReason).map(([k, v]) => `${k} ${eur(v)}`).join(', ')})` : ''}`;
+    daily.push({ date, day: dayLabel(date), period: inWindow(date) ? 'window' : 'before', refunds: dayRefunds.length, refunded, captured: sum(ledger.captures.filter((c) => c.date === date).map((c) => c.gross)), by_reason: byReason, by_product: group('product'), text });
   }
 
   const weekStart = calendarWeekStart(end);
