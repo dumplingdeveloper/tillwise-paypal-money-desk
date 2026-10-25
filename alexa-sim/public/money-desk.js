@@ -481,7 +481,10 @@
     if (!response.ok) { showError(`Money Desk data unavailable: ${payload.error || response.status}`); $('mdDataSource').textContent = 'unavailable'; return; }
     md.ledger = payload.ledger;
     md.meta = { source: payload.source, ledgerMode: payload.ledger.mode, anchorDate: payload.ledger.anchor_date, counts: payload.ledger.counts, licenseKeyPresent: Boolean(payload.licenseKey), agent: payload.agent };
-    $('mdDataSource').textContent = `MCP ${payload.source.tool} · ${payload.ledger.mode} mode · ${payload.ledger.counts.captures} captures, anchor ${payload.ledger.anchor_date}`;
+    // Honest provenance: mock = deterministic demo ledger (mcp-server/src/paypal/mockLedger.ts); sandbox = live api-m.sandbox.paypal.com reads.
+    const provenance = payload.ledger.mode === 'sandbox' ? 'live PayPal sandbox' : payload.ledger.mode === 'mock' ? 'mock ledger (demo data, not PayPal)' : `${payload.ledger.mode} mode`;
+    $('mdDataSource').textContent = `MCP ${payload.source.tool} · ${provenance} · ${payload.ledger.counts.captures} captures, anchor ${payload.ledger.anchor_date}`;
+    $('mdDataSource').title = (payload.ledger.notes || []).join('\n');
     $('mdAgent').textContent = `Copilot SDK bridge · ${payload.agent.llm || 'Copilot'} · model ${payload.agent.model}`;
     $('mdLicence').textContent = payload.licenseKey ? 'AG Studio licence key supplied via env' : 'no AG Studio licence key (local evaluation)';
 

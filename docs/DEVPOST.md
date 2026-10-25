@@ -84,13 +84,20 @@ Limits:
 - We do not claim any other APIMatic tooling.
 
 ## PayPal integration and mock vs sandbox
-- **Mock mode is the default.** It needs no credentials, and every PayPal tool returns deterministic, PayPal-shaped data. The video and the Money Desk evidence so far were produced in mock mode.
-- **Sandbox mode** switches on when `~/.config/tillwise/paypal-sandbox.env` exists with `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET`, plus `PAYPAL_MODE=sandbox`. The helper `scripts/save-paypal-sandbox-creds.sh` writes that file without echoing secrets.
-- One command checks the sandbox path: `cd mcp-server && npm run sandbox:smoke`.
-  - It makes real read calls plus one safe write, a draft invoice that it then deletes, against `api-m.sandbox.paypal.com`.
-  - It prints a summary without secrets.
-  - Today it exits with code 2 and a "NO CREDENTIALS" message.
-  - **UNVERIFIED: the sandbox path has never run against PayPal**, because no sandbox credentials exist on the build machine yet.
+**Today the demo, the video and all Money Desk evidence run in mock mode.** No sandbox credentials have been available to us yet, so nothing has run against PayPal so far.
+- **Mock mode is the default.** It needs no credentials, and every PayPal tool returns deterministic, PayPal-shaped data from `mcp-server/src/paypal/mockLedger.ts`. The Money Desk header says `mock ledger (demo data, not PayPal)`.
+- **Sandbox mode** switches on when `~/.config/tillwise/paypal-sandbox.env` exists with `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` (or with `PAYPAL_MODE=sandbox`). `PAYPAL_MODE=mock` forces mock. The helper `scripts/save-paypal-sandbox-creds.sh` writes that file without echoing secrets. Every call goes only to `api-m.sandbox.paypal.com`.
+- Switching to the real sandbox takes the creds file plus two commands (README → "Use the real PayPal sandbox"):
+  - `cd mcp-server && npm run sandbox:smoke`: real reads (OAuth, Transaction Search, Disputes) plus one draft invoice that it deletes again.
+  - `npm run sandbox:seed`: idempotent, `TW-DEMO-*`-tagged demo data.
+    - It creates 3 captured orders via Orders v2 `payment_source.card` with PayPal's sandbox test card, and one invoice sent with `send_to_recipient=false`.
+    - If the account cannot take card payments, it falls back to buyer-approval links.
+    - `-- --link-woo <order>` links a real sandbox capture to a Woo order, so the confirmed voice refund refunds it.
+  - Without credentials both commands print `NO CREDENTIALS`, make no network call, and exit 2.
+- Live vs mock in sandbox mode (full matrix in `docs/FACTS_PAYPAL_SANDBOX.md` §6):
+  - **Live:** the voice flow's money actions, the Money Desk captures/revenue/refunds (Transaction Search, up to 3 h delay), invoices and disputes.
+  - **Mock only:** the refund-spike story (damaged-in-transit mugs) behind "Why are refunds spiking?". In sandbox mode the same tools compute from whatever the sandbox holds.
+- **UNVERIFIED:** `sandbox:smoke` and `sandbox:seed` have only been tested against local HTTP stubs, never against PayPal.
 
 ## New vs existing (Submission Period)
 The official rules (https://paypalaihackathon.devpost.com/rules, fetched 2026-10-25) define the period as: "Submission Period: Thursday Oct 1, 2026 (9:15 am Pacific Time) – Thursday Nov 12, 2026 (12:00 pm Pacific Time)". 9:15 am PDT is **2026-10-01 16:15 UTC**.
@@ -159,7 +166,7 @@ Later commits (licence facts, sandbox seed, live evidence) are listed by `git lo
 - Deterministic data plus "quote, don't compute" makes AI analytics trustworthy.
 
 ## What's next
-- Run the sandbox smoke and the Money Desk against real PayPal sandbox data once credentials exist.
+- Run `sandbox:smoke` and `sandbox:seed`, and the Money Desk, against real PayPal sandbox data once credentials exist.
 - Add anomaly alerts for disputes.
 
 ## Built with
@@ -171,7 +178,7 @@ TypeScript, Node.js, GitHub Copilot SDK, Model Context Protocol (`@modelcontextp
 - Video: **TODO, YouTube URL** (script in `docs/VIDEO_SCRIPT.md`).
 - Testing instructions for judges:
   - No PayPal account is needed in mock mode.
-  - For sandbox, create a free PayPal developer sandbox app and run `scripts/save-paypal-sandbox-creds.sh`, then `cd mcp-server && npm run sandbox:smoke`.
+  - For sandbox, create a free PayPal developer sandbox app and run `scripts/save-paypal-sandbox-creds.sh`, then `cd mcp-server && npm run sandbox:smoke && npm run sandbox:seed`. See README → "Use the real PayPal sandbox".
 
 ## Licences and third-party terms
 - AG Studio's `package.json` says `"license": "Commercial"`. It is an npm dependency and is not vendored into this repo.
