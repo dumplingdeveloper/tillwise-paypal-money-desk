@@ -1,6 +1,6 @@
 # Devpost submission draft: Tillwise × PayPal
 
-This is a draft of the text for the Devpost form. Facts come from this repository; anything not verified is marked **UNVERIFIED**. The rule quotes come from `submission/RULES_EXCERPTS.md`, which is gitignored and kept locally.
+This is a draft of the text for the Devpost form. Facts come from this repository; anything not verified is marked **UNVERIFIED**. The rule quotes come from `submission/RULES_EXCERPTS.md`, which is gitignored and kept locally, and from https://paypalaihackathon.devpost.com/rules, fetched 2026-10-25.
 
 Required by the rules, and where each is covered:
 
@@ -93,9 +93,20 @@ Limits:
   - **UNVERIFIED: the sandbox path has never run against PayPal**, because no sandbox credentials exist on the build machine yet.
 
 ## New vs existing (Submission Period)
-The Tillwise base project predates this hackathon:
-- The base was started around **2026-09-29** for an earlier (Amazon Alexa+) hackathon. It includes the WooCommerce store agent, the WordPress Abilities plugin, the MCP server, the Agent Skills and the voice simulator.
-- This repository's first commit, **`bfa04a5` (2026-10-16)**, is a squashed snapshot of that earlier project.
+The official rules (https://paypalaihackathon.devpost.com/rules, fetched 2026-10-25) define the period as: "Submission Period: Thursday Oct 1, 2026 (9:15 am Pacific Time) – Thursday Nov 12, 2026 (12:00 pm Pacific Time)". 9:15 am PDT is **2026-10-01 16:15 UTC**.
+
+**Tillwise × PayPal is an existing project that was significantly updated during the Submission Period.**
+- The Tillwise base project was started around **2026-09-29**, before the Submission Period, for an earlier (Amazon Alexa+) hackathon. It includes:
+  - the WooCommerce store agent;
+  - the WordPress Abilities plugin;
+  - the MCP server;
+  - the Agent Skills;
+  - the voice simulator;
+  - the video pipeline.
+- This repository's first commit, **`bfa04a5` (2026-10-16 22:32 +0100)**, is a squashed snapshot of that earlier project.
+  - Its commit date falls inside the period, but its contents were built for, and largely before, the other hackathon.
+  - We therefore count **none of `bfa04a5`** as PayPal-hackathon work.
+- Only the commits below are claimed as hackathon work. All of them were committed after 2026-10-01 16:15 UTC; the earliest is 2026-10-17 10:27 UTC.
 
 Built for the PayPal AI Hackathon, from `git log` (short hash, author date):
 
@@ -124,10 +135,11 @@ Built for the PayPal AI Hackathon, from `git log` (short hash, author date):
 | `9bab855` | 2026-10-25 | M3 evidence |
 | `ea94db7`, `9f5258a`, `d172e71`, `dedb7f5` | 2026-10-25 | Refund drill-down per day by reason, calendar-week dates, de-duplication of the "this week" tile |
 | `a96ba0d` | 2026-10-25 | Video script and scene |
+| `ccba904`, `9dcbaa3` | 2026-10-25 | Devpost draft; M3.1 evidence notes |
 
 All PayPal code (`mcp-server/src/paypal/`, the PayPal abilities in the WordPress plugin) and all AG Studio code (`alexa-sim/public/money-desk*.js`, `alexa-sim/src/studioBridge.ts`, `alexa-sim/src/moneyDesk.ts`, `alexa-sim/src/paypalMcp.ts`) are new in this period.
 
-**UNVERIFIED:** the official Submission Period start date is not in our local rules excerpt. Confirm it on Devpost before submitting.
+Later commits (licence facts, sandbox seed, live evidence) are listed by `git log --since=2026-10-01T16:15Z`; refresh this table before submitting.
 
 ## Challenges we ran into
 - **AG Studio canvas.** The canvas stayed blank until every widget had a valid `dataMapping` against declared data sources.
@@ -162,6 +174,12 @@ TypeScript, Node.js, GitHub Copilot SDK, Model Context Protocol (`@modelcontextp
   - For sandbox, create a free PayPal developer sandbox app and run `scripts/save-paypal-sandbox-creds.sh`, then `cd mcp-server && npm run sandbox:smoke`.
 
 ## Licences and third-party terms
-- AG Studio's `package.json` says `"license": "Commercial"`. It is used under AG Grid's evaluation terms for the hackathon; without a key the page runs as a local evaluation, and the licence key is read only from the env.
+- AG Studio's `package.json` says `"license": "Commercial"`. It is an npm dependency and is not vendored into this repo.
+  - AG Studio's docs say "You can test AG Studio locally without a licence" (licence-install.md).
+  - Without a key, the page logs a "License Key Not Found" console banner. The "For Trial Use Only" watermark is hidden on `127.0.0.1`/`localhost`, by code in AG Studio's own bundle.
+  - An optional key is read only from `AG_STUDIO_LICENSE_KEY`; no key is committed.
+- Verbatim terms, the conflicts between them, and open questions are in `docs/FACTS_AG_STUDIO_LICENCE.md`:
+  - "45-day trial" vs EULA clause 13.2(b) "thirty (30) days and a further period of thirty (30) days";
+  - "internal evaluation and review purposes only" vs public judging until Dec 15, 2026.
+- **UNVERIFIED:** AG Grid has not yet confirmed that judges may run the repo with no key, or with a trial key, through the end of judging. The questions are listed for the PayPal Discord.
 - The PayPal + AG Studio boilerplate repo has no LICENSE, so no code was copied from it; it was used only to learn API shapes.
-- **UNVERIFIED:** confirm that AG Studio's evaluation terms allow public judging use.
