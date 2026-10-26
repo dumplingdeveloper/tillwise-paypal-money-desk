@@ -97,9 +97,10 @@ Real Transaction Search (`GET /v1/reporting/transactions`) results:
   These are other users' transactions on the same public app. The first event codes seen were `T0002` and `T1503`.
 - **Lag.** `last_refreshed_datetime` trailed real time by about 2 hours:
   - `2026-10-26T11:29:59Z` at 13:35Z;
-  - `2026-10-26T12:29:59Z` at 14:19Z.
+  - `2026-10-26T12:29:59Z` at 14:19Z;
+  - `2026-10-26T12:59:59Z` at 15:02Z, i.e. about 2 h behind, refreshed in 30-minute steps.
 
-  Our 13:36Z capture `8TY43715XV359243H` was not yet searchable at 14:19Z: `transaction_id` filter, `total_items: 0`. The spec says "It takes a maximum of three hours for executed transactions to appear in the list transactions call." See §8 for the follow-up probe.
+  Our 13:36Z capture `8TY43715XV359243H` was still not searchable at 14:19Z or at 15:02Z: `transaction_id` filter, `total_items: 0`. The spec says "It takes a maximum of three hours for executed transactions to appear in the list transactions call." See §8 for the follow-up probe.
 - **Start date after the refresh point.** A `start_date` after `last_refreshed_datetime` fails with `INVALID_REQUEST`, "Data for the given start date is not available." [HTTP 404].
 - **No tag filter.** The spec's query parameters are `transaction_id`, `transaction_type`, `transaction_status`, `transaction_amount`, `transaction_currency`, `start_date`, `end_date`, `payment_instrument_type`, `store_id`, `terminal_id`, `fields`, `balance_affecting_records_only`, `page_size` and `page`. There is no `invoice_id`/`custom_id` filter, so "our" rows can't be selected on a shared app.
 
@@ -156,17 +157,17 @@ The opt-in test asserts this via `studioApi.getState()`:
 
 ## 8. Call count and what is still unverified
 **PayPal API calls for M4 (2026-10-26), all on the shared public app:**
-- 90 calls were logged by `callLog.ts` in the smoke, seed, MCP server and probe processes.
+- 92 calls were logged by `callLog.ts` in the smoke, seed, MCP server and probe processes.
 - 4 more calls were made inside the `LIVE_PAYPAL` test process before it logged its own calls (2 runs × OAuth + `GET /v2/payments/refunds/{id}`). That is fixed now.
-- Total so far: **94**, against a budget of 250.
+- Total: **96**, against a budget of 250.
 
 By endpoint (logged calls):
 
 | Calls | Endpoint |
 | --- | --- |
 | 33 | `GET /v2/checkout/orders/{id}` (seed rerun checks + Money Desk activity reads) |
-| 17 | `POST /v1/oauth2/token` (one per process) |
-| 7 | `GET /v1/reporting/transactions` |
+| 18 | `POST /v1/oauth2/token` (one per process) |
+| 8 | `GET /v1/reporting/transactions` |
 | 7 | `GET /v2/invoicing/invoices/{id}` |
 | 6 | `POST /v2/checkout/orders` |
 | 5 | `POST /v2/invoicing/search-invoices` |
@@ -178,7 +179,7 @@ By endpoint (logged calls):
 | 1 | `POST /v2/invoicing/invoices/{id}/send` |
 
 **Still unverified:**
-1. When our own captures become searchable in Transaction Search, and their T-codes. We only saw them as not yet present ~45 min after capture.
+1. When our own captures become searchable in Transaction Search, and their T-codes. They were still absent 1 h 26 min after capture.
 2. Voice-flow invoice create/send, tracking and dispute accept against the real sandbox. They use the same client as the verified refund but were not run live.
 3. A sandbox dispute on our own capture. The merchant API can't open one, so it needs a sandbox buyer account; with the public credentials no buyer login exists.
 4. Behaviour on a judge's **own** app (option B): ACDC enablement, the card fallback, and `PAYPAL_LEDGER=sandbox` with real Transaction Search data.
