@@ -5,7 +5,7 @@ import { homedir } from 'node:os';
 import { PayPalApiError, type AcceptDisputeInput, type CreateInvoiceInput, type CreateOrderInput, type CreateRefundInput, type CreateShipmentInput, type ListTransactionsInput, type PayPalClient, type PayPalDispute, type PayPalInvoice, type PayPalOrder, type PayPalRefund, type PayPalShipment, type PayPalTransaction, type SendInvoiceInput } from './types.js';
 
 type LiveOptions = { clientId: string; clientSecret: string; baseUrl?: string; fetchImpl?: typeof fetch; sdkAdapter?: unknown };
-type Token = { accessToken: string; expiresAt: number };
+type Token = { accessToken: string; expiresAt: number; appId?: string };
 
 export function readSandboxCredentials(path = join(homedir(), '.config', 'tillwise', 'paypal-sandbox.env')): { clientId: string; clientSecret: string } | null {
   if (!existsSync(path)) return null;
@@ -78,9 +78,9 @@ export class LivePayPalClient implements PayPalClient {
     if (this.token && this.token.expiresAt - Date.now() > 60_000) return this.token;
     const auth = Buffer.from(`${this.options.clientId}:${this.options.clientSecret}`).toString('base64');
     const response = await this.fetchImpl(`${this.baseUrl}/v1/oauth2/token`, { method: 'POST', headers: { authorization: `Basic ${auth}`, 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' }, body: 'grant_type=client_credentials' });
-    const json = await response.json() as { access_token?: string; expires_in?: number; error_description?: string };
+    const json = await response.json() as { access_token?: string; expires_in?: number; error_description?: string; app_id?: string };
     if (!response.ok || !json.access_token) throw new PayPalApiError({ name: 'OAUTH_ERROR', message: json.error_description || 'PayPal OAuth failed', debug_id: response.headers.get('paypal-debug-id') || 'oauth' }, response.status);
-    this.token = { accessToken: json.access_token, expiresAt: Date.now() + Math.max(60, Number(json.expires_in || 300)) * 1000 };
+    this.token = { accessToken: json.access_token, expiresAt: Date.now() + Math.max(60, Number(json.expires_in || 300)) * 1000, appId: json.app_id };
     return this.token;
   }
 
@@ -140,6 +140,11 @@ export class LivePayPalClient implements PayPalClient {
   async oauthProbe(): Promise<{ expires_in_s: number }> {
     const token = await this.getAccessToken();
     return { expires_in_s: Math.round((token.expiresAt - Date.now()) / 1000) };
+  }
+  /** The app_id from the OAuth response, e.g. to label PayPal's shared public default app. Not a secret. */
+  async appId(): Promise<string | null> { return (await this.getAccessToken()).appId || null; }
+  async getOrder(id: string): Promise<PayPalOrder> {
+    return this.paypalFetch<PayPalOrder>(`/v2/checkout/orders/${encodeURIComponent(id)}`);
   }
   async getInvoice(invoice_id: string): Promise<PayPalInvoice> {
     return this.paypalFetch<PayPalInvoice>(`/v2/invoicing/invoices/${encodeURIComponent(invoice_id)}`);

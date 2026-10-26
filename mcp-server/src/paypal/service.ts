@@ -3,8 +3,9 @@ import { WpAbilityClient, type AbilityResult } from '../wpClient.js';
 import { MockPayPalClient } from './mockClient.js';
 import { LivePayPalClient, readSandboxCredentials } from './liveClient.js';
 import { explainRefundAnomaly } from './refundAnomaly.js';
-import { PayPalApiError, type LedgerInvoice, type PayPalClient, type PayPalLedger, type PayPalTransaction } from './types.js';
+import { PayPalApiError, type LedgerInvoice, type PayPalClient, type PayPalDispute, type PayPalLedger, type PayPalTransaction } from './types.js';
 import { parseSeedCustomId } from './seedTags.js';
+import { disputeIsOwned, loadSandboxActivity, readSeedManifest, sandboxAppLabel, type SandboxActivity } from './sandboxActivity.js';
 
 function stable(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`;
@@ -16,7 +17,15 @@ function moneyValue(value: number) { return value.toFixed(2); }
 function isoDaysAgo(days: number) { const d = new Date(Date.now() - days * 86400_000); return d.toISOString().replace(/\.\d{3}Z$/, 'Z'); }
 
 type Preview = { id: string; hash: string; kind: string; payload: Record<string, unknown>; createdAt: number };
-type ServiceOptions = { previewTtlMs?: number; now?: () => number };
+type ServiceOptions = {
+  previewTtlMs?: number;
+  now?: () => number;
+  /** Sandbox mode: where the Money Desk analytics come from. Default: the labelled mock ledger (see fromEnv). */
+  analytics?: Pick<PayPalClient, 'ledger'> | null;
+  /** Sandbox mode: the live rows of objects Tillwise created (default: read by id via the seed manifest). */
+  activity?: () => Promise<SandboxActivity>;
+  activityTtlMs?: number;
+};
 
 type OrderContext = { order: { id: number; total: number; currency: string; billing_email?: string; items?: Array<{ name: string; quantity: number; total: number }> }; paypal: { paypal_capture_id?: string; paypal_order_id?: string; paypal_invoice_id?: string } };
 
@@ -24,9 +33,37 @@ export class PayPalService {
   private previews = new Map<string, Preview>();
   private readonly previewTtlMs: number;
   private readonly now: () => number;
+  private readonly analytics: Pick<PayPalClient, 'ledger'> | null;
+  private readonly activityLoader: (() => Promise<SandboxActivity>) | null;
+  private readonly activityTtlMs: number;
+  private activityCache?: { at: number; value: Promise<SandboxActivity> };
   constructor(private readonly wp: Pick<WpAbilityClient, 'run'>, private readonly client: PayPalClient, options: ServiceOptions = {}) {
     this.previewTtlMs = options.previewTtlMs ?? 10 * 60 * 1000;
     this.now = options.now ?? (() => Date.now());
+    this.analytics = options.analytics ?? null;
+    const live = client.getOrder && client.getInvoice ? { getOrder: client.getOrder.bind(client), getInvoice: client.getInvoice.bind(client) } : null;
+    this.activityLoader = options.activity ?? (client.mode === 'sandbox' && live ? () => loadSandboxActivity(live, readSeedManifest()) : null);
+    this.activityTtlMs = options.activityTtlMs ?? 20_000;
+  }
+
+  /** Live sandbox rows (cached briefly: the Money Desk, the badge and the agent may all ask within seconds). Null in mock mode. */
+  private sandboxActivity(): Promise<SandboxActivity> | null {
+    if (!this.activityLoader) return null;
+    if (!this.activityCache || this.now() - this.activityCache.at > this.activityTtlMs) {
+      const value = this.activityLoader();
+      value.catch(() => { this.activityCache = undefined; });
+      this.activityCache = { at: this.now(), value };
+    }
+    return this.activityCache.value;
+  }
+  private invalidateActivity() { this.activityCache = undefined; }
+  private async sandboxApp() { return this.client.appId ? sandboxAppLabel(await this.client.appId()) : null; }
+  /** On the shared sandbox app most disputes belong to other users: only disputes on our own captures are shown or acted on. */
+  private async ownedDisputes(disputes: PayPalDispute[]): Promise<{ disputes: PayPalDispute[]; hidden: number }> {
+    if (this.client.mode !== 'sandbox') return { disputes, hidden: 0 };
+    const activity = await this.sandboxActivity();
+    const owned = disputes.filter((d) => disputeIsOwned(d, activity?.owned_capture_ids || []));
+    return { disputes: owned, hidden: disputes.length - owned.length };
   }
 
   static fromEnv(wp: Pick<WpAbilityClient, 'run'>, env: Record<string, string | undefined> = process.env) {
@@ -34,7 +71,13 @@ export class PayPalService {
     const mode = env.PAYPAL_MODE || (creds ? 'sandbox' : 'mock');
     if (mode !== 'mock' && mode !== 'sandbox') throw new Error('PAYPAL_MODE must be mock or sandbox.');
     if (mode === 'sandbox' && !creds) throw new Error('PAYPAL_MODE=sandbox requires ~/.config/tillwise/paypal-sandbox.env.');
-    return new PayPalService(wp, mode === 'sandbox' && creds ? new LivePayPalClient(creds) : new MockPayPalClient());
+    if (mode !== 'sandbox' || !creds) return new PayPalService(wp, new MockPayPalClient());
+    // Sandbox: money moves live. The analytics (refund-rate, anomaly drill-down, segments) stay on the labelled mock
+    // ledger by default, because Transaction Search on a shared app is other people's traffic and lags up to 3 h.
+    // PAYPAL_LEDGER=sandbox computes them from Transaction Search instead (own app only).
+    const ledger = env.PAYPAL_LEDGER || 'mock';
+    if (ledger !== 'mock' && ledger !== 'sandbox') throw new Error('PAYPAL_LEDGER must be mock or sandbox.');
+    return new PayPalService(wp, new LivePayPalClient(creds), { analytics: ledger === 'mock' ? new MockPayPalClient() : null });
   }
 
   private preview(kind: string, payload: Record<string, unknown>): Preview {
@@ -65,6 +108,16 @@ export class PayPalService {
 
   async moneyBriefing(): Promise<AbilityResult> {
     const audit = await this.wp.run('paypal-audit-list', {});
+    const activityPromise = this.sandboxActivity();
+    if (activityPromise) {
+      const activity = await activityPromise;
+      const { disputes, hidden } = await this.ownedDisputes(await this.client.listDisputes({ page_size: 50, page: 1 }));
+      const by = (kind: string) => activity.rows.filter((r) => r.kind === kind);
+      const total = (rows: Array<{ amount: number }>) => rows.reduce((sum, r) => sum + r.amount, 0).toFixed(2);
+      const app = await this.sandboxApp();
+      const counts = { captures: by('capture').length, refunds: by('refund').length, invoices: by('invoice').length, disputes: disputes.length, other_users_disputes_hidden: hidden };
+      return { speech: `PayPal sandbox briefing (live, ${app?.label || 'sandbox app'}): ${counts.captures} captures of EUR ${total(by('capture'))}, ${counts.refunds} refunds of EUR ${total(by('refund'))} and ${counts.invoices} invoice created by Tillwise; ${disputes.length} disputes on them.`, data: { mode: this.client.mode, source: 'live PayPal sandbox: GET /v2/checkout/orders/{id} and GET /v2/invoicing/invoices/{id} for the objects Tillwise created', sandbox_app: app, activity: activity.rows, disputes, audit: audit.data.audit || [], counts, errors: activity.errors } };
+    }
     const transactions = await this.client.listTransactions({ start_date: isoDaysAgo(30), end_date: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'), page_size: 20, page: 1 });
     const disputes = await this.client.listDisputes({ page_size: 10, page: 1 });
     const refundCount = transactions.filter((t) => String(t.transaction_info.transaction_event_code || '').startsWith('T11')).length;
@@ -77,7 +130,8 @@ export class PayPalService {
    * the Money Desk tile and the tool always see identical rows.
    */
   private async windowedLedger(days: number): Promise<PayPalLedger> {
-    const ledger = this.client.ledger ? this.client.ledger() : await this.sandboxLedger(days);
+    const source = this.client.ledger ? this.client : this.analytics;
+    const ledger = source?.ledger ? source.ledger() : await this.sandboxLedger(days);
     const since = new Date(Date.parse(`${ledger.anchor_date}T00:00:00Z`) - (days - 1) * 86400_000).toISOString().slice(0, 10);
     return { ...ledger, captures: ledger.captures.filter((c) => c.date >= since), refunds: ledger.refunds.filter((r) => r.date >= since) };
   }
@@ -86,7 +140,14 @@ export class PayPalService {
     const days = Math.min(Math.max(Math.floor(input.days ?? 45), 1), 90);
     const data = await this.windowedLedger(days);
     const counts = { captures: data.captures.length, refunds: data.refunds.length, invoices: data.invoices.length, disputes: data.disputes.length, tracking: data.tracking.length };
-    return { speech: `PayPal ledger export (${data.mode}) for the last ${days} days: ${counts.captures} captures, ${counts.refunds} refunds, ${counts.invoices} invoices, ${counts.disputes} disputes, ${counts.tracking} tracking rows.`, data: { ...data, days, counts } as unknown as Record<string, unknown> };
+    const speech = `PayPal ledger export (${data.mode}) for the last ${days} days: ${counts.captures} captures, ${counts.refunds} refunds, ${counts.invoices} invoices, ${counts.disputes} disputes, ${counts.tracking} tracking rows.`;
+    const activityPromise = this.sandboxActivity();
+    if (!activityPromise) return { speech, data: { ...data, days, counts, paypal_mode: this.client.mode, ledger_source: data.mode, sandbox_activity: [], sandbox_activity_meta: null } as unknown as Record<string, unknown> };
+    const activity = await activityPromise;
+    const app = await this.sandboxApp();
+    const meta = { source: 'live api-m.sandbox.paypal.com: GET /v2/checkout/orders/{id} and GET /v2/invoicing/invoices/{id}, ids from npm run sandbox:seed and the voice flow', run_tag: activity.run_tag, read_at: activity.read_at, errors: activity.errors, sandbox_app: app };
+    const notes = [...(data.notes || []), `PayPal mode is the LIVE sandbox (${app?.label || 'sandbox app'}): refunds and invoices move sandbox money. The ${data.mode === 'mock' ? 'captures/refunds/invoices/disputes tables above are the labelled mock ledger (demo data, not PayPal)' : 'tables above come from Transaction Search'}; sandbox_activity holds the ${activity.rows.length} live sandbox objects Tillwise created.`];
+    return { speech: `${speech} Plus ${activity.rows.length} live PayPal sandbox rows created by Tillwise.`, data: { ...data, days, counts: { ...counts, sandbox_activity: activity.rows.length }, notes, paypal_mode: this.client.mode, ledger_source: data.mode, sandbox_activity: activity.rows, sandbox_activity_meta: meta } as unknown as Record<string, unknown> };
   }
 
   async refundAnomaly(input: { window_days?: number } = {}): Promise<AbilityResult> {
@@ -131,6 +192,9 @@ export class PayPalService {
     const ctx = await this.orderContext(input.order_id);
     const refundAmount = Number(input.amount ?? ctx.order.total);
     if (refundAmount > 100) throw new Error('Refund cap is €100 per confirmation. This request was refused before preview.');
+    if (this.client.mode === 'sandbox' && (!ctx.paypal.paypal_capture_id || ctx.paypal.paypal_capture_id.startsWith('MOCKCAPTURE'))) {
+      throw new Error(`Woo order ${input.order_id} has no PayPal sandbox capture linked, so there is nothing real to refund. Run: cd mcp-server && npm run sandbox:seed -- --link-woo ${input.order_id}`);
+    }
     const captureId = ctx.paypal.paypal_capture_id || `MOCKCAPTURE${input.order_id}`;
     const payload = { order_id: input.order_id, capture_id: captureId, amount: moneyValue(refundAmount), currency: ctx.order.currency || 'EUR', note_to_payer: input.note_to_payer || 'Refund from Tillwise owner agent' };
     const preview = this.preview('refund', payload);
@@ -143,6 +207,7 @@ export class PayPalService {
     const requestId = this.requestId(`tillwise-refund-${p.order_id}`, preview);
     try {
       const refund = await this.client.createRefund({ capture_id: p.capture_id, amount: { currency_code: p.currency, value: p.amount }, note_to_payer: p.note_to_payer, request_id: requestId });
+      this.invalidateActivity();
       await this.audit({ tool: 'paypal_refund_apply', woo_order_id: p.order_id, paypal_object_id: refund.id, paypal_refund_id: refund.id, paypal_capture_id: p.capture_id, amount: p.amount, currency: p.currency, idempotency_key: requestId, status: refund.status, summary: `Refunded ${p.currency} ${p.amount}` });
       return { speech: `Refund ${refund.id} completed for ${p.currency} ${p.amount}.`, data: { refund, request_id: requestId, preview_hash: preview.hash } };
     } catch (err) {
@@ -204,10 +269,18 @@ export class PayPalService {
     }
   }
 
-  async disputesList(): Promise<AbilityResult> { const disputes = await this.client.listDisputes({ page_size: 10, page: 1 }); return { speech: `${disputes.length} PayPal disputes found.`, data: { disputes } }; }
-  async disputeGet(input: { dispute_id: string }): Promise<AbilityResult> { const dispute = await this.client.getDispute(input.dispute_id); return { speech: `Dispute ${input.dispute_id} is ${dispute.status}.`, data: { dispute } }; }
+  async disputesList(): Promise<AbilityResult> {
+    const { disputes, hidden } = await this.ownedDisputes(await this.client.listDisputes({ page_size: 10, page: 1 }));
+    return { speech: `${disputes.length} PayPal disputes found.${hidden ? ` ${hidden} other disputes on the shared sandbox app belong to other users and are not shown.` : ''}`, data: { disputes, ...(hidden ? { other_users_disputes_hidden: hidden } : {}) } };
+  }
+  private async ownedDispute(dispute_id: string): Promise<PayPalDispute> {
+    const dispute = await this.client.getDispute(dispute_id);
+    if ((await this.ownedDisputes([dispute])).hidden) throw new Error(`Dispute ${dispute_id} is not on a capture Tillwise created, so on the shared PayPal sandbox app it belongs to someone else. Not shown and not acted on.`);
+    return dispute;
+  }
+  async disputeGet(input: { dispute_id: string }): Promise<AbilityResult> { const dispute = await this.ownedDispute(input.dispute_id); return { speech: `Dispute ${input.dispute_id} is ${dispute.status}.`, data: { dispute } }; }
   async disputeAcceptClaimPreview(input: { dispute_id: string; note?: string }): Promise<AbilityResult> {
-    const dispute = await this.client.getDispute(input.dispute_id);
+    const dispute = await this.ownedDispute(input.dispute_id);
     const amount = Number(dispute.dispute_amount?.value || 0);
     if (amount > 100) throw new Error('Dispute accept cap is €100 per confirmation. This request was refused before preview.');
     const payload = { dispute_id: input.dispute_id, amount: moneyValue(amount), currency: dispute.dispute_amount?.currency_code || 'EUR', reason: dispute.reason || '', status: dispute.status, deadline: dispute.update_time || '', note: input.note || 'Tillwise owner accepted the PayPal dispute claim.' };

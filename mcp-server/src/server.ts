@@ -10,6 +10,7 @@ import { WpAbilityClient } from './wpClient.js';
 import { registerTillwiseTools } from './tools.js';
 import { PayPalService } from './paypal/service.js';
 import { registerPayPalTools } from './paypal/tools.js';
+import { installPayPalCallLog } from './paypal/callLog.js';
 
 export type Env = Record<string, string | undefined>;
 
@@ -176,5 +177,6 @@ export async function startHttpServer(env: Env = process.env) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
+  installPayPalCallLog({ source: 'mcp-server' });
   startHttpServer().catch((error) => { console.error(error); process.exit(1); });
 }

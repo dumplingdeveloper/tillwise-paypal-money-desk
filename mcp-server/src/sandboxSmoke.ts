@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { installPayPalCallLog } from './paypal/callLog.js';
 import { LivePayPalClient, readSandboxCredentials } from './paypal/liveClient.js';
 import type { PayPalDispute, PayPalInvoice, PayPalTransaction } from './paypal/types.js';
 
@@ -12,7 +13,7 @@ import type { PayPalDispute, PayPalInvoice, PayPalTransaction } from './paypal/t
  * Reads ~/.config/tillwise/paypal-sandbox.env (PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET; see scripts/save-paypal-sandbox-creds.sh),
  * then against https://api-m.sandbox.paypal.com only:
  *   1. OAuth client-credentials token            (read)
- *   2. Transaction Search, last 30 days          (read)
+ *   2. Transaction Search, last 24 hours         (read; 30 days returned RESULTSET_TOO_LARGE on PayPal's shared public app)
  *   3. Disputes list                             (read)
  *   4. Create ONE draft invoice, never sent      (the single safe write)
  *   5. Read that invoice back, expect DRAFT      (read)
@@ -75,8 +76,9 @@ export async function runSandboxSmoke(options: {
   const token = await step('oauth token', () => client.oauthProbe(), (t) => `access token issued, expires in ${t.expires_in_s}s`);
   if (token) {
     const end = now();
-    const start = new Date(end.getTime() - 30 * 86_400_000);
-    await step('transactions (last 30 days)', () => client.listTransactions({ start_date: isoSeconds(start), end_date: isoSeconds(end), page_size: 20 }), (rows: PayPalTransaction[]) => `${rows.length} transaction(s)`);
+    // Real run 2026-10-26: 30 days on the shared public sandbox app → HTTP 400 RESULTSET_TOO_LARGE; 24 h held 377 rows.
+    const start = new Date(end.getTime() - 86_400_000);
+    await step('transactions (last 24 hours)', () => client.listTransactions({ start_date: isoSeconds(start), end_date: isoSeconds(end), page_size: 20 }), (rows: PayPalTransaction[]) => `${rows.length} transaction(s)`);
     await step('disputes', () => client.listDisputes({ page_size: 5 }), (rows: PayPalDispute[]) => `${rows.length} dispute(s)${rows.length ? `: ${rows.map((d) => d.status).join(', ')}` : ''}`);
     const stamp = isoSeconds(now()).replace(/[-:TZ]/g, '').slice(0, 14);
     const invoice = await step('create draft invoice (not sent)', () => client.createInvoice({
@@ -108,6 +110,7 @@ export async function runSandboxSmoke(options: {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  installPayPalCallLog({ source: 'sandbox:smoke' });
   const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
   runSandboxSmoke({ keepDraft: process.argv.includes('--keep-draft'), evidencePath: join(repoRoot, 'docs', 'evidence', 'paypal-sandbox-smoke.json') })
     .then((result) => { process.exitCode = result.exitCode; })

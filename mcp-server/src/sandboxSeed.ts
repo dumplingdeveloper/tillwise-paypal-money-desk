@@ -1,8 +1,9 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { installPayPalCallLog } from './paypal/callLog.js';
 import { readSandboxCredentials } from './paypal/liveClient.js';
 import { SEED_TAG_PREFIX, seedCustomId } from './paypal/seedTags.js';
 import { PayPalApiError, type LedgerSegment } from './paypal/types.js';
@@ -12,13 +13,16 @@ import { WpAbilityClient } from './wpClient.js';
  * `npm run sandbox:seed`: creates the small amount of REAL PayPal sandbox data the judge demo needs.
  * It is idempotent and tagged, so reruns never duplicate. Sources are in docs/FACTS_PAYPAL_SANDBOX.md.
  *
+ *   Every tag carries a per-install run tag (TW-DEMO-<RUN>-…, RUN = 6 random chars kept in the manifest), because
+ *   PayPal's public default sandbox app is SHARED: other people's seeds land in the same merchant account.
  *   - 3 captured orders (Orders v2, intent CAPTURE, payment_source.card with a PayPal sandbox test card).
- *     Tag: purchase_units[0].invoice_id = TW-DEMO-CAP-0n. PayPal makes invoice_id unique per merchant by
+ *     Tag: purchase_units[0].invoice_id = TW-DEMO-<RUN>-CAP-0n. PayPal makes invoice_id unique per merchant by
  *     default, so a rerun cannot create a second copy. custom_id carries the segment/customer/product.
- *   - 1 invoice (Invoicing v2) TW-DEMO-INV-01. It is found again via search-invoices, then created and
+ *   - 1 partial refund (Payments v2) of €6.00 on CAP-01, custom_id TW-DEMO-<RUN>-REF-01.
+ *   - 1 invoice (Invoicing v2) TW-DEMO-<RUN>-INV-01. It is found again via search-invoices, then created and
  *     sent with send_to_recipient=false (the invoice becomes payable; PayPal emails nobody).
  *   - optional `--link-woo 136[,137]`: for each Woo order, one capture for exactly the order total
- *     (tag TW-DEMO-WOO-<id>-<cents>). It is linked to the order through the audited
+ *     (tag TW-DEMO-<RUN>-WOO-<id>-<cents>). It is linked to the order through the audited
  *     `paypal-audit-record` ability, so "Refund order 136" in the voice flow refunds a real sandbox
  *     capture.
  * If the sandbox business account cannot take card payments (PAYEE_NOT_ENABLED_FOR_CARD_PROCESSING),
@@ -35,15 +39,20 @@ export const SANDBOX_TEST_CARD = { number: '4012000033330026', expiry: '2030-12'
 const CARD_NOT_AVAILABLE = new Set(['PAYEE_NOT_ENABLED_FOR_CARD_PROCESSING', 'CARD_TYPE_NOT_SUPPORTED', 'CURRENCY_NOT_SUPPORTED_FOR_CARD_TYPE', 'PAYMENT_SOURCE_INFO_CANNOT_BE_VERIFIED', 'NOT_ENABLED_FOR_CARD_PROCESSING']);
 
 export type SeedCaptureSpec = { tag: string; customer: string; segment: LedgerSegment; product: string; value: string };
-export const SEED_CAPTURES: SeedCaptureSpec[] = [
-  { tag: `${SEED_TAG_PREFIX}CAP-01`, customer: 'Aoife Byrne', segment: 'Retail', product: 'Stoneware Mug Set', value: '24.00' },
-  { tag: `${SEED_TAG_PREFIX}CAP-02`, customer: 'Cork Office Co', segment: 'Wholesale', product: 'Desk Organiser', value: '64.50' },
-  { tag: `${SEED_TAG_PREFIX}CAP-03`, customer: 'Mugs & Candles Club', segment: 'Subscription', product: 'Monthly Candle Box', value: '18.00' },
+/** `key` is combined with the run tag: seedTag(run, 'CAP-01') = TW-DEMO-<RUN>-CAP-01. Names are fictional. */
+export const SEED_CAPTURES: Array<Omit<SeedCaptureSpec, 'tag'> & { key: string }> = [
+  { key: 'CAP-01', customer: 'Aoife Byrne', segment: 'Retail', product: 'Stoneware Mug Set', value: '24.00' },
+  { key: 'CAP-02', customer: 'Cork Office Co', segment: 'Wholesale', product: 'Desk Organiser', value: '64.50' },
+  { key: 'CAP-03', customer: 'Mugs & Candles Club', segment: 'Subscription', product: 'Monthly Candle Box', value: '18.00' },
 ];
-export const SEED_INVOICE = { tag: `${SEED_TAG_PREFIX}INV-01`, business_name: 'Galway Gift House', email: 'orders@galwaygift.example.test', item: 'Gift Hamper', quantity: '4', unit_value: '45.00' };
+export const SEED_REFUND = { key: 'REF-01', capture_key: 'CAP-01', value: '6.00', note: 'Partial refund: one mug arrived chipped (Tillwise sandbox demo).' };
+export const SEED_INVOICE = { key: 'INV-01', business_name: 'Galway Gift House', email: 'galway-gift-house@example.com', item: 'Gift Hamper', quantity: '4', unit_value: '45.00' };
+/** Run tags are 6 chars from an alphabet without look-alikes, e.g. TW-DEMO-K7QX2M-CAP-01 (21 chars; invoice_number allows 25). */
+export function newRunTag(): string { const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; return [...randomBytes(6)].map((b) => abc[b % abc.length]).join(''); }
+export function seedTag(run: string, key: string): string { return `${SEED_TAG_PREFIX}${run}-${key}`; }
 
 type Json = Record<string, any>;
-export type SeedManifest = { host: string; currency: string; captures: Record<string, { order_id: string; status: string; capture_id?: string; capture_status?: string; amount: string; approve_url?: string; woo_order_id?: number; linked?: boolean }>; invoices: Record<string, { invoice_id: string; status: string }>; updated_at?: string };
+export type SeedManifest = { host: string; currency: string; run_tag?: string; refunds?: Record<string, { refund_id: string; status: string; capture_id: string; amount: string; currency?: string }>; captures: Record<string, { order_id: string; status: string; capture_id?: string; capture_status?: string; amount: string; approve_url?: string; woo_order_id?: number; linked?: boolean }>; invoices: Record<string, { invoice_id: string; status: string }>; updated_at?: string };
 export type SeedStep = { step: string; ok: boolean; detail: string; status?: number; debug_id?: string; pending?: boolean };
 export type SeedResult = { exitCode: 0 | 1 | 2; host: string; steps: SeedStep[]; manifest?: SeedManifest; startedAt: string; finishedAt: string };
 
@@ -110,6 +119,8 @@ export async function runSandboxSeed(options: {
   wp?: Pick<WpAbilityClient, 'run'> | null;
   evidencePath?: string | null;
   now?: () => Date;
+  /** Only for tests; normally the run tag comes from the manifest or is generated once. */
+  runTag?: string;
 } = {}): Promise<SeedResult> {
   const log = options.log || ((line: string) => console.log(line));
   const now = options.now || (() => new Date());
@@ -135,6 +146,9 @@ export async function runSandboxSeed(options: {
   if (existsSync(manifestPath)) {
     try { manifest = { ...manifest, ...JSON.parse(readFileSync(manifestPath, 'utf8')) as SeedManifest }; } catch { log(`  ! manifest ${manifestPath} is not valid JSON; starting a new one (PayPal's invoice_id/invoice_number tags still prevent duplicates).`); }
   }
+  manifest.refunds = manifest.refunds || {};
+  if (!manifest.run_tag) manifest.run_tag = options.runTag || newRunTag();
+  const run = manifest.run_tag;
   const saveManifest = () => {
     manifest.updated_at = now().toISOString();
     mkdirSync(dirname(manifestPath), { recursive: true });
@@ -219,30 +233,50 @@ export async function runSandboxSeed(options: {
     }
   }
 
+  const invoiceTag = seedTag(run, SEED_INVOICE.key);
   async function ensureInvoice() {
-    const label = `invoice ${SEED_INVOICE.tag}`;
+    const label = `invoice ${invoiceTag}`;
     try {
-      const { json: found } = await api.call('POST', '/v2/invoicing/search-invoices?page=1&page_size=5&total_required=false', { invoice_number: SEED_INVOICE.tag });
-      let invoice = (found.items || []).find((item: Json) => item.detail?.invoice_number === SEED_INVOICE.tag) as Json | undefined;
+      const { json: found } = await api.call('POST', '/v2/invoicing/search-invoices?page=1&page_size=5&total_required=false', { invoice_number: invoiceTag });
+      let invoice = (found.items || []).find((item: Json) => item.detail?.invoice_number === invoiceTag) as Json | undefined;
       let created = false;
       if (!invoice) {
         const due = new Date(now().getTime() + 14 * 86400_000).toISOString().slice(0, 10);
         const { json } = await api.call('POST', '/v2/invoicing/invoices', {
-          detail: { invoice_number: SEED_INVOICE.tag, currency_code: currency, note: 'Tillwise sandbox demo invoice (created by npm run sandbox:seed).', payment_term: { due_date: due } },
+          detail: { invoice_number: invoiceTag, currency_code: currency, note: 'Tillwise sandbox demo invoice (created by npm run sandbox:seed).', payment_term: { due_date: due } },
           primary_recipients: [{ billing_info: { business_name: SEED_INVOICE.business_name, email_address: SEED_INVOICE.email } }],
           items: [{ name: SEED_INVOICE.item, quantity: SEED_INVOICE.quantity, unit_amount: { currency_code: currency, value: SEED_INVOICE.unit_value } }],
-        }, { requestId: requestId(SEED_INVOICE.tag, 'create'), prefer: 'return=representation' });
+        }, { requestId: requestId(invoiceTag, 'create'), prefer: 'return=representation' });
         invoice = json.id ? json : { id: String(json.href || '').split('/').pop(), status: 'DRAFT' };
         created = true;
       }
       const id = String(invoice!.id);
       let status = String(invoice!.status);
       if (status === 'DRAFT') {
-        await api.call('POST', `/v2/invoicing/invoices/${encodeURIComponent(id)}/send`, { send_to_recipient: false, send_to_invoicer: false }, { requestId: requestId(SEED_INVOICE.tag, 'send') });
+        await api.call('POST', `/v2/invoicing/invoices/${encodeURIComponent(id)}/send`, { send_to_recipient: false, send_to_invoicer: false }, { requestId: requestId(invoiceTag, 'send') });
         status = String((await api.call('GET', `/v2/invoicing/invoices/${encodeURIComponent(id)}`)).json.status);
       }
-      manifest.invoices[SEED_INVOICE.tag] = { invoice_id: id, status };
+      manifest.invoices[invoiceTag] = { invoice_id: id, status };
       record({ step: label, ok: status !== 'DRAFT', detail: `${created ? 'created' : 'already exists'}: ${id} status ${status} (${currency} ${(Number(SEED_INVOICE.unit_value) * Number(SEED_INVOICE.quantity)).toFixed(2)}, sent with send_to_recipient=false)` });
+    } catch (error) {
+      fail(label, error);
+    } finally {
+      saveManifest();
+    }
+  }
+
+  async function ensureRefund() {
+    const tag = seedTag(run, SEED_REFUND.key);
+    const label = `refund ${tag}`;
+    const known = manifest.refunds![tag];
+    if (known) { record({ step: label, ok: true, detail: `already refunded: refund ${known.refund_id} ${known.status} ${known.currency || currency} ${known.amount} on capture ${known.capture_id}` }); return; }
+    const capture = manifest.captures[seedTag(run, SEED_REFUND.capture_key)];
+    if (!capture?.capture_id || capture.capture_status !== 'COMPLETED') { record({ step: label, ok: true, pending: true, detail: `capture ${seedTag(run, SEED_REFUND.capture_key)} is not COMPLETED yet; rerun after it is captured` }); return; }
+    try {
+      // Payments v2 refund: "For a partial refund, include an amount object". custom_id carries our tag (not invoice_id, which PayPal keeps unique).
+      const { json } = await api.call('POST', `/v2/payments/captures/${encodeURIComponent(capture.capture_id)}/refund`, { amount: { currency_code: currency, value: SEED_REFUND.value }, custom_id: tag, note_to_payer: SEED_REFUND.note }, { requestId: requestId(tag, 'refund'), prefer: 'return=representation' });
+      manifest.refunds![tag] = { refund_id: String(json.id), status: String(json.status), capture_id: capture.capture_id, amount: SEED_REFUND.value, currency };
+      record({ step: label, ok: Boolean(json.id), detail: `refund ${json.id} ${json.status} ${currency} ${SEED_REFUND.value} on capture ${capture.capture_id}` });
     } catch (error) {
       fail(label, error);
     } finally {
@@ -255,7 +289,7 @@ export async function runSandboxSeed(options: {
     try {
       const context = (await wp.run('paypal-order-context', { order_id: orderId })).data as { order: { total: number; currency: string; items?: Array<{ name: string }> }; paypal: { paypal_capture_id?: string } };
       const value = Number(context.order.total).toFixed(2);
-      const spec: SeedCaptureSpec = { tag: `${SEED_TAG_PREFIX}WOO-${orderId}-${Math.round(Number(value) * 100)}`, customer: `Woo order ${orderId}`, segment: 'Retail', product: (context.order.items || []).map((i) => i.name).join(' + ').slice(0, 60) || 'Woo order', value };
+      const spec: SeedCaptureSpec = { tag: seedTag(run, `WOO-${orderId}-${Math.round(Number(value) * 100)}`), customer: `Woo order ${orderId}`, segment: 'Retail', product: (context.order.items || []).map((i) => i.name).join(' + ').slice(0, 60) || 'Woo order', value };
       if (context.order.currency && context.order.currency !== currency) throw new Error(`Woo order ${orderId} is in ${context.order.currency}, the seed currency is ${currency}`);
       await ensureCapture(spec, `capture for Woo order ${orderId}`);
       const entry = manifest.captures[spec.tag];
@@ -279,7 +313,8 @@ export async function runSandboxSeed(options: {
     fail('oauth token', error);
   }
   if (steps[0]?.ok) {
-    for (const spec of SEED_CAPTURES) await ensureCapture(spec, `capture ${spec.tag} (${spec.segment}, ${spec.customer})`);
+    for (const base of SEED_CAPTURES) { const spec = { ...base, tag: seedTag(run, base.key) }; await ensureCapture(spec, `capture ${spec.tag} (${spec.segment}, ${spec.customer})`); }
+    await ensureRefund();
     await ensureInvoice();
     if (options.linkWoo?.length) {
       const wp = options.wp ?? null;
@@ -319,6 +354,7 @@ export function parseSeedArgs(argv: string[]): { linkWoo: number[]; currency?: s
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  installPayPalCallLog({ source: 'sandbox:seed' });
   const here = dirname(fileURLToPath(import.meta.url));
   const repoRoot = resolve(here, '..', '..', '..');
   try {

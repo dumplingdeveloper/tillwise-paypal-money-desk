@@ -43,8 +43,8 @@ test('sandbox smoke runs reads + one draft invoice, cleans it up, and never prin
   const evidencePath = join(dir, 'evidence.json');
   const result = await runSandboxSmoke({ credentialsPath: path, log: (l) => lines.push(l), makeClient: (c) => { assert.equal(c.clientId, FAKE_ID); return client; }, now: () => new Date('2026-10-25T12:00:00Z'), evidencePath });
   assert.equal(result.exitCode, 0);
-  assert.deepEqual(result.steps.map((s) => s.step), ['oauth token', 'transactions (last 30 days)', 'disputes', 'create draft invoice (not sent)', 'read invoice back', 'delete draft invoice']);
-  assert.deepEqual(calls, ['oauth', 'tx 2026-09-25T12:00:00Z..2026-10-25T12:00:00Z', 'disputes', 'create TW-SMOKE-20261025120000', 'get INV2-TEST', 'delete INV2-TEST']);
+  assert.deepEqual(result.steps.map((s) => s.step), ['oauth token', 'transactions (last 24 hours)', 'disputes', 'create draft invoice (not sent)', 'read invoice back', 'delete draft invoice']);
+  assert.deepEqual(calls, ['oauth', 'tx 2026-10-24T12:00:00Z..2026-10-25T12:00:00Z', 'disputes', 'create TW-SMOKE-20261025120000', 'get INV2-TEST', 'delete INV2-TEST']);
   const everything = lines.join('\n') + readFileSync(evidencePath, 'utf8');
   assert.equal(everything.includes(FAKE_ID), false);
   assert.equal(everything.includes(FAKE_SECRET), false);

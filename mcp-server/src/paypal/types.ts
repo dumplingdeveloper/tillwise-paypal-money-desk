@@ -12,7 +12,7 @@ export type PayPalInvoice = { id: string; status: string; detail?: Record<string
 export type PayPalShipment = { id: string; status: string; transaction_id: string; tracking_number?: string; carrier?: string };
 export type PayPalDispute = { dispute_id: string; status: string; dispute_state?: string; reason?: string; dispute_amount?: Money; update_time?: string; create_time?: string; seller_response_due_date?: string };
 export type PayPalTransaction = { transaction_info: { transaction_id: string; transaction_event_code?: string; transaction_status?: string; transaction_amount?: Money; transaction_updated_date?: string; transaction_initiation_date?: string; paypal_reference_id?: string; invoice_id?: string; custom_field?: string } };
-export type PayPalOrder = { id: string; status: string; purchase_units?: Array<Record<string, unknown>>; links?: Array<Record<string, unknown>> };
+export type PayPalOrder = { id: string; status: string; create_time?: string; purchase_units?: Array<Record<string, unknown>>; links?: Array<Record<string, unknown>> };
 
 export type CreateRefundInput = { capture_id: string; amount?: Money; invoice_id?: string; note_to_payer?: string; request_id: string };
 export type CreateInvoiceInput = { invoice_number?: string; currency_code: string; primary_recipients: Array<Record<string, unknown>>; items: Array<Record<string, unknown>>; note?: string; request_id: string };
@@ -36,6 +36,12 @@ export interface PayPalClient {
   captureOrder(input: { id: string; request_id: string }): Promise<PayPalOrder>;
   /** Sandbox-only: invoices for the sandbox ledger (GET /v2/invoicing/invoices). */
   listInvoices?(input?: { page_size?: number }): Promise<PayPalInvoice[]>;
+  /** Sandbox-only: one order with its captures and refunds (GET /v2/checkout/orders/{id}). */
+  getOrder?(id: string): Promise<PayPalOrder>;
+  /** Sandbox-only: one invoice (GET /v2/invoicing/invoices/{id}). */
+  getInvoice?(id: string): Promise<PayPalInvoice>;
+  /** Sandbox-only: the app_id PayPal returned with the OAuth token (not a secret). */
+  appId?(): Promise<string | null>;
   /** Mock-only: the full deterministic ledger. Sandbox mode builds a partial ledger from transactions and disputes instead. */
   ledger?(): PayPalLedger;
 }
