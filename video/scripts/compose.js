@@ -201,7 +201,8 @@ function cardHtml(kind, scene) {
   const main = kind === 'intro' ? title : 'Thanks for watching';
   const sub = kind === 'intro' ? tagline : (scene.outroSub || 'GitHub: ' + github);
   const outroNote = scene.outroNote ?? 'The Alexa+ experience simulator is an unofficial demo, not an Amazon product.';
-  const note = kind === 'intro' || !outroNote ? '' : `<div class="note">${outroNote}</div>`;
+  const noteText = kind === 'intro' ? scene.introNote : outroNote;
+  const note = noteText ? `<div class="note">${noteText}</div>` : '';
   const eyebrow = scene.cardEyebrow || 'Build, Ship, Shape demo video';
   return `<!doctype html><html><head><meta charset="utf-8"><style>
     body{margin:0;width:1920px;height:1080px;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:white;background:radial-gradient(circle at 20% 20%,#5755ff 0,#1b2258 34%,#091226 72%);display:grid;place-items:center;overflow:hidden}

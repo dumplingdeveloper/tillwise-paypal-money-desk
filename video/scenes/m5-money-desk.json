@@ -1,6 +1,7 @@
 {
   "projectName": "Tillwise × PayPal",
-  "tagline": "A voice store agent for WooCommerce owners, with an AG Studio Money Desk on PayPal data",
+  "tagline": "For small WooCommerce shops on PayPal: refunds, disputes and unpaid invoices in one conversation, and no money moves without the owner’s yes.",
+  "introNote": "PayPal runs in mock mode in this video: demo data, not a PayPal account.",
   "github": "",
   "subtitleBandHeight": 140,
   "dynamicWordsPerAsk": 28,
@@ -26,7 +27,7 @@
     {
       "action": "say",
       "voice": "NARRATOR",
-      "text": "Small shop owners take payments with PayPal, but refunds, disputes and unpaid invoices live in different screens. Tillwise is a store agent they can simply talk to. In this demo, PayPal runs in mock mode, on deterministic demo data."
+      "text": "If you run a small WooCommerce shop on PayPal, refunds, disputes and unpaid invoices sit in separate screens, and one wrong refund costs real money. Tillwise is a store agent you simply talk to. It shows you the numbers, and it moves money only after you confirm. In this demo, PayPal runs in mock mode, on demo data."
     },
     {
       "action": "ask",
@@ -111,28 +112,9 @@
       "ms": 2000
     },
     {
-      "action": "type",
-      "selector": "#myStudio textarea[aria-label=\"Message input\"]",
-      "text": "Refund order {{ORDER_ID}}",
-      "delayMs": 45
-    },
-    {
-      "action": "say",
-      "voice": "OWNER",
-      "text": "Refund order {{ORDER_ID}}."
-    },
-    {
-      "action": "click",
-      "selector": "#myStudio [aria-label=\"Send message\"]"
-    },
-    {
-      "action": "pause",
-      "ms": 9000
-    },
-    {
       "action": "say",
       "voice": "NARRATOR",
-      "text": "The Studio agent has no money-moving tools at all, so it declines and points back to the confirmed voice flow."
+      "text": "The Studio agent is read-only: it has no tool that moves money. Refunds happen only in the voice flow, after a preview and the owner’s yes."
     },
     {
       "action": "say",
@@ -144,7 +126,7 @@
       "ms": 1000
     }
   ],
-  "cardEyebrow": "PayPal AI Hackathon · draft demo",
-  "outroSub": "Draft render. The repository link is added at submission.",
+  "cardEyebrow": "PayPal AI Hackathon · mock-mode demo",
+  "outroSub": "Talk to your shop, see your money, confirm every refund.",
   "outroNote": "PayPal ran in mock mode here: deterministic demo data, not a PayPal account. The Alexa+ experience simulator is an unofficial demo, not an Amazon product."
 }
