@@ -40,6 +40,19 @@ npm run record:live -- --url http://127.0.0.1:4179
 
 The page is recorded at `1920 x (1080 - subtitleBandHeight)` and then composed onto a 1920x1080 dark canvas. Burned-in captions are constrained to the reserved bottom band, wrap to at most two lines, and long speech is split into sequential caption cards timed proportionally to the generated audio.
 
+Captions (`scripts/captions.js`):
+- The narrator has no speaker label; Owner, Assistant and Host keep theirs.
+- Cards break at sentence ends first, then at clause boundaries (`, : ;` and dashes), using the fewest cards and never leaving a list hanging after its first item.
+- Only a clause longer than one card is split between words.
+
+Speech (`scripts/speakable.js`):
+- Money is spoken as words before synthesis: "EUR 31.00" → "31 euros", "€2,083.77" → "2,083 euros and 77 cents", and likewise for USD/$ and GBP/£.
+- Captions keep the written form.
+- The clip cache is keyed on the spoken text.
+- `alexa-sim/public/speakable.js` is an identical copy for the simulator's browser speech; the alexa-sim tests assert the two match.
+
+`npm test` runs the unit tests for both helpers.
+
 Live scenes support honest dead-air compression with `maxSilenceMs` (default `1500`): gaps with no audio are sped up and marked with a "⏩ fast-forward" badge in the subtitle band. These gaps include model latency and the time Kokoro needs to generate each live answer; the real time from the end of each owner line to the live answer is recorded in `out/compose-report.json` (`stepLatencies`).
 
 `scripts/video-timing.js` patches Playwright's video recorder before recording. Unpatched, Playwright writes every screencast frame at least once at 25 fps, so a page that repaints faster (the simulator's animated ring) produces a video longer than wall-clock time and the narration drifts away from the picture. In a 20-second test with the ring animating, the unpatched recording was 32.96 s long and the patched one 20.08 s.
@@ -47,8 +60,9 @@ Live scenes support honest dead-air compression with `maxSilenceMs` (default `15
 ## Scene templates and card text
 
 - A scene may contain `{{ORDER_ID}}` (for example "Refund order {{ORDER_ID}}."). The demo reset recreates the seed orders with new ids, so resolve the template after the reset: `node scripts/resolve-scene.js --scene scenes/m5-money-desk.json --order <id>` writes `out/m5-money-desk.resolved.json`. Then run tts/record/compose on that file.
-- Optional scene fields for the cards: `cardEyebrow` (intro/outro eyebrow), `outroSub` (outro subtitle; when set, the `github` field may be empty) and `outroNote` (small print on the outro card). `maxSilenceMs` may also be set per scene. `scenes/m5-money-desk.json` uses 5000.
-- The full commands for the PayPal draft are in `docs/VIDEO_RENDER.md`.
+- Optional scene fields for the cards: `cardEyebrow` (intro/outro eyebrow), `introNote` (small print on the intro card), `outroSub` (outro subtitle; when set, the `github` field may be empty) and `outroNote` (small print on the outro card). `maxSilenceMs` may also be set per scene. `scenes/m5-money-desk.json` uses 5000.
+- The full commands for the PayPal renders are in `docs/VIDEO_RENDER.md`.
+- `node scripts/devpost-media.js --video out/<render>.mp4 --url <sim url> --out ../docs/devpost` writes the Devpost gallery (3:2) and a 1280x720 thumbnail from the real UI. It uses a fresh Money Desk capture plus crops of the render's frames, and makes no model calls.
 
 ## Scene step types
 

@@ -1,10 +1,178 @@
-# Draft demo video: render record (M5 draft, mock mode)
+# Demo video: render record (final mock-mode render)
 
-This is a **draft**. It was rendered with this repo's own `video/` pipeline from `video/scenes/m5-money-desk.json`, in PayPal **mock mode**.
+The final mock-mode video was rendered on 2026-10-26 with this repo's own `video/` pipeline from `video/scenes/m5-money-desk.json`. PayPal runs in **mock mode**.
 
-The narration (scene 1), the voice simulator badge ("PayPal: mock mode · demo data, not a PayPal account"), the Money Desk header ("mock ledger (demo data, not PayPal)") and the outro card ("PayPal ran in mock mode here…") all say it is mock/demo data. Nothing in it claims a live PayPal sandbox.
+The intro card ("PayPal runs in mock mode in this video: demo data, not a PayPal account"), the narration ("In this demo, PayPal runs in mock mode, on demo data"), the voice-sim badge ("PayPal: mock mode · demo data, not a PayPal account"), the Money Desk header ("mock ledger (demo data, not PayPal)") and the outro card all say so. Nothing in it claims a live PayPal sandbox.
+
+It replaces the M5 draft (`money-desk-draft-mock.mp4`, md5 `6d604431…`; its record is kept below as an appendix).
 
 ## Result
+
+| | |
+| --- | --- |
+| File | `video/out/money-desk-final-mock.mp4` (gitignored; a byte copy of `video/out/demo.mp4`) |
+| Duration (ffprobe) | 162.100000 s = 2:42 (hard limit 3:00) |
+| Video | H.264, 1920x1080, 30 fps |
+| Audio | AAC 48 kHz; loudness −16.2 LUFS integrated, −1.5 dBFS true peak (compose-report.json) |
+| Size | 7,119,436 bytes |
+| md5 | `774992c9af72c11e76f6e0b0e9c7e40f` |
+| Music | none |
+
+`ffprobe -v error -show_entries format=duration,size:stream=codec_name,width,height,r_frame_rate -of compact video/out/money-desk-final-mock.mp4`:
+
+```
+stream|codec_name=h264|width=1920|height=1080|r_frame_rate=30/1
+stream|codec_name=aac|r_frame_rate=0/0
+format|duration=162.100000|size=7119436
+```
+
+The compose report's pixel checks and temporal checks (no audio overlap, no caption overlap, captions within their clips) are all `ok`.
+
+## What changed since the draft
+
+- **Spoken currency.** `video/scripts/speakable.js` turns money into words before Kokoro synthesis: "EUR 31.00" → "31 euros", "€2,083.77" → "2,083 euros and 77 cents", and the same for USD/$ and GBP/£. It is used for the scripted lines (`tts.js`) and for live model and host lines (`tts-engine.js`, used by `record.js`). The clip cache is keyed on the spoken text. Captions keep the original text ("Host: Refund €31.00 for order 416 through PayPal?").
+  - The voice simulator's browser `speechSynthesis` uses an identical copy, `alexa-sim/public/speakable.js`. The alexa-sim unit tests assert the two files are byte-identical.
+  - Tests: `video/test/speakable.test.js` and alexa-sim `test/unit.test.ts` "the voice sim speaks money as words…".
+- **Captions** (`video/scripts/captions.js`, `video/test/captions.test.js`):
+  - no "Narrator:" label; Owner, Assistant and Host keep theirs;
+  - cards break at sentence ends, then at clause boundaries (`, : ;` and dashes), using the fewest cards;
+  - a break that leaves a list hanging ("…on PayPal, refunds, | disputes…") costs as much as an extra card;
+  - only a single clause longer than a card is split between words.
+- **Opening.** The first 15 s say who it is for, what problem it solves and why it matters.
+  - Intro card (0–4 s): "For small WooCommerce shops on PayPal: refunds, disputes and unpaid invoices in one conversation, and no money moves without the owner's yes."
+  - Narration from 4.4 s: "If you run a small WooCommerce shop on PayPal, refunds, disputes and unpaid invoices sit in separate screens, and one wrong refund costs real money." This sentence ends at about 15.4 s; the ASR places it at 12.5–15.4 s.
+- **Fixes now on screen** (earlier commits, first time in a recording):
+  - the plain host question "Refund €31.00 for order 416 through PayPal?";
+  - the 14-day `recent_refunds` chart "Refunds per day by reason · Tue 13 Oct – Mon 26 Oct", with a legend;
+  - the same 36.3% and 7.3% baseline in the tile and the agent's answer;
+  - the outstanding-only "Who still owes us" board (4 customers, €1,196.00).
+- **Studio refusal prompt dropped.** The draft typed "Refund order …" into the Studio AI panel to show the agent declining. This render only *says* so in the narration ("The Studio agent is read-only: it has no tool that moves money…"), to stay within the model-call budget after the first attempt failed (see "Model calls").
+  - The refusal is still covered by the LIVE acceptance test (`money-desk-live-refusal.json`, no tool calls, audit counts unchanged), but it is not shown in this video.
+
+## Frames (committed, extracted from the mp4 at fixed timestamps)
+
+`ffmpeg -v error -y -ss <t> -i out/money-desk-final-mock.mp4 -frames:v 1 frames/money-desk-final-t<t>.png`
+
+| Frame | md5 | Speech at that moment | What the screen shows |
+| --- | --- | --- | --- |
+| `video/frames/money-desk-final-t006.png` | `bdb10dff25c34091099f742a26fc8406` | "If you run a small WooCommerce shop on PayPal," (no speaker label) | Voice sim, idle, mock-mode badge |
+| `video/frames/money-desk-final-t040.png` | `c2b1a8ff3d119a80c67b14c9855d32db` | ASSISTANT (live): "Say yes to move the money." | "Refund order 416." and the live preview answer "…ready for 31 euros on order 416…" |
+| `video/frames/money-desk-final-t066.png` | `4a50121c13de96deb1608ad98276a8d3` | HOST: "Refund €31.00 for order 416 through PayPal?" (spoken "31 euros") | Confirmation card with Yes/No |
+| `video/frames/money-desk-final-t086.png` | `5dcbe601edce4316f61554c17c64100f` | "then the refund call to PayPal mock mode, and its audit row." | Under the hood: `paypal_refund_preview` → permission confirmed by owner (voice) → `paypal_refund_apply`; "The 31 euro refund for order 416 is complete." |
+| `video/frames/money-desk-final-t108.png` | `e9a7a485e8ce6fda4c86601d367f2e04` | "The rows come through our MCP server from the PayPal tools," | Seeded Money Desk: refund-rate tile (36.3%, Refund spike, baseline 7.3%, Tue 20 Oct – Mon 26 Oct), Who still owes us (4 rows, €1,196.00), dispute countdowns, revenue chart, refunds grid |
+| `video/frames/money-desk-final-t132.png` | `51581b7fac314131190fe0847029a93e` | "so the damaged mug shipments stand out against the weeks before." | Studio AI answer (36.3% vs 7.3%, 4.9×, Stoneware Mug Set €2,033.77 = 93.0%, Damaged in transit €2,143.30 = 98.0%) and the new stacked chart, 14 days, legend: Damaged in transit, Duplicate order, Late delivery |
+| `video/frames/money-desk-final-t150.png` | `45ce0a0fe4c852ec981be07cb8b9e605` | "Talk to your shop, see your money," | Same canvas, closing line |
+
+I opened and checked every frame:
+- **Readable:** all text is legible at 1920x1080. Captions sit in their own band.
+- **Private data:** none found.
+  - No email addresses, tokens or home paths are visible.
+  - The only account-like string is the GitHub login `yuxinshiu63` in the under-the-hood panel (the repo's commit identity).
+  - Person names in the refunds grid ("Sean Murphy", "Niamh Walsh") are invented mock-ledger customers (`mcp-server/src/paypal/mockLedger.ts`).
+- **Matches the narration:** yes, with the mismatches below.
+
+## Narration / screen mismatches (honest list)
+
+1. "…stand out against **the weeks** before": the chart shows 14 days, so only one week before the spike. Changing it needs a new TTS clip, and so a new recording; no model calls were left.
+2. "Kilkenny Workspace Co" (the renamed customer) is not visible in any frame. Its only invoice is a DRAFT (`mockLedger.ts:105`), so the outstanding-only board rightly leaves it out. The old "Desk Refresh Box" *customer* is gone. "Desk Refresh Box" appears only as a product in the refunds grid, which is correct.
+3. The agent's answer mentions "using the recent_refunds table", an internal table name. This is live model text and was not edited.
+
+## ASR check (faster-whisper base.en)
+
+`asr-venv/bin/python asr_check.py video/out/money-desk-final-mock.mp4 video/out/m5-money-desk.resolved.json base.en` (the orchestrator's tool):
+
+- **Currency is heard as euros everywhere:**
+  - "The refund preview is ready for 31 euros on Order 416."
+  - "Refund 31 euros for Order 416 through PayPal."
+  - "The 31 euro refund for Order 416 is complete."
+- No "your" stands in for EUR. The only "your" is the scripted "Talk to your shop, see your money".
+- Script words 255, heard 292, ratio 0.910. The surplus is the live model and host lines, which are not in the scene file and show as inserts.
+- The other differences are spelling only: "pay pal", "co pilot", "till wise", "owners", and "refund" for "refunds" in "Why are refunds spiking?".
+
+## Model calls (budget 12 incl. at most 1 retry)
+
+| Attempt | Voice (gpt-6-luna) | Studio bridge (claude-sonnet-5) | Result |
+| --- | --- | --- | --- |
+| 1 (12:22 UTC) | 4 | 0 | failed at `confirm`. I had started the MCP server without `mcp-server/.env`, so the WordPress ability `paypal-order-context` returned 401 and the model reported "permission was denied" (operator error, not model behaviour). |
+| 2 (12:27–12:31 UTC, the retry) | 4 | 4 | recorded OK |
+| **Total** | **8** | **4** | **12 of 12** |
+
+How the calls were counted:
+- Voice calls are the `assistant.message` events with model `gpt-6-luna` in `alexa-sim/.copilot-sdk-state/.state/events.jsonl` (gitignored), from 12:22 UTC.
+- Studio calls are `assistant.message` events with model `claude-sonnet-5` in the same file, and `threads[].modelCalls: 4` from `GET /api/studio-agent/log`.
+- The machine was on AC power for both attempts (`pmset -g batt`).
+
+## CPU courtesy waits
+
+Before every TTS, recording, compose and media step, `/tmp/tw-busy.sh` ran the requested check (`pgrep -f 'ffmpeg|node|python|chrom'` + `lsof … | grep hackathon_paypal_bryntum`), polling every 60 s for at most 40 min.
+- 12:19 UTC: one busy poll, then clear at 12:20.
+- 12:52: two busy polls before the Devpost media step.
+- Every other check was clear at once (12:22, 12:27, 12:31, 12:40, 12:53, 12:54).
+
+## Exact commands
+
+Prerequisites:
+- the tillwise-paypal Docker stack is already running on 8098 (no containers were started);
+- the MCP server runs in mock mode on 3338 **with its `.env` loaded**, because the WordPress abilities need the application password;
+- the simulator runs on 4189:
+
+```bash
+(cd mcp-server && npm run build && set -a && . ./.env && set +a && PAYPAL_MODE=mock MCP_PORT=3338 node dist/src/server.js)
+(cd alexa-sim && npm run build && SIM_PORT=4189 EXPECTED_GITHUB_LOGIN=<your login> node dist/src/server.js)
+```
+
+From `video/`:
+
+```bash
+cd video
+npm ci && npm test                      # speakable + captions unit tests
+bash ../scripts/demo-reset.sh          # docker compose exec only: recreates the seed orders with new ids
+# find today's completed order id (here 416, €31.00) with wp-cli in the running stack, then:
+node scripts/resolve-scene.js --scene scenes/m5-money-desk.json --order 416    # → out/m5-money-desk.resolved.json
+export HF_HOME=$PWD/.cache/hf TRANSFORMERS_CACHE=$PWD/.cache/hf
+caffeinate -i node scripts/tts.js     --scene out/m5-money-desk.resolved.json
+caffeinate -i node scripts/record.js  --scene out/m5-money-desk.resolved.json --url http://127.0.0.1:4189
+caffeinate -i node scripts/compose.js --scene out/m5-money-desk.resolved.json   # scene maxSilenceMs 5000
+cp out/demo.mp4 out/money-desk-final-mock.mp4
+for t in 006 040 066 086 108 132 150; do ffmpeg -v error -y -ss $((10#$t)) -i out/money-desk-final-mock.mp4 -frames:v 1 frames/money-desk-final-t$t.png; done
+node scripts/devpost-media.js --video out/money-desk-final-mock.mp4 --url http://127.0.0.1:4189 --out ../docs/devpost
+```
+
+- The captions were improved after the recording (list-aware splitting). `compose.js` was re-run on the same recording; no model calls were needed.
+- The record estimate check (< 170 s) passed. A stub dry-run on 4193 cannot pass the first `waitFor #text`, because the stub page has no voice UI.
+
+## Devpost media (`docs/devpost/`, committed)
+
+All images are real UI. `video/scripts/devpost-media.js` makes them, with no model calls:
+- `01` is a fresh Playwright capture of the seeded Money Desk at a 1920x1280 viewport.
+- `02`–`05` are crops of frames of the final video, above the caption band.
+  - `02` and `03` show the whole voice-sim UI scaled to 1500 wide. The strip below the page is a blurred copy of the same frame, so it has no flat bar.
+  - `04` and `05` are 1410x940 windows scaled to 1500x1000.
+- The thumbnail is the top 16:9 of `01`.
+
+| File | Size | md5 | Shows |
+| --- | --- | --- | --- |
+| `docs/devpost/01-money-desk.png` | 1920x1280 (3:2) | `4995862d1f438902fa693ef8fa2358b6` | Seeded AG Studio Money Desk with the mock-ledger label |
+| `docs/devpost/02-voice-refund-confirmation.png` | 1500x1000 | `169851fa3125ca3db5d4bd4e22d713a9` | Voice sim: preview answer, "Yes, go ahead.", host card "Refund €31.00 for order 416 through PayPal?" |
+| `docs/devpost/03-under-the-hood.png` | 1500x1000 | `c0b595150f4b3eaa8f4eaf10e1ca5100` | Under the hood: preview → owner's voice confirmation → apply; refund complete |
+| `docs/devpost/04-why-are-refunds-spiking.png` | 1500x1000 | `573c4c5b4ba2fb6d4bcb36bb9de60b54` | Studio AI panel answer with tool figures, beside the canvas |
+| `docs/devpost/05-refunds-per-day-by-reason.png` | 1500x1000 | `eadd95dfdb30cdf1e5943d04af2d2466` | The agent's stacked 14-day chart with legend, next to the seeded widgets |
+| `docs/devpost/youtube-thumbnail.png` | 1280x720 | `925a37c7f7bf78798d7de3e06badaac1` | Money Desk title, 36.3% Refund spike tile, all seeded widgets |
+
+I viewed each one. The text is readable and nothing private is shown beyond the GitHub login in `03`.
+
+## Unverified
+
+- Nobody has watched the full video end to end. The checks were the seven frames, the ASR transcript and the compose report's pixel, timeline and overlap checks.
+- The YouTube upload and how YouTube re-encodes the video are untested.
+- `npm run record:live` (the one-command path with preflight and reset) was not used.
+- Sandbox mode is not shown anywhere. The recording ran from 12:22 to 12:31 UTC, with MCP started as `PAYPAL_MODE=mock`. At 12:36 UTC someone else created `~/.config/tillwise/paypal-sandbox.env`. Its SOURCE note says it holds PayPal's shared public sandbox credentials from the Postman collection, not our own app. I have not run `npm run sandbox:smoke` or `sandbox:seed` with it.
+
+## Appendix: M5 draft render (superseded)
+
+The draft frames `video/frames/money-desk-draft-t*.png` stay committed for reference.
+
+### Result
 
 | | |
 | --- | --- |
@@ -24,7 +192,7 @@ stream|codec_name=aac|r_frame_rate=0/0
 format|duration=156.100000|size=7624468
 ```
 
-## Frames (committed, extracted from the mp4 at fixed timestamps)
+### Frames (committed, extracted from the mp4 at fixed timestamps)
 
 `ffmpeg -v error -y -ss <t> -i out/money-desk-draft-mock.mp4 -frames:v 1 frames/money-desk-draft-t<t>.png`
 
@@ -46,7 +214,7 @@ I opened and checked every frame:
   - The person names in the grids (e.g. "Sean Murphy", "Niamh Walsh") are invented mock-ledger customers (`mcp-server/src/paypal/mockLedger.ts`), not real people's data.
 - **Matches the narration:** yes for all six, with the mismatches listed below.
 
-## Narration / screen mismatches in this draft (honest list)
+### Narration / screen mismatches in this draft (honest list)
 
 1. **Host wording (t≈55 s).** The host asks "Do you want me to paypal refund apply?", the generic fallback built from the tool name (`permissionGate.ts:24`), because `confirmationFor` had no PayPal branch.
    - **Fixed after the recording:** `alexa-sim/src/copilotAgent.ts` `paypalConfirmation` builds the question from the MCP preview, e.g. "Refund €31.00 for order 360 through PayPal?". Unit test: `test/unit.test.ts` "the host asks a plain-language question for each human-gated PayPal tool".
@@ -66,7 +234,7 @@ I opened and checked every frame:
 
 A final render needs a new recording after these fixes (about 9–10 model calls; see "Model calls").
 
-## Model calls used for this draft (budget 16 incl. retries)
+### Model calls used for this draft (budget 16 incl. retries)
 
 | Attempt | Voice (gpt-6-luna) | Studio bridge (claude-sonnet-5) | Result |
 | --- | --- | --- | --- |
@@ -79,14 +247,14 @@ How the calls were counted:
 - Studio calls are `threads[].modelCalls` from `GET /api/studio-agent/log` (one thread, `modelCalls: 5`).
 - Machine on AC power for both attempts (`pmset -g batt`: "Now drawing from 'AC Power'").
 
-## CPU courtesy waits
+### CPU courtesy waits
 
 Before each TTS, recording and compose step, `/tmp/tw-busy.sh` ran the requested check (`pgrep -f 'ffmpeg|node|python|chrom'` + `lsof … | grep hackathon_paypal_bryntum`), polling every 60 s for at most 40 min.
 - 23:59–00:20 UTC: busy. Entry 2 was composing its own video with ffmpeg; waited.
 - 00:28 (TTS) clear. 00:28–00:29 (record) one busy poll, then clear. 00:38 (first compose) clear.
 - 00:44–05:28 UTC (second compose, after changing `maxSilenceMs`): busy only because of an idle Entry 2 dev server (`node … src/server/main.ts`, 0% CPU). The Mac slept from about 00:58 to 05:24; at 05:28 the check was clear and the compose ran (it finished after a further sleep, about 10:40 UTC).
 
-## Exact commands
+### Exact commands
 
 Prerequisites:
 - the tillwise-paypal Docker stack is already running on 8098 (no containers were started);
@@ -117,7 +285,7 @@ mkdir -p frames && for t in 030 056 072 090 118 140; do ffmpeg -v error -y -ss $
 - The first compose used `maxSilenceMs: 1500` and gave 137.9 s, which is under the 2:30 target. The scene now uses 5000, so the real model waits are shown for up to 5 s. Longer gaps are still sped up and carry the "⏩ fast-forward" badge.
 - `npm run video -- --dry-run …` was run only against the pipeline's stub page (estimate 151.5 s, then 153.3 s for the reworked scene). It stops at the first live step there. `record.js --dry-run` executes the live steps too, so it was not run against the real simulator, to save model calls.
 
-## Unverified
+### Unverified
 
 - The three fixes above (host wording, `recent_refunds`, shared ledger window) pass unit and plumbing tests but have **not** been through a live model run or a new recording.
 - `npm run record:live` (the one-command path with preflight and reset) was not used for this draft.
