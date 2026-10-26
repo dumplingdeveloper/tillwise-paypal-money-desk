@@ -1,0 +1,111 @@
+{
+  "generatedBy": "mcp-server/src/sandboxSeed.ts",
+  "exitCode": 0,
+  "host": "api-m.sandbox.paypal.com",
+  "steps": [
+    {
+      "step": "oauth token",
+      "ok": true,
+      "detail": "access token issued, expires in 31469s"
+    },
+    {
+      "step": "capture TW-DEMO-FWFMVM-CAP-01 (Retail, Aoife Byrne)",
+      "ok": true,
+      "detail": "already captured: order 0Y395785TC754713M, capture 8TY43715XV359243H PARTIALLY_REFUNDED EUR 24.00"
+    },
+    {
+      "step": "capture TW-DEMO-FWFMVM-CAP-02 (Wholesale, Cork Office Co)",
+      "ok": true,
+      "detail": "already captured: order 26577093V3017923C, capture 40H67040E3608661G COMPLETED EUR 64.50"
+    },
+    {
+      "step": "capture TW-DEMO-FWFMVM-CAP-03 (Subscription, Mugs & Candles Club)",
+      "ok": true,
+      "detail": "already captured: order 9WH06509DD659373M, capture 723677079W0466051 COMPLETED EUR 18.00"
+    },
+    {
+      "step": "refund TW-DEMO-FWFMVM-REF-01",
+      "ok": true,
+      "detail": "already refunded: refund 6CX228346V6118107 COMPLETED EUR 6.00 on capture 8TY43715XV359243H"
+    },
+    {
+      "step": "invoice TW-DEMO-FWFMVM-INV-01",
+      "ok": true,
+      "detail": "already exists: INV2-R8BR-T37A-MD59-WJ3U status UNPAID (EUR 180.00, sent with send_to_recipient=false)"
+    },
+    {
+      "step": "capture for Woo order 472",
+      "ok": true,
+      "detail": "created via card: order 3HB851226J4458101, capture 01U40313L4797293A COMPLETED EUR 31.00"
+    },
+    {
+      "step": "link Woo order 472",
+      "ok": true,
+      "detail": "Woo order 472 now points at sandbox capture 01U40313L4797293A (EUR 31.00); audited as paypal_sandbox_seed"
+    }
+  ],
+  "manifest": {
+    "host": "api-m.sandbox.paypal.com",
+    "currency": "EUR",
+    "captures": {
+      "TW-DEMO-FWFMVM-CAP-01": {
+        "order_id": "0Y395785TC754713M",
+        "status": "COMPLETED",
+        "amount": "24.00",
+        "capture_id": "8TY43715XV359243H",
+        "capture_status": "PARTIALLY_REFUNDED"
+      },
+      "TW-DEMO-FWFMVM-CAP-02": {
+        "order_id": "26577093V3017923C",
+        "status": "COMPLETED",
+        "amount": "64.50",
+        "capture_id": "40H67040E3608661G",
+        "capture_status": "COMPLETED"
+      },
+      "TW-DEMO-FWFMVM-CAP-03": {
+        "order_id": "9WH06509DD659373M",
+        "status": "COMPLETED",
+        "amount": "18.00",
+        "capture_id": "723677079W0466051",
+        "capture_status": "COMPLETED"
+      },
+      "TW-DEMO-FWFMVM-WOO-473-1490": {
+        "order_id": "0BV33791WU3235215",
+        "status": "COMPLETED",
+        "amount": "14.90",
+        "capture_id": "368288532S8044629",
+        "capture_status": "COMPLETED",
+        "woo_order_id": 473,
+        "linked": true
+      },
+      "TW-DEMO-FWFMVM-WOO-472-3100": {
+        "order_id": "3HB851226J4458101",
+        "status": "COMPLETED",
+        "amount": "31.00",
+        "capture_id": "01U40313L4797293A",
+        "capture_status": "COMPLETED",
+        "woo_order_id": 472,
+        "linked": true
+      }
+    },
+    "invoices": {
+      "TW-DEMO-FWFMVM-INV-01": {
+        "invoice_id": "INV2-R8BR-T37A-MD59-WJ3U",
+        "status": "UNPAID"
+      }
+    },
+    "refunds": {
+      "TW-DEMO-FWFMVM-REF-01": {
+        "refund_id": "6CX228346V6118107",
+        "status": "COMPLETED",
+        "capture_id": "8TY43715XV359243H",
+        "amount": "6.00",
+        "currency": "EUR"
+      }
+    },
+    "run_tag": "FWFMVM",
+    "updated_at": "2026-10-26T14:15:40.796Z"
+  },
+  "startedAt": "2026-10-26T14:15:32.250Z",
+  "finishedAt": "2026-10-26T14:15:40.796Z"
+}

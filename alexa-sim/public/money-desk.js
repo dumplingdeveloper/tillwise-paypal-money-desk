@@ -275,9 +275,10 @@
     if (ledger.paypal_mode !== 'sandbox') return base;
     const state = JSON.parse(JSON.stringify(base));
     const page = state.pages[0];
-    for (const widget of Object.values(page.widgets)) widget.format.title.text = `${widget.format.title.text} · mock data`;
+    // AgTitle.wrapping (agTitle.d.ts) wraps the longer source-labelled titles instead of truncating them.
+    for (const widget of Object.values(page.widgets)) Object.assign(widget.format.title, { text: `${widget.format.title.text} · mock data`, wrapping: true });
     for (const layout of Object.values(page.widgetLayout)) layout.yTrack += SANDBOX_ROWS;
-    page.widgets['sandbox-activity'] = { type: 'grid', dataMapping: { cols: ['created_at', 'kind', 'paypal_id', 'order_id', 'customer', 'amount', 'fee', 'status', 'tag'].map((f) => ({ id: `sandbox_activity.${f}` })) }, format: title('LIVE PayPal sandbox · objects Tillwise created') };
+    page.widgets['sandbox-activity'] = { type: 'grid', dataMapping: { cols: ['created_at', 'kind', 'paypal_id', 'order_id', 'customer', 'amount', 'fee', 'status', 'tag'].map((f) => ({ id: `sandbox_activity.${f}` })) }, format: title('LIVE PayPal sandbox · objects Tillwise created'), sort: [{ field: { id: 'sandbox_activity.created_at' }, direction: 'desc' }] };
     page.widgetLayout['sandbox-activity'] = { xTrack: 0, yTrack: 0, xSpan: 24, ySpan: SANDBOX_ROWS };
     return state;
   }

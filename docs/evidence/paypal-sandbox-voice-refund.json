@@ -1,0 +1,30 @@
+{
+  "generatedBy": "alexa-sim/test/sandboxLive.test.ts",
+  "at": "2026-10-26T14:18:52.260Z",
+  "host": "api-m.sandbox.paypal.com",
+  "credentials": "PayPal's public default sandbox app (shared)",
+  "woo_order_id": 472,
+  "order_total": "31.00",
+  "currency": "EUR",
+  "paypal_capture_id": "01U40313L4797293A",
+  "paypal_refund_id": "329244097E559043K",
+  "paypal_refund_status": "COMPLETED",
+  "paypal_refund_amount": {
+    "currency_code": "EUR",
+    "value": "31.00"
+  },
+  "audit": {
+    "tool": "paypal_refund_apply",
+    "status": "COMPLETED",
+    "paypal_object_id": "329244097E559043K",
+    "woo_order_id": 472
+  },
+  "money_desk": {
+    "paypal_mode": "sandbox",
+    "ledger_mode": "mock",
+    "sandbox_activity_rows": 9
+  },
+  "model_calls": {
+    "gpt-6-luna": 4
+  }
+}

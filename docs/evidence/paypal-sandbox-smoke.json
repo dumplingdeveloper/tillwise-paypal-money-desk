@@ -1,0 +1,45 @@
+{
+  "generatedBy": "mcp-server/src/sandboxSmoke.ts",
+  "exitCode": 0,
+  "host": "api-m.sandbox.paypal.com",
+  "steps": [
+    {
+      "step": "oauth token",
+      "ok": true,
+      "ms": 561,
+      "detail": "access token issued, expires in 32102s"
+    },
+    {
+      "step": "transactions (last 24 hours)",
+      "ok": true,
+      "ms": 533,
+      "detail": "20 transaction(s)"
+    },
+    {
+      "step": "disputes",
+      "ok": true,
+      "ms": 358,
+      "detail": "3 dispute(s): RESOLVED, WAITING_FOR_SELLER_RESPONSE, RESOLVED"
+    },
+    {
+      "step": "create draft invoice (not sent)",
+      "ok": true,
+      "ms": 513,
+      "detail": "invoice INV2-MCC3-SJR9-8C85-WP94 status DRAFT"
+    },
+    {
+      "step": "read invoice back",
+      "ok": true,
+      "ms": 329,
+      "detail": "invoice INV2-MCC3-SJR9-8C85-WP94 status DRAFT"
+    },
+    {
+      "step": "delete draft invoice",
+      "ok": true,
+      "ms": 420,
+      "detail": "draft INV2-MCC3-SJR9-8C85-WP94 deleted"
+    }
+  ],
+  "startedAt": "2026-10-26T13:35:37.791Z",
+  "finishedAt": "2026-10-26T13:35:40.527Z"
+}

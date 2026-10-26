@@ -16,7 +16,7 @@ import { openMoneyDesk } from './moneyDeskHarness.js';
  *   3. assert STATE, not DOM: the refund as PayPal itself reports it (GET /v2/payments/refunds/{id}), the WP audit row and order
  *      meta, the voice badge API, and the Money Desk's Studio getState() + ledger (live sandbox_activity row, "· mock data" titles).
  * Needs: ~/.config/tillwise/paypal-sandbox.env, the MCP server on MCP_URL started with PAYPAL_MODE=sandbox and mcp-server/.env,
- * the tillwise-paypal Docker stack, Chrome, and a Copilot login (or BYOK). Uses about 4 voice-model calls.
+ * the tillwise-paypal Docker stack, Chrome, and a Copilot login with EXPECTED_GITHUB_LOGIN set (or BYOK). Uses about 4 voice-model calls.
  */
 const VOICE_MODEL_EVENTS = join(PROJECT_ROOT, 'alexa-sim', '.copilot-sdk-state', '.state', 'events.jsonl');
 const SANDBOX_SHOTS = join(SCREENSHOT_DIR, 'sandbox');
@@ -51,6 +51,7 @@ function modelCallsSince(startIso: string): Record<string, number> {
 test('LIVE PayPal sandbox: voice refund of a real sandbox capture, audited, and shown live on the Money Desk', { timeout: 600000 }, async (t) => {
   if (process.env.LIVE_PAYPAL !== '1') { t.skip('Set LIVE_PAYPAL=1 (real PayPal sandbox + Copilot model) to run.'); return; }
   const startedIso = new Date().toISOString();
+  assert.ok(process.env.EXPECTED_GITHUB_LOGIN || process.env.ALLOW_ANY_GITHUB_LOGIN === '1', 'set EXPECTED_GITHUB_LOGIN=<your Copilot login> (checked before any PayPal call)');
   mkdirSync(SANDBOX_SHOTS, { recursive: true });
   const orderId = pickOrder();
   assert.ok(orderId > 0, 'no completed demo order ≤ €100 without a refund: run scripts/demo-reset.sh');
@@ -122,12 +123,13 @@ test('LIVE PayPal sandbox: voice refund of a real sandbox capture, audited, and 
     // 3c. Money Desk: the live sandbox grid holds the new refund; every mock widget says so in its title.
     const desk = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
     await openMoneyDesk(desk, baseUrl);
-    const deskState = await desk.evaluate(() => { const md = (window as any).__moneyDesk; const state = md.studioApi.getState(); const pageState = state.pages.find((p: any) => p.id === state.selectedPageId); return { paypalMode: md.ledger.paypal_mode, ledgerMode: md.ledger.mode, app: md.ledger.sandbox_app, activity: md.ledger.sandbox_activity, titles: Object.fromEntries(Object.entries(pageState.widgets).map(([id, w]: [string, any]) => [id, w.format?.title?.text])), layout: pageState.widgetLayout['sandbox-activity'], cols: pageState.widgets['sandbox-activity']?.dataMapping?.cols?.map((c: any) => c.id), errors: md.errors }; });
+    const deskState = await desk.evaluate(() => { const md = (window as any).__moneyDesk; const state = md.studioApi.getState(); const pageState = state.pages.find((p: any) => p.id === state.selectedPageId); return { paypalMode: md.ledger.paypal_mode, ledgerMode: md.ledger.mode, app: md.ledger.sandbox_app, activity: md.ledger.sandbox_activity, titles: Object.fromEntries(Object.entries(pageState.widgets).map(([id, w]: [string, any]) => [id, w.format?.title?.text])), layout: pageState.widgetLayout['sandbox-activity'], cols: pageState.widgets['sandbox-activity']?.dataMapping?.cols?.map((c: any) => c.id), sort: pageState.widgets['sandbox-activity']?.sort, errors: md.errors }; });
     assert.equal(deskState.paypalMode, 'sandbox');
     assert.equal(deskState.ledgerMode, 'mock');
     assert.deepEqual(deskState.errors, []);
     assert.deepEqual(deskState.layout, { xTrack: 0, yTrack: 0, xSpan: 24, ySpan: 14 });
     assert.ok(deskState.cols.includes('sandbox_activity.paypal_id'));
+    assert.deepEqual(deskState.sort, [{ field: { id: 'sandbox_activity.created_at' }, direction: 'desc' }], 'newest live PayPal object first');
     assert.equal(deskState.titles['sandbox-activity'], 'LIVE PayPal sandbox · objects Tillwise created');
     for (const [id, text] of Object.entries(deskState.titles)) if (id !== 'sandbox-activity') assert.match(String(text), / · mock data$/, `${id} names its mock source`);
     const row = deskState.activity.find((r: Record<string, unknown>) => r.paypal_id === refundId);
@@ -140,7 +142,10 @@ test('LIVE PayPal sandbox: voice refund of a real sandbox capture, audited, and 
     writeFileSync(EVIDENCE, `${JSON.stringify({ generatedBy: 'alexa-sim/test/sandboxLive.test.ts', at: new Date().toISOString(), host: 'api-m.sandbox.paypal.com', credentials: deskState.app?.label || null, woo_order_id: orderId, order_total: before.total, currency: before.currency, paypal_capture_id: before.capture, paypal_refund_id: refundId, paypal_refund_status: paypalRefund.status, paypal_refund_amount: paypalRefund.amount, audit: { tool: audit?.tool, status: audit?.status, paypal_object_id: audit?.paypal_object_id, woo_order_id: audit?.woo_order_id }, money_desk: { paypal_mode: deskState.paypalMode, ledger_mode: deskState.ledgerMode, sandbox_activity_rows: deskState.activity.length }, model_calls: calls }, null, 2)}\n`);
   } finally {
     await browser.close().catch(() => {});
+    await started.studioBridge.close();
+    await started.paypalRead.close();
+    await started.runtime.stop().catch(() => {});
+    started.server.closeAllConnections();
     await new Promise<void>((resolve) => started.server.close(() => resolve()));
-    await started.runtime.stop();
   }
 });
