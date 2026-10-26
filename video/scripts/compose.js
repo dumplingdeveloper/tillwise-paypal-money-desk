@@ -3,6 +3,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { chromium } from 'playwright-core';
 import { OUT_DIR, ROOT, ensureDirs, parseArgs, readScene, rel } from './common.js';
+import { captionText as withLabel, speakerLabel, splitCaption } from './captions.js';
 
 const FFMPEG = '/usr/local/bin/ffmpeg';
 const FFPROBE = '/usr/local/bin/ffprobe';
@@ -97,14 +98,6 @@ function assertNoTemporalOverlaps(items, label, toleranceSeconds = 0.05) {
   return checks;
 }
 
-function speakerLabel(event) {
-  const role = String(event.role || event.voice || '').toLowerCase();
-  if (role === 'owner') return 'Owner';
-  if (role === 'narrator') return 'Narrator';
-  if (role === 'host') return 'Host';
-  return 'Assistant';
-}
-
 // Title and outro cards are protected ranges: they are never sped up, even though they are silent.
 function buildCompressionSegments(audioTimeline, duration, maxSilenceSeconds, protectedRanges = []) {
   const audio = [
@@ -169,40 +162,6 @@ async function renderCard(html, png) {
   await page.setContent(html, { waitUntil: 'load' });
   await page.screenshot({ path: png, type: 'png' });
   await browser.close();
-}
-
-function wrapCaption(text, maxChars = 44) {
-  const words = String(text).trim().split(/\s+/).filter(Boolean);
-  const lines = [];
-  let line = '';
-  for (const word of words) {
-    const next = line ? `${line} ${word}` : word;
-    if (next.length > maxChars && line) {
-      lines.push(line);
-      line = word;
-    } else {
-      line = next;
-    }
-  }
-  if (line) lines.push(line);
-  return lines;
-}
-
-function splitCaption(text, maxLines = 2, maxChars = 44) {
-  const words = String(text).trim().split(/\s+/).filter(Boolean);
-  const segments = [];
-  let current = [];
-  for (const word of words) {
-    const candidate = [...current, word].join(' ');
-    if (current.length && wrapCaption(candidate, maxChars).length > maxLines) {
-      segments.push(current.join(' '));
-      current = [word];
-    } else {
-      current.push(word);
-    }
-  }
-  if (current.length) segments.push(current.join(' '));
-  return segments.length ? segments : [''];
 }
 
 async function renderSubtitle(text, png, bandHeight, browser = null) {
@@ -363,7 +322,7 @@ async function main() {
       const segDur = Math.max(0.4, mappedDur * weights[j] / totalWeight);
       const end = j === segments.length - 1 ? endMapped : Math.min(endMapped, cursor + segDur);
       const subtitleNumber = subtitleOverlays.length + 1;
-      const captionText = `${label}: ${segments[j]}`;
+      const captionText = withLabel(label, segments[j]);
       srt += `${subtitleNumber}\n${ts(cursor)} --> ${ts(end)}\n${escSrt(captionText)}\n\n`;
       const png = path.join(OUT_DIR, `subtitle-${subtitleNumber}.png`);
       const bbox = await renderSubtitle(captionText, png, bandHeight, subtitleBrowser);
