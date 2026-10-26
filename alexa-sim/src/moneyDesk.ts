@@ -1,9 +1,10 @@
 import type { PayPalReadClient } from './paypalMcp.js';
 
 type Row = Record<string, string | number | boolean | null>;
-export type LedgerTables = { captures: Row[]; refunds: Row[]; recent_refunds: Row[]; invoices: Row[]; receivables: Row[]; disputes: Row[]; tracking: Row[] };
+export type LedgerTables = { captures: Row[]; refunds: Row[]; recent_refunds: Row[]; invoices: Row[]; receivables: Row[]; disputes: Row[]; tracking: Row[]; sandbox_activity: Row[] };
+export type SandboxApp = { shared_public_default: boolean; label: string } | null;
 export type RecentWindow = { start: string; end: string; days: number; label: string };
-export type MoneyDeskLedger = LedgerTables & { mode: string; generated_at: string; anchor_date: string; currency: string; counts: Record<string, number>; recent_window: RecentWindow | null; notes?: string[] };
+export type MoneyDeskLedger = LedgerTables & { mode: string; paypal_mode: string; sandbox_app: SandboxApp; generated_at: string; anchor_date: string; currency: string; counts: Record<string, number>; recent_window: RecentWindow | null; notes?: string[] };
 
 type FieldDef = { id: string; name?: string; description?: string; format: string; formatOptions?: Record<string, unknown>; hide?: boolean };
 export type StudioSourceDef = { id: string; name: string; description: string; fields: FieldDef[] };
@@ -45,6 +46,11 @@ export const MONEY_DESK_SOURCES: StudioSourceDef[] = [
     text('reason', 'PayPal dispute reason', 'Reason'), text('status', 'Dispute status', 'Status'), euro('amount', 'Disputed amount in EUR', 'Amount'), date('created_date', 'Date opened', 'Opened'),
     { id: 'seller_response_due_date', description: 'Deadline for the seller response', format: 'dateTimeFormat', name: 'Response due' }, int('days_to_respond', 'Whole days left to respond', 'Days to respond'),
   ] },
+  { id: 'sandbox_activity', name: 'LIVE PayPal sandbox · created by Tillwise', description: 'REAL PayPal sandbox objects (api-m.sandbox.paypal.com) that Tillwise created: seed captures, refunds (including voice-flow refunds) and the seed invoice, read live by id. Present only when PayPal runs in sandbox mode. All other tables are the mock ledger (demo data).', fields: [
+    text('kind', 'capture, refund or invoice', 'Kind'), text('paypal_id', 'PayPal capture, refund or invoice id', 'PayPal ID'), int('order_id', 'WooCommerce order number, when linked', 'Woo order'),
+    { id: 'created_at', description: 'When PayPal created it (UTC)', format: 'dateTimeFormat', name: 'Created (UTC)' }, text('customer', 'Customer (fictional sandbox name)', 'Customer'), text('product', 'Product', 'Product'),
+    euro('amount', 'Amount in EUR', 'Amount'), euro('fee', 'PayPal fee in EUR (captures)', 'PayPal fee'), text('status', 'PayPal status, e.g. COMPLETED, PARTIALLY_REFUNDED, UNPAID', 'Status'), text('tag', 'Tillwise tag (invoice_id / custom_id) on the PayPal object', 'Tag'),
+  ] },
   { id: 'tracking', name: 'PayPal shipment tracking', description: 'Shipment tracking attached to PayPal captures.', fields: [
     text('tracking_id', 'PayPal tracker id', 'Tracker ID'), int('order_id', 'WooCommerce order number', 'Order'), text('customer', 'Customer name', 'Customer'),
     text('carrier', 'Carrier', 'Carrier'), text('tracking_number', 'Tracking number', 'Tracking #'), text('status', 'Shipment status', 'Status'), date('shipped_date', 'Ship date', 'Shipped'),
@@ -67,9 +73,9 @@ export function recentWindow(data: Record<string, unknown>, days = RECENT_REFUND
 }
 
 /** Studio sources for this ledger: the static definitions, with the exact recent_refunds dates in its AI-facing description. */
-export function moneyDeskSources(ledger: Pick<MoneyDeskLedger, 'recent_window'>): StudioSourceDef[] {
+export function moneyDeskSources(ledger: Pick<MoneyDeskLedger, 'recent_window'> & Partial<Pick<MoneyDeskLedger, 'paypal_mode'>>): StudioSourceDef[] {
   const w = ledger.recent_window;
-  return MONEY_DESK_SOURCES.map((source) => source.id !== 'recent_refunds' || !w ? source : {
+  return MONEY_DESK_SOURCES.filter((source) => source.id !== 'sandbox_activity' || ledger.paypal_mode === 'sandbox').map((source) => source.id !== 'recent_refunds' || !w ? source : {
     ...source,
     name: `PayPal refunds · last ${w.days} days (${w.label})`,
     description: `The same rows as refunds, already limited to the last ${w.days} ledger days: ${w.label} (${w.start} to ${w.end}), the same days as the daily series of paypal_refund_anomaly. Use this table for refunds per day over the last ${w.days} days (e.g. recent_refunds.date::day stacked by recent_refunds.reason): no date filter is needed, and the title should name these dates.`,
@@ -92,7 +98,8 @@ export function ledgerToTables(data: Record<string, unknown>): MoneyDeskLedger {
     recent_refunds: recent && Array.isArray(data.refunds) ? (data.refunds as Row[]).filter((row) => String(row.date) >= recent.start && String(row.date) <= recent.end) : [],
   };
   const tables = Object.fromEntries(MONEY_DESK_SOURCES.map((source) => [source.id, pickRows(exported[source.id as keyof typeof exported], source.fields)])) as LedgerTables;
-  return { ...tables, mode: String(data.mode || 'unknown'), generated_at: String(data.generated_at || ''), anchor_date: String(data.anchor_date || ''), currency: String(data.currency || 'EUR'), counts: (data.counts as Record<string, number>) || {}, recent_window: recent, ...(Array.isArray(data.notes) ? { notes: data.notes as string[] } : {}) };
+  const meta = (data.sandbox_activity_meta || null) as { sandbox_app?: SandboxApp } | null;
+  return { ...tables, mode: String(data.mode || 'unknown'), paypal_mode: String(data.paypal_mode || data.mode || 'unknown'), sandbox_app: meta?.sandbox_app || null, generated_at: String(data.generated_at || ''), anchor_date: String(data.anchor_date || ''), currency: String(data.currency || 'EUR'), counts: (data.counts as Record<string, number>) || {}, recent_window: recent, ...(Array.isArray(data.notes) ? { notes: data.notes as string[] } : {}) };
 }
 
 export async function loadMoneyDeskLedger(client: PayPalReadClient, days = 45) {
@@ -101,14 +108,15 @@ export async function loadMoneyDeskLedger(client: PayPalReadClient, days = 45) {
 }
 
 /** Honest on-screen wording for where the PayPal data comes from (voice sim badge). */
-export function paypalModeLabel(mode: string) {
-  if (mode === 'sandbox') return 'PayPal: live sandbox (api-m.sandbox.paypal.com)';
+export function paypalModeLabel(mode: string, app: SandboxApp = null) {
+  if (mode === 'sandbox') return `PayPal: REAL sandbox · api-m.sandbox.paypal.com${app ? ` · ${app.label}` : ''}`;
   if (mode === 'mock') return 'PayPal: mock mode · demo data, not a PayPal account';
   return `PayPal: ${mode || 'unknown'} mode`;
 }
 
 export async function loadPayPalMode(client: PayPalReadClient) {
   const result = await client.callReadOnly('paypal_ledger_export', { days: 1 });
-  const mode = String((result.data as { mode?: unknown }).mode || 'unknown');
-  return { mode, label: paypalModeLabel(mode), source: 'paypal_ledger_export' };
+  const data = result.data as { mode?: unknown; paypal_mode?: unknown; sandbox_activity_meta?: { sandbox_app?: SandboxApp } | null };
+  const mode = String(data.paypal_mode || data.mode || 'unknown');
+  return { mode, label: paypalModeLabel(mode, data.sandbox_activity_meta?.sandbox_app || null), source: 'paypal_ledger_export', ledger: String(data.mode || 'unknown') };
 }

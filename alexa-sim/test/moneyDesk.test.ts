@@ -28,7 +28,7 @@ test('money desk rows come from the MCP paypal_ledger_export result, projected o
   assert.deepEqual(ledger.invoices.map((i) => i.outstanding), [true, false, null]);
   assert.deepEqual(ledger.receivables.map((r) => [r.customer, r.amount_due]), [['B', 5]]);
   assert.equal('invoice_id' in ledger.receivables[0], false);
-  assert.deepEqual(MONEY_DESK_SOURCES.map((s) => s.id), ['captures', 'refunds', 'recent_refunds', 'invoices', 'receivables', 'disputes', 'tracking']);
+  assert.deepEqual(MONEY_DESK_SOURCES.map((s) => s.id), ['captures', 'refunds', 'recent_refunds', 'invoices', 'receivables', 'disputes', 'sandbox_activity', 'tracking']);
   assert.deepEqual(ledgerToTables({}).captures, []);
 });
 
@@ -44,7 +44,7 @@ test('the MCP read client refuses money-moving tools before any network call', a
 test('the voice sim PayPal badge reports the MCP ledger mode and never calls mock data PayPal', async () => {
   const calls: Array<{ name: string; args: unknown }> = [];
   const client: PayPalReadClient = { async listReadOnlyTools() { return []; }, async callReadOnly(name, args) { calls.push({ name, args }); return { speech: '', data: { mode: 'mock' } }; }, async close() {} };
-  assert.deepEqual(await loadPayPalMode(client), { mode: 'mock', label: 'PayPal: mock mode · demo data, not a PayPal account', source: 'paypal_ledger_export' });
+  assert.deepEqual(await loadPayPalMode(client), { mode: 'mock', label: 'PayPal: mock mode · demo data, not a PayPal account', source: 'paypal_ledger_export', ledger: 'mock' });
   assert.deepEqual(calls, [{ name: 'paypal_ledger_export', args: { days: 1 } }]);
   assert.match(paypalModeLabel('sandbox'), /sandbox/);
   assert.doesNotMatch(paypalModeLabel('mock'), /sandbox|live/);
@@ -70,4 +70,20 @@ test('recent_refunds holds exactly the refunds of the last 14 ledger days, and i
   assert.deepEqual(source.fields, MONEY_DESK_SOURCES.find((s) => s.id === 'refunds')!.fields);
   assert.deepEqual(ledgerToTables({}).recent_refunds, []);
   assert.equal(ledgerToTables({}).recent_window, null);
+});
+
+test('sandbox mode: the badge says REAL sandbox and names the shared public app; sandbox_activity is a Studio source only then', async () => {
+  const app = { shared_public_default: true, label: "PayPal's public default sandbox app (shared)" };
+  const data = { mode: 'mock', paypal_mode: 'sandbox', sandbox_activity_meta: { sandbox_app: app }, captures: [{ capture_id: 'C1', date: '2026-10-25', gross: 10 }],
+    sandbox_activity: [{ kind: 'refund', paypal_id: 'REF1', order_id: 416, created_at: '2026-10-26T14:00:00Z', customer: 'Woo order 416', product: 'Thank You Gift Box', amount: 31, fee: null, status: 'COMPLETED', tag: 'TW-DEMO-RUN123-WOO-416-3100', secret_field: 'dropped' }] };
+  const client: PayPalReadClient = { async listReadOnlyTools() { return []; }, async callReadOnly() { return { speech: '', data }; }, async close() {} };
+  assert.deepEqual(await loadPayPalMode(client), { mode: 'sandbox', label: "PayPal: REAL sandbox · api-m.sandbox.paypal.com · PayPal's public default sandbox app (shared)", source: 'paypal_ledger_export', ledger: 'mock' });
+  const ledger = ledgerToTables(data);
+  assert.equal(ledger.mode, 'mock', 'analytics tables keep their mock label');
+  assert.equal(ledger.paypal_mode, 'sandbox');
+  assert.deepEqual(ledger.sandbox_app, app);
+  assert.deepEqual(ledger.sandbox_activity.map((r) => [r.kind, r.paypal_id, r.order_id, r.amount, r.status]), [['refund', 'REF1', 416, 31, 'COMPLETED']]);
+  assert.equal('secret_field' in ledger.sandbox_activity[0], false, 'only declared fields reach Studio');
+  assert.ok(moneyDeskSources(ledger).some((s) => s.id === 'sandbox_activity'));
+  assert.ok(!moneyDeskSources(ledgerToTables({ mode: 'mock' })).some((s) => s.id === 'sandbox_activity'), 'mock mode has no live table');
 });

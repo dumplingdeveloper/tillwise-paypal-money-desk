@@ -268,6 +268,20 @@
     panels: { filters: { collapsed: true }, data: { collapsed: true }, edit: { collapsed: true }, ai: { collapsed: false } },
   };
 
+  // Sandbox mode: money moves in the REAL PayPal sandbox, but the analytics widgets stay on the mock ledger. Every
+  // seeded widget then names its source in its title, and a full-width grid of the live sandbox objects goes on top.
+  const SANDBOX_ROWS = 14;
+  function stateForLedger(base, ledger) {
+    if (ledger.paypal_mode !== 'sandbox') return base;
+    const state = JSON.parse(JSON.stringify(base));
+    const page = state.pages[0];
+    for (const widget of Object.values(page.widgets)) widget.format.title.text = `${widget.format.title.text} · mock data`;
+    for (const layout of Object.values(page.widgetLayout)) layout.yTrack += SANDBOX_ROWS;
+    page.widgets['sandbox-activity'] = { type: 'grid', dataMapping: { cols: ['created_at', 'kind', 'paypal_id', 'order_id', 'customer', 'amount', 'fee', 'status', 'tag'].map((f) => ({ id: `sandbox_activity.${f}` })) }, format: title('LIVE PayPal sandbox · objects Tillwise created') };
+    page.widgetLayout['sandbox-activity'] = { xTrack: 0, yTrack: 0, xSpan: 24, ySpan: SANDBOX_ROWS };
+    return state;
+  }
+
   // ---------- theme (theming.md / studio-theme.md: studioTheme.withParams) ----------
   const theme = AG.studioTheme.withParams({
     accentColor: '#0f766e',
@@ -468,6 +482,9 @@
     const page = state.pages.find((p) => p.id === state.selectedPageId);
     return [
       'You are the Tillwise Money Desk analyst inside AG Studio. Build widgets on the current page with the Studio tools.',
+      md.ledger?.paypal_mode === 'sandbox'
+        ? 'Data sources: PayPal runs in the REAL sandbox here (refunds in the voice flow move sandbox money). Only the sandbox_activity table is live PayPal sandbox data. captures, refunds, recent_refunds, invoices, receivables, disputes and tracking are the mock ledger (demo data, not PayPal). End every new widget title with " · mock data" or " · live sandbox" to match its table, and say which source your answer used.'
+        : 'Data source: every table is the mock ledger (demo data, not a PayPal account).',
       'Data tables and field ids (use these exact ids in dataMapping):',
       tables,
       'Widgets on the canvas now (check these before adding; do not duplicate one that already shows the same measure for the same period):',
@@ -497,10 +514,14 @@
     const payload = await response.json();
     if (!response.ok) { showError(`Money Desk data unavailable: ${payload.error || response.status}`); $('mdDataSource').textContent = 'unavailable'; return; }
     md.ledger = payload.ledger;
-    md.meta = { source: payload.source, ledgerMode: payload.ledger.mode, anchorDate: payload.ledger.anchor_date, counts: payload.ledger.counts, licenseKeyPresent: Boolean(payload.licenseKey), agent: payload.agent };
+    md.meta = { source: payload.source, ledgerMode: payload.ledger.mode, paypalMode: payload.ledger.paypal_mode, sandboxApp: payload.ledger.sandbox_app, anchorDate: payload.ledger.anchor_date, counts: payload.ledger.counts, licenseKeyPresent: Boolean(payload.licenseKey), agent: payload.agent };
     // Honest provenance: mock = deterministic demo ledger (mcp-server/src/paypal/mockLedger.ts); sandbox = live api-m.sandbox.paypal.com reads.
     const provenance = payload.ledger.mode === 'sandbox' ? 'live PayPal sandbox' : payload.ledger.mode === 'mock' ? 'mock ledger (demo data, not PayPal)' : `${payload.ledger.mode} mode`;
-    $('mdDataSource').textContent = `MCP ${payload.source.tool} · ${provenance} · ${payload.ledger.counts.captures} captures, anchor ${payload.ledger.anchor_date}`;
+    const live = payload.ledger.paypal_mode === 'sandbox'
+      ? `REAL PayPal sandbox (${payload.ledger.sandbox_app?.label || 'sandbox app'}): ${payload.ledger.sandbox_activity.length} live rows · analytics: `
+      : '';
+    $('mdDataSource').textContent = `MCP ${payload.source.tool} · ${live}${provenance} · ${payload.ledger.counts.captures} captures, anchor ${payload.ledger.anchor_date}`;
+    md.initialState = stateForLedger(initialState, payload.ledger);
     $('mdDataSource').title = (payload.ledger.notes || []).join('\n');
     $('mdAgent').textContent = `Copilot SDK bridge · ${payload.agent.llm || 'Copilot'} · model ${payload.agent.model}`;
     $('mdLicence').textContent = payload.licenseKey ? 'AG Studio licence key supplied via env' : 'no AG Studio licence key (local evaluation)';
@@ -519,7 +540,7 @@
     const api = AG.createStudio($('myStudio'), {
       mode: 'edit',
       theme,
-      initialState,
+      initialState: md.initialState,
       data: { description: 'Tillwise PayPal ledger exported by the read-only MCP tool paypal_ledger_export.', sources },
       widgets: (widgetConfig) => AG.createWidgets({
         additionalTypes: CUSTOM_WIDGETS,
@@ -545,7 +566,7 @@
         showError(`AG Studio ${event.errorType} error: ${(event.errorDetails || []).join(' | ')}`);
       },
       onStateUpdated: (event) => fitStudioHeight(event.state || md.studioApi?.getState()),
-      onStudioReady: () => { md.ready = true; fitStudioHeight(md.studioApi?.getState() || initialState); },
+      onStudioReady: () => { md.ready = true; fitStudioHeight(md.studioApi?.getState() || md.initialState); },
     });
     md.studioApi = api;
   }
