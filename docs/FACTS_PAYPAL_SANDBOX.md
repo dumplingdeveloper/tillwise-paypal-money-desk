@@ -98,7 +98,7 @@ Real Transaction Search (`GET /v1/reporting/transactions`) results:
 - **Lag.** `last_refreshed_datetime` trailed real time by about 2 hours:
   - `2026-10-26T11:29:59Z` at 13:35Z;
   - `2026-10-26T12:29:59Z` at 14:19Z;
-  - `2026-10-26T12:59:59Z` at 15:02Z, i.e. about 2 h behind, refreshed in 30-minute steps.
+  - `2026-10-26T12:59:59Z` at 15:02Z, about 2 h behind (the values seen all end in :29:59 or :59:59).
 
   Our 13:36Z capture `8TY43715XV359243H` was still not searchable at 14:19Z or at 15:02Z: `transaction_id` filter, `total_items: 0`. The spec says "It takes a maximum of three hours for executed transactions to appear in the list transactions call." See §8 for the follow-up probe.
 - **Start date after the refresh point.** A `start_date` after `last_refreshed_datetime` fails with `INVALID_REQUEST`, "Data for the given start date is not available." [HTTP 404].
