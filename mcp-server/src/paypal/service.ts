@@ -71,17 +71,26 @@ export class PayPalService {
     return { speech: `PayPal money briefing: ${transactions.length} recent transactions, ${disputes.length} open disputes, and ${refundCount} refund-like records.`, data: { mode: this.client.mode, transactions, disputes, audit: audit.data.audit || [], counts: { transactions: transactions.length, disputes: disputes.length, refund_like: refundCount } } };
   }
 
+  /**
+   * The ledger rows of the last `days` days, counted back from the ledger's own anchor day (the mock ledger is built
+   * once at start-up, so the wall clock may already be on the next day). Shared by the export and the anomaly tool so
+   * the Money Desk tile and the tool always see identical rows.
+   */
+  private async windowedLedger(days: number): Promise<PayPalLedger> {
+    const ledger = this.client.ledger ? this.client.ledger() : await this.sandboxLedger(days);
+    const since = new Date(Date.parse(`${ledger.anchor_date}T00:00:00Z`) - (days - 1) * 86400_000).toISOString().slice(0, 10);
+    return { ...ledger, captures: ledger.captures.filter((c) => c.date >= since), refunds: ledger.refunds.filter((r) => r.date >= since) };
+  }
+
   async ledgerExport(input: { days?: number } = {}): Promise<AbilityResult> {
     const days = Math.min(Math.max(Math.floor(input.days ?? 45), 1), 90);
-    const ledger = this.client.ledger ? this.client.ledger() : await this.sandboxLedger(days);
-    const since = new Date(this.now() - (days - 1) * 86400_000).toISOString().slice(0, 10);
-    const data: PayPalLedger = { ...ledger, captures: ledger.captures.filter((c) => c.date >= since), refunds: ledger.refunds.filter((r) => r.date >= since) };
+    const data = await this.windowedLedger(days);
     const counts = { captures: data.captures.length, refunds: data.refunds.length, invoices: data.invoices.length, disputes: data.disputes.length, tracking: data.tracking.length };
     return { speech: `PayPal ledger export (${data.mode}) for the last ${days} days: ${counts.captures} captures, ${counts.refunds} refunds, ${counts.invoices} invoices, ${counts.disputes} disputes, ${counts.tracking} tracking rows.`, data: { ...data, days, counts } as unknown as Record<string, unknown> };
   }
 
   async refundAnomaly(input: { window_days?: number } = {}): Promise<AbilityResult> {
-    const ledger = this.client.ledger ? this.client.ledger() : await this.sandboxLedger(45);
+    const ledger = await this.windowedLedger(45);
     const anomaly = explainRefundAnomaly(ledger, input.window_days ?? 7);
     return { speech: anomaly.headline, data: anomaly as unknown as Record<string, unknown> };
   }

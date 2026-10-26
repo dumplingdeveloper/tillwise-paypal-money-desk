@@ -241,3 +241,20 @@ test('mock ledger: no customer is named like a product', () => {
   const customers = new Set([...ledger.captures.map((c) => c.customer), ...ledger.invoices.map((i) => i.customer)]);
   assert.deepEqual([...customers].filter((c) => products.has(c)), []);
 });
+
+test('refund anomaly uses exactly the rows paypal_ledger_export gives the Money Desk tile', async () => {
+  // The tile computes its rate and baseline from the 45-day export; the tool must see the same rows at any hour.
+  // The mock ledger is built when the MCP server starts; the clock keeps running (here: across midnight).
+  const cases = [[ANCHOR, ANCHOR], [Date.parse('2026-10-25T23:30:00Z'), Date.parse('2026-10-26T00:31:00Z')], [Date.parse('2026-11-12T08:00:00Z'), Date.parse('2026-11-14T09:00:00Z')]];
+  for (const [builtAt, at] of cases) {
+    const service = new PayPalService(fakeWp(), new MockPayPalClient({ now: () => builtAt }), { now: () => at });
+    const ledger = (await service.ledgerExport({})).data as any;
+    const anomaly = (await service.refundAnomaly({})).data as any;
+    const sum = (xs: number[]) => Math.round(xs.reduce((t, x) => t + x, 0) * 100) / 100;
+    const start = anomaly.window.start;
+    const label = new Date(at).toISOString();
+    assert.equal(anomaly.baseline_refunded, sum(ledger.refunds.filter((r: any) => r.date < start).map((r: any) => r.amount)), label);
+    assert.equal(anomaly.baseline_captured, sum(ledger.captures.filter((c: any) => c.date < start).map((c: any) => c.gross)), label);
+    assert.equal(anomaly.baseline.start, [...ledger.captures, ...ledger.refunds].map((r: any) => r.date).sort()[0], label);
+  }
+});
