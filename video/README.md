@@ -44,6 +44,12 @@ Live scenes support honest dead-air compression with `maxSilenceMs` (default `15
 
 `scripts/video-timing.js` patches Playwright's video recorder before recording. Unpatched, Playwright writes every screencast frame at least once at 25 fps, so a page that repaints faster (the simulator's animated ring) produces a video longer than wall-clock time and the narration drifts away from the picture. In a 20-second test with the ring animating, the unpatched recording was 32.96 s long and the patched one 20.08 s.
 
+## Scene templates and card text
+
+- A scene may contain `{{ORDER_ID}}` (for example "Refund order {{ORDER_ID}}."). The demo reset recreates the seed orders with new ids, so resolve the template after the reset: `node scripts/resolve-scene.js --scene scenes/m5-money-desk.json --order <id>` writes `out/m5-money-desk.resolved.json`. Then run tts/record/compose on that file.
+- Optional scene fields for the cards: `cardEyebrow` (intro/outro eyebrow), `outroSub` (outro subtitle; when set, the `github` field may be empty) and `outroNote` (small print on the outro card). `maxSilenceMs` may also be set per scene. `scenes/m5-money-desk.json` uses 5000.
+- The full commands for the PayPal draft are in `docs/VIDEO_RENDER.md`.
+
 ## Scene step types
 
 `goto`, `type`, `click`, `waitFor`, `pause`, `say`, `caption`, and `scrollTo`/`reveal` are supported. `waitFor` fails loudly when a selector or text does not appear, preventing silent wrong-demo recordings.

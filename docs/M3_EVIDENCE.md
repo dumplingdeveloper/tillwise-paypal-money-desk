@@ -348,3 +348,23 @@ The evidence files from these runs replace M2's `m2-live-*.json`, which remain i
   - The form default is off (dist/umd/ag-studio.js:297844 `chartLegendGroup({ defaultEnabled = false })`).
   - money-desk.js:425 `showLegendForSplitChart`: after a `configure_*` patch that maps a `legendKey`, unless the agent set the legend itself, the page turns the legend on at the bottom with `AgConfigureWidgetCommand`. `patch` replaces `format` as a whole, so the title is carried over. The first attempt lost it, and the plumbing test caught that.
   - Plumbing test: legend `{enabled:true, position:'bottom'}` on the stacked chart, the title is kept, and the single-series chart has no legend. A scratch screenshot (not committed) showed "Damaged in transit / Duplicate order / Late delivery" under the chart.
+
+## 10. M5 draft video and the fixes it exposed
+
+The draft video, its frames, the model-call log (14 of 16) and the mismatches are in `docs/VIDEO_RENDER.md`. The draft footage showed three problems, now fixed offline (unit and plumbing tests; no live run yet):
+
+- **Tile vs agent baseline (7.4% vs 7.3%).**
+  - Cause: the mock ledger is built when the MCP server starts. After midnight, `paypal_ledger_export` cut its window by the wall clock and dropped the ledger's first day, while `paypal_refund_anomaly` kept it.
+  - Fix: both tools now share `windowedLedger()`, counted back from the ledger's `anchor_date` (mcp-server/src/paypal/service.ts).
+  - Test: ledger.test.ts "refund anomaly uses exactly the rows paypal_ledger_export gives the Money Desk tile". It fails on the old code at 00:31 for a ledger built at 23:30 (actual 29488.06 vs expected 29229.68).
+- **"Last 14 days" chart over 45 days.**
+  - Cause: the model titled the chart for 14 days but did not call `add_widget_filter`.
+  - Fix: a Studio table `recent_refunds` holds exactly the last 14 ledger days. Its name and AI-facing description carry the exact dates (alexa-sim/src/moneyDesk.ts `recentWindow`, `moneyDeskSources`), and the Studio system message points to it.
+  - Tests:
+    - moneyDesk.test.ts: the 14-day cut and the description;
+    - plumbing: the scripted drill-down now uses `recent_refunds.date::day`, and its per-day € totals equal `paypal_refund_anomaly`'s `daily[].refunded` for all 14 days;
+    - the LIVE test fails if the drill-down chart plots more refund days than that series.
+- **Host question "Do you want me to paypal refund apply?".**
+  - Fix: `paypalConfirmation` in alexa-sim/src/copilotAgent.ts builds plain questions from the MCP preview, e.g. "Refund €31.00 for order 360 through PayPal?".
+  - Test: unit.test.ts.
+- **Voice-sim PayPal badge.** `GET /api/paypal-mode` reads the mode from `paypal_ledger_export`. The badge says "PayPal: mock mode · demo data, not a PayPal account" (moneyDesk.test.ts).

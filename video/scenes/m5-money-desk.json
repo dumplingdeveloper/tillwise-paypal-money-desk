@@ -1,38 +1,150 @@
 {
   "projectName": "Tillwise × PayPal",
   "tagline": "A voice store agent for WooCommerce owners, with an AG Studio Money Desk on PayPal data",
-  "github": "<public repo URL, set before rendering>",
+  "github": "",
   "subtitleBandHeight": 140,
   "dynamicWordsPerAsk": 28,
   "tailMs": 1600,
-  "maxSilenceMs": 1500,
-  "selectors": { "input": "#text", "send": "#send", "confirm": ".confirm:not(.hidden)", "hood": "#hoodToggle" },
+  "maxSilenceMs": 5000,
+  "selectors": {
+    "input": "#text",
+    "send": "#send",
+    "confirm": ".confirm:not(.hidden)",
+    "hood": "#hoodToggle"
+  },
   "steps": [
-    { "action": "goto", "url": "/?demo=1", "waitUntil": "load" },
-    { "action": "waitFor", "selector": "#text", "timeout": 20000 },
-    { "action": "say", "voice": "NARRATOR", "text": "Small shop owners take payments with PayPal, but refunds, disputes and unpaid invoices live in five different screens. Tillwise is a store agent they can simply talk to." },
-    { "action": "ask", "text": "Good morning, how's the shop doing today?", "voice": "OWNER", "timeout": 60000 },
-    { "action": "ask", "text": "Refund order 136.", "voice": "OWNER", "timeout": 60000 },
-    { "action": "say", "voice": "NARRATOR", "text": "Money never moves on a guess. The PayPal refund is previewed first, and nothing happens until the owner confirms." },
-    { "action": "confirm", "text": "Yes.", "timeout": 60000 },
-    { "action": "openHood", "selector": "#hoodToggle", "waitMs": 800 },
-    { "action": "say", "voice": "NARRATOR", "text": "Under the hood, every MCP tool call is visible: preview, confirmation, then the PayPal apply call and its audit row." },
-    { "action": "goto", "url": "/money-desk.html", "waitUntil": "load" },
-    { "action": "waitFor", "selector": "#myStudio .tw-refund-rate", "timeout": 30000 },
-    { "action": "say", "voice": "NARRATOR", "text": "This is the Money Desk, built inside AG Studio. Built-in charts and grids sit next to three custom widgets: refund rate, who still owes us, and dispute deadlines. All of it is read from PayPal through our MCP server." },
-    { "action": "type", "selector": "#myStudio textarea[aria-label=\"Message input\"]", "text": "Why are refunds spiking?", "delayMs": 45 },
-    { "action": "say", "voice": "OWNER", "text": "Why are refunds spiking?" },
-    { "action": "click", "selector": "#myStudio [aria-label=\"Send message\"]" },
-    { "action": "waitFor", "selector": "#myStudio .ag-studio-layout-canvas .ag-studio-layout-widget >> nth=7", "timeout": 90000 },
-    { "action": "scrollTo", "selector": "#myStudio .ag-studio-layout-canvas .ag-studio-layout-widget >> nth=7", "block": "center", "waitMs": 1200 },
-    { "action": "say", "voice": "NARRATOR", "text": "Studio's AI panel runs on the GitHub Copilot SDK. The model reads a read-only refund anomaly tool, quotes its figures, and adds a chart of refunds per day by reason, so the damaged mug shipments stand out against the weeks before." },
-    { "action": "pause", "ms": 2000 },
-    { "action": "type", "selector": "#myStudio textarea[aria-label=\"Message input\"]", "text": "Refund order 136", "delayMs": 45 },
-    { "action": "say", "voice": "OWNER", "text": "Refund order 136." },
-    { "action": "click", "selector": "#myStudio [aria-label=\"Send message\"]" },
-    { "action": "pause", "ms": 9000 },
-    { "action": "say", "voice": "NARRATOR", "text": "The Studio agent has no money-moving tools at all, so it declines and points back to the confirmed voice flow." },
-    { "action": "say", "voice": "NARRATOR", "text": "Tillwise and PayPal. Talk to your shop, see your money, and stay in control of every refund." },
-    { "action": "pause", "ms": 1000 }
-  ]
+    {
+      "action": "goto",
+      "url": "/?demo=1",
+      "waitUntil": "load"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#text",
+      "timeout": 20000
+    },
+    {
+      "action": "say",
+      "voice": "NARRATOR",
+      "text": "Small shop owners take payments with PayPal, but refunds, disputes and unpaid invoices live in different screens. Tillwise is a store agent they can simply talk to. In this demo, PayPal runs in mock mode, on deterministic demo data."
+    },
+    {
+      "action": "ask",
+      "text": "Refund order {{ORDER_ID}}.",
+      "voice": "OWNER",
+      "timeout": 60000
+    },
+    {
+      "action": "say",
+      "voice": "NARRATOR",
+      "text": "Money never moves on a guess. The refund is previewed first, and when the owner says go ahead, the host asks once more before the PayPal call is made."
+    },
+    {
+      "action": "ask",
+      "text": "Yes, go ahead.",
+      "voice": "OWNER",
+      "timeout": 60000
+    },
+    {
+      "action": "confirm",
+      "text": "Yes.",
+      "timeout": 60000
+    },
+    {
+      "action": "openHood",
+      "selector": "#hoodToggle",
+      "waitMs": 800
+    },
+    {
+      "action": "say",
+      "voice": "NARRATOR",
+      "text": "Under the hood, every MCP tool call is visible: the preview, the confirmation, then the refund call to PayPal mock mode, and its audit row."
+    },
+    {
+      "action": "goto",
+      "url": "/money-desk.html",
+      "waitUntil": "load"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#myStudio .tw-refund-rate",
+      "timeout": 30000
+    },
+    {
+      "action": "say",
+      "voice": "NARRATOR",
+      "text": "This is the Money Desk, built inside AG Studio. Built-in charts and grids sit next to three custom widgets: refund rate, who still owes us, and dispute deadlines. The rows come through our MCP server from the PayPal tools, here on the mock ledger."
+    },
+    {
+      "action": "type",
+      "selector": "#myStudio textarea[aria-label=\"Message input\"]",
+      "text": "Why are refunds spiking?",
+      "delayMs": 45
+    },
+    {
+      "action": "say",
+      "voice": "OWNER",
+      "text": "Why are refunds spiking?"
+    },
+    {
+      "action": "click",
+      "selector": "#myStudio [aria-label=\"Send message\"]"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#myStudio .ag-studio-layout-canvas .ag-studio-layout-widget >> nth=7",
+      "timeout": 90000
+    },
+    {
+      "action": "scrollTo",
+      "selector": "#myStudio .ag-studio-layout-canvas .ag-studio-layout-widget >> nth=7",
+      "block": "center",
+      "waitMs": 1200
+    },
+    {
+      "action": "say",
+      "voice": "NARRATOR",
+      "text": "Studio's AI panel runs on the GitHub Copilot SDK. The model reads a read-only refund anomaly tool, quotes its figures, and adds a chart of refunds per day by reason, so the damaged mug shipments stand out against the weeks before."
+    },
+    {
+      "action": "pause",
+      "ms": 2000
+    },
+    {
+      "action": "type",
+      "selector": "#myStudio textarea[aria-label=\"Message input\"]",
+      "text": "Refund order {{ORDER_ID}}",
+      "delayMs": 45
+    },
+    {
+      "action": "say",
+      "voice": "OWNER",
+      "text": "Refund order {{ORDER_ID}}."
+    },
+    {
+      "action": "click",
+      "selector": "#myStudio [aria-label=\"Send message\"]"
+    },
+    {
+      "action": "pause",
+      "ms": 9000
+    },
+    {
+      "action": "say",
+      "voice": "NARRATOR",
+      "text": "The Studio agent has no money-moving tools at all, so it declines and points back to the confirmed voice flow."
+    },
+    {
+      "action": "say",
+      "voice": "NARRATOR",
+      "text": "Tillwise and PayPal. Talk to your shop, see your money, and stay in control of every refund."
+    },
+    {
+      "action": "pause",
+      "ms": 1000
+    }
+  ],
+  "cardEyebrow": "PayPal AI Hackathon · draft demo",
+  "outroSub": "Draft render. The repository link is added at submission.",
+  "outroNote": "PayPal ran in mock mode here: deterministic demo data, not a PayPal account. The Alexa+ experience simulator is an unofficial demo, not an Amazon product."
 }
