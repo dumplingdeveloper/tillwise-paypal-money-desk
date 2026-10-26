@@ -9,7 +9,7 @@ Required by the rules, and where each is covered:
 | Text description of features and functionality | "What it does", "How we built it" |
 | A functional demo that judges can run | "Try it out" and the README "Judge quick start" |
 | A public repo with a detectable open-source licence | `LICENSE` (GNU GPL); repo URL still to fill in |
-| A video under 3 minutes on YouTube | `docs/VIDEO_SCRIPT.md`; URL to fill in after rendering |
+| A video under 3 minutes on YouTube | Mock-mode render, 2:42 (`docs/VIDEO_RENDER.md`, script in `docs/VIDEO_SCRIPT.md`); YouTube URL still to fill in |
 | For a project that existed before the Submission Period, an explanation of how it was significantly updated | "New vs existing" |
 | PayPal integration that is central, using the free sandbox | "PayPal integration", "Mock vs sandbox" |
 | Third-party tools used within their terms | "Built with" and "Licences" |
@@ -175,7 +175,10 @@ TypeScript, Node.js, GitHub Copilot SDK, Model Context Protocol (`@modelcontextp
 ## Try it out
 - Repo: **TODO, public URL** (the licence is GPL, `LICENSE` at the root).
 - Setup and run: README → "Judge quick start" (mock by default; Copilot login or BYOK; ports 8098 / 3338 / 4179 by default).
-- Video: **TODO, YouTube URL** (script in `docs/VIDEO_SCRIPT.md`).
+- Video: **TODO, YouTube URL**.
+  - The mock-mode render (2:42) is recorded in `docs/VIDEO_RENDER.md`; the script is in `docs/VIDEO_SCRIPT.md`.
+  - The video states on screen and in the narration that PayPal runs in mock mode.
+- Gallery images (3:2, real UI) and a 1280x720 thumbnail: `docs/devpost/` (made by `video/scripts/devpost-media.js`).
 - Testing instructions for judges:
   - No PayPal account is needed in mock mode.
   - For sandbox, create a free PayPal developer sandbox app and run `scripts/save-paypal-sandbox-creds.sh`, then `cd mcp-server && npm run sandbox:smoke && npm run sandbox:seed`. See README → "Use the real PayPal sandbox".
