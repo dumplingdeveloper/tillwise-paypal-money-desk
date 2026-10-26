@@ -101,6 +101,9 @@ test('LIVE PayPal sandbox: voice refund of a real sandbox capture, audited, and 
 
     // 3a. PayPal's own record of the refund (the source of truth), read with the same sandbox credentials.
     const mcpDist = join(PROJECT_ROOT, 'mcp-server', 'dist', 'src');
+    // Count this process's own PayPal calls too (TILLWISE_PAYPAL_CALL_LOG, mcp-server/src/paypal/callLog.ts).
+    const { installPayPalCallLog } = await import(pathToFileURL(join(mcpDist, 'paypal', 'callLog.js')).href) as { installPayPalCallLog: (o: { source: string }) => void };
+    installPayPalCallLog({ source: 'live-test' });
     const { SandboxRest } = await import(pathToFileURL(join(mcpDist, 'sandboxSeed.js')).href) as { SandboxRest: new (o: { clientId: string; clientSecret: string }) => { call<T>(method: string, path: string): Promise<{ json: T }> } };
     const { readSandboxCredentials } = await import(pathToFileURL(join(mcpDist, 'paypal', 'liveClient.js')).href) as { readSandboxCredentials: () => { clientId: string; clientSecret: string } | null };
     const api = new SandboxRest(readSandboxCredentials()!);

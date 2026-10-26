@@ -29,7 +29,7 @@ skills/ contains Agent Skills loaded by the Copilot SDK and exposed by the MCP s
 - Guardrails such as minimum price and maximum discount persist in WordPress options and are enforced during preview.
 - Every ability returns a short `speech` string plus structured data for cards or screens.
 - PayPal mutations use preview/apply where practical, caps, `PayPal-Request-Id` idempotency keys, and WordPress audit rows/order notes.
-- PayPal mock mode is the default and requires no PayPal credentials. Sandbox mode is enabled with `PAYPAL_MODE=sandbox` only when `~/.config/tillwise/paypal-sandbox.env` exists with `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET`; secrets must not be printed or committed.
+- PayPal mock mode is the default and requires no PayPal credentials. Sandbox mode is used when `~/.config/tillwise/paypal-sandbox.env` exists with `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` (`PAYPAL_MODE=mock` forces mock); secrets must not be printed or committed.
 - This build can only talk to the PayPal sandbox host `api-m.sandbox.paypal.com`; production PayPal hosts are refused in code.
 
 ## Judge quick start
@@ -73,46 +73,72 @@ Open:
 
 Ports are configurable if 8098 / 3338 / 4179 are taken: `TILLWISE_WP_PORT=8108 COMPOSE_PROJECT_NAME=tillwise-judge docker compose up -d --wait` and the same two variables for `./scripts/seed-local.sh`; then `MCP_PORT=3348 MCP_URL=http://127.0.0.1:3348/mcp SIM_PORT=4193 npm run demo`. Tear down with `docker compose down -v` (same variables).
 
-PayPal sandbox (optional): `./scripts/save-paypal-sandbox-creds.sh` stores sandbox REST credentials in `~/.config/tillwise/paypal-sandbox.env` (mode 600); then `cd mcp-server && npm run sandbox:smoke` runs OAuth, Transaction Search, Disputes, and creates + reads back + deletes one draft invoice against `api-m.sandbox.paypal.com`, printing a summary without secrets. Without that file it prints `PayPal sandbox smoke: NO CREDENTIALS …` and exits 2.
+PayPal sandbox (optional): see the next section. Without `~/.config/tillwise/paypal-sandbox.env`, everything runs on the mock ledger. With it, sandbox mode is chosen automatically, and `PAYPAL_MODE=mock` forces mock.
 
 ## Use the real PayPal sandbox
 
-Mock mode needs nothing. To run against **your own** PayPal sandbox app instead:
-- Every PayPal call goes only to `api-m.sandbox.paypal.com`; production hosts are refused in code.
-- Sources and the live/mock feature matrix are in `docs/FACTS_PAYPAL_SANDBOX.md`.
-- Status: these steps have been tested only against local stubs. No sandbox credentials have been available to the authors yet.
+The voice flow's money tools then call the **real PayPal sandbox**:
+- refund: preview → you confirm → `POST /v2/payments/captures/{id}/refund`;
+- invoice create/send, tracking, dispute accept.
 
-1. Sign in or sign up at https://developer.paypal.com/ → **Apps & Credentials → Sandbox → REST API apps**. Use the Default Application or create one, and copy its Client ID and Secret.
-2. In that app: **Features → Accept payments**. Make sure **Advanced Credit and Debit Card Payments** is ticked. PayPal says it "should be enabled automatically" for sandbox business accounts. A US sandbox business account avoids 3-D Secure prompts.
-3. Save the credentials. The script prompts, never echoes the secret, and writes `~/.config/tillwise/paypal-sandbox.env` with mode 600:
-   ```bash
-   ./scripts/save-paypal-sandbox-creds.sh
-   ```
-4. Check the connection. It runs OAuth, Transaction Search, Disputes, and creates, reads back and deletes one draft invoice. Expect `Summary: 6/6 steps ok against api-m.sandbox.paypal.com`.
-   ```bash
-   cd mcp-server && npm run sandbox:smoke
-   ```
-5. Seed the demo data (idempotent; tags `TW-DEMO-*`; rerun safely):
-   ```bash
-   npm run sandbox:seed
-   ```
-   - It creates 3 captured orders (one per segment) with PayPal's sandbox test card, plus invoice `TW-DEMO-INV-01`. The invoice is sent with `send_to_recipient=false`, so nobody is emailed.
-   - Expected: `✔ capture TW-DEMO-CAP-01 …` ×3, then `✔ invoice TW-DEMO-INV-01: created: INV2-… status UNPAID`, then `Summary: 5/5 steps ok`.
-   - If your account cannot take card payments, the seed prints `PAYEE_NOT_ENABLED_FOR_CARD_PROCESSING` and an approve link per order. Open each link and log in as your sandbox **personal** account (Testing Tools → Sandbox Accounts), then run `npm run sandbox:seed` again to capture them.
-   - IDs are kept in `~/.config/tillwise/paypal-sandbox-seed.json` (no secrets).
-   - Without credentials it prints `PayPal sandbox seed: NO CREDENTIALS …`, makes no network call, and exits 2.
-6. Optional: make a voice-flow refund hit a real sandbox capture. Pick a Woo order total of €100 or less, because the refund cap is €100 per confirmation. This needs `mcp-server/.env` from `./scripts/seed-local.sh`.
-   ```bash
-   npm run sandbox:seed -- --link-woo 136
-   ```
-   It creates a sandbox capture for exactly that order's total and links it to the order through the audited `paypal-audit-record` ability. "Refund order 136" then previews, asks for confirmation, and refunds that capture in the sandbox.
-7. Start the demo in sandbox mode. Sandbox mode is also chosen automatically whenever the credentials file exists; `PAYPAL_MODE=mock` forces mock.
-   ```bash
-   cd ../alexa-sim && PAYPAL_MODE=sandbox ALLOW_ANY_GITHUB_LOGIN=1 npm run demo
-   ```
-   - The Money Desk header then says `live PayPal sandbox` instead of `mock ledger (demo data, not PayPal)`.
-   - PayPal: "It takes a maximum of three hours for executed transactions to appear in the list transactions call". New captures may show up only later.
-   - The refund-spike drill-down story exists only in the mock ledger. In sandbox mode the same tiles and tools compute from whatever your sandbox holds.
+The Money Desk gets a **live** grid of every PayPal object Tillwise created. The analytics widgets (refund rate, anomaly drill-down, owed scoreboard, disputes) stay on the labelled mock ledger, and every one of their titles ends in "· mock data". Why: on a shared sandbox app, Transaction Search returns other people's traffic, has no tag filter and lagged about 2 h. Details and verbatim PayPal responses are in `docs/FACTS_PAYPAL_SANDBOX.md`.
+
+Every PayPal call goes only to `api-m.sandbox.paypal.com`; production hosts are refused in code. Secrets are never printed.
+
+**1. Credentials: pick one.**
+
+- **Option A: PayPal's public default sandbox credentials (no PayPal account needed).** PayPal publishes a default sandbox app in its official Postman collections:
+  - repository https://github.com/paypal/postman-collections, file `Collections/PayPal_Public_APIs.json` (same values in `Collections/PayPal_Checkout_Flows.json`);
+  - collection variables `client_id` and `client_secret`;
+  - their note: "PayPal Public Collection comes with following default public set of credentials stored at the Collection level. You may choose to override these values via environment level variables. You may bring your own credentials from PayPal Developer Dashboard there."
+
+  This helper downloads that file (pinned commit), writes `~/.config/tillwise/paypal-sandbox.env` (mode 600) and `paypal-sandbox.SOURCE.txt` (provenance), and prints only the value lengths. It does not overwrite an existing file without `--force`:
+  ```bash
+  cd mcp-server && npm run sandbox:public-creds
+  ```
+  It is a **shared** app: whatever you create is visible to everyone using these credentials. The seed uses fake names, `@example.com` addresses and a per-install tag (`TW-DEMO-<RUN>-…`), and only reads back its own objects by id. Tillwise shows and acts on disputes only if they are on one of its own captures.
+- **Option B: your own sandbox app.**
+  1. Sign in or sign up at https://developer.paypal.com/ → **Apps & Credentials → Sandbox → REST API apps**, and copy the Default Application's Client ID and Secret.
+  2. Under **Features → Accept payments**, keep **Advanced Credit and Debit Card Payments** ticked. PayPal says it "should be enabled automatically".
+  3. Save them. The script prompts and never echoes the secret:
+     ```bash
+     ./scripts/save-paypal-sandbox-creds.sh
+     ```
+  With your own app you may also set `PAYPAL_LEDGER=sandbox`, which computes the analytics from Transaction Search instead of the mock ledger.
+
+**2. Check the connection.** This runs OAuth, Transaction Search (last 24 h) and Disputes, then creates, reads back and deletes one draft invoice. Expect `Summary: 6/6 steps ok against api-m.sandbox.paypal.com`.
+```bash
+cd mcp-server && npm run sandbox:smoke
+```
+
+**3. Seed the demo objects** (idempotent; a rerun creates nothing new):
+```bash
+npm run sandbox:seed
+```
+- It creates 3 orders captured server-side with PayPal's sandbox test card. No buyer login is needed: the order comes back `COMPLETED`.
+- It also creates one €6.00 partial refund and invoice `TW-DEMO-<RUN>-INV-01`. The invoice is sent with `send_to_recipient=false`, so nobody is emailed, and its status is `UNPAID`.
+- Expected: `Summary: 6/6 steps ok`. IDs are kept in `~/.config/tillwise/paypal-sandbox-seed.json` (no secrets).
+- Without credentials it prints `PayPal sandbox seed: NO CREDENTIALS …`, makes no network call, and exits 2.
+- If your own app can't take cards, the seed prints `PAYEE_NOT_ENABLED_FOR_CARD_PROCESSING` and an approve link per order. Log in as your sandbox personal account, then rerun.
+
+**4. Link a Woo order to a real sandbox capture**, so "Refund order N" refunds real sandbox money. Pick a completed order of €100 or less; the refund cap per confirmation is €100. It needs `mcp-server/.env` from `./scripts/seed-local.sh`.
+```bash
+npm run sandbox:seed -- --link-woo 136
+```
+It captures exactly that order's total in the sandbox and records the link through the audited `paypal-audit-record` ability. `scripts/demo-reset.sh` recreates the Woo orders, so link again after a reset.
+
+**5. Start the demo.** Sandbox mode is automatic when the credentials file exists:
+```bash
+cd ../alexa-sim && ALLOW_ANY_GITHUB_LOGIN=1 npm run demo
+```
+- The voice page badge then reads `PayPal: REAL sandbox · api-m.sandbox.paypal.com · PayPal's public default sandbox app (shared)`, or `… your own PayPal sandbox app`.
+- Say or type "Refund order 136" and confirm with "yes". The voice reply confirms the refund, and the WordPress audit row stores the PayPal refund id.
+- The Money Desk's top grid "LIVE PayPal sandbox · objects Tillwise created" shows the new refund.
+
+**Opt-in end-to-end test** against the real sandbox. It needs the MCP server running in sandbox mode, Chrome and a Copilot login. It makes one real refund, uses about 4 model calls and about 20 PayPal calls:
+```bash
+cd alexa-sim && npm run build && LIVE_PAYPAL=1 EXPECTED_GITHUB_LOGIN=<your login> node --test dist/test/sandboxLive.test.js
+```
 
 ## Quick start
 

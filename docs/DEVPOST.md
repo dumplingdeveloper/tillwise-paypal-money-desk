@@ -84,20 +84,27 @@ Limits:
 - We do not claim any other APIMatic tooling.
 
 ## PayPal integration and mock vs sandbox
-**Today the demo, the video and all Money Desk evidence run in mock mode.** No sandbox credentials have been available to us yet, so nothing has run against PayPal so far.
-- **Mock mode is the default.** It needs no credentials, and every PayPal tool returns deterministic, PayPal-shaped data from `mcp-server/src/paypal/mockLedger.ts`. The Money Desk header says `mock ledger (demo data, not PayPal)`.
-- **Sandbox mode** switches on when `~/.config/tillwise/paypal-sandbox.env` exists with `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` (or with `PAYPAL_MODE=sandbox`). `PAYPAL_MODE=mock` forces mock. The helper `scripts/save-paypal-sandbox-creds.sh` writes that file without echoing secrets. Every call goes only to `api-m.sandbox.paypal.com`.
-- Switching to the real sandbox takes the creds file plus two commands (README → "Use the real PayPal sandbox"):
-  - `cd mcp-server && npm run sandbox:smoke`: real reads (OAuth, Transaction Search, Disputes) plus one draft invoice that it deletes again.
-  - `npm run sandbox:seed`: idempotent, `TW-DEMO-*`-tagged demo data.
-    - It creates 3 captured orders via Orders v2 `payment_source.card` with PayPal's sandbox test card, and one invoice sent with `send_to_recipient=false`.
-    - If the account cannot take card payments, it falls back to buyer-approval links.
-    - `-- --link-woo <order>` links a real sandbox capture to a Woo order, so the confirmed voice refund refunds it.
-  - Without credentials both commands print `NO CREDENTIALS`, make no network call, and exit 2.
-- Live vs mock in sandbox mode (full matrix in `docs/FACTS_PAYPAL_SANDBOX.md` §6):
-  - **Live:** the voice flow's money actions, the Money Desk captures/revenue/refunds (Transaction Search, up to 3 h delay), invoices and disputes.
-  - **Mock only:** the refund-spike story (damaged-in-transit mugs) behind "Why are refunds spiking?". In sandbox mode the same tools compute from whatever the sandbox holds.
-- **UNVERIFIED:** `sandbox:smoke` and `sandbox:seed` have only been tested against local HTTP stubs, never against PayPal.
+**The money flow has run against the real PayPal sandbox** (2026-10-26, `api-m.sandbox.paypal.com`).
+- Credentials: PayPal's **public default sandbox credentials**, i.e. the `client_id` / `client_secret` collection variables in PayPal's official Postman collection https://github.com/paypal/postman-collections → `Collections/PayPal_Public_APIs.json`. PayPal's note: "PayPal Public Collection comes with following default public set of credentials stored at the Collection level. … You may bring your own credentials from PayPal Developer Dashboard there." This is a shared app (`app_id` `APP-80W284485P519543T`); we did not create our own PayPal app.
+- What ran (details and verbatim responses: `docs/FACTS_PAYPAL_SANDBOX.md`):
+  - `npm run sandbox:smoke`: 6/6.
+  - `npm run sandbox:seed`: 6/6. 3 orders captured server-side with PayPal's sandbox test card come back `COMPLETED` in one call without a buyer login, plus a partial refund and an `UNPAID` invoice.
+  - The opt-in test `LIVE_PAYPAL=1` (`alexa-sim/test/sandboxLive.test.ts`):
+    - "Refund order 472" → preview → owner confirms → real sandbox refund `329244097E559043K`, `COMPLETED`, €31.00, on capture `01U40313L4797293A`;
+    - the test reads the refund back from PayPal (`GET /v2/payments/refunds/{id}`);
+    - it checks that the WordPress audit row stores the PayPal refund id and that the AG Studio Money Desk shows it in its live grid (`getState()`).
+    - Evidence: `docs/evidence/paypal-sandbox-voice-refund.json`, `alexa-sim/screenshots/sandbox/`.
+- **What is live and what is mock in sandbox mode** (matrix in `docs/FACTS_PAYPAL_SANDBOX.md` §6):
+  - **Live sandbox:** the voice flow's money actions (refund, invoice create/send, tracking, dispute accept; preview → confirm → apply, audited), and the Money Desk grid "LIVE PayPal sandbox · objects Tillwise created", read by id from Orders v2 and Invoicing v2.
+  - **Mock ledger, labelled "· mock data" on every widget:** the analytics. These are the KPIs, revenue chart, refund-rate tile, owed scoreboard, dispute countdown, and the refund-spike story behind "Why are refunds spiking?".
+  - Why: on the shared app, Transaction Search returns other users' traffic (377 transactions in 24 h; a 30-day query fails with `RESULTSET_TOO_LARGE`), has no tag filter, and lagged about 2 h. The 3 disputes on the app belong to other users; Tillwise ignores them.
+- **Mock mode** is still the default when no credentials file exists. Every PayPal tool then returns deterministic, PayPal-shaped data from `mcp-server/src/paypal/mockLedger.ts`, and the voice badge says mock.
+- **Switching:** sandbox mode is used whenever `~/.config/tillwise/paypal-sandbox.env` exists; `PAYPAL_MODE=mock` forces mock. Judges can either:
+  - (A) run `cd mcp-server && npm run sandbox:public-creds`, which saves PayPal's public default credentials from the pinned Postman file and never prints them; or
+  - (B) use their own sandbox app with `scripts/save-paypal-sandbox-creds.sh`.
+
+  Then run `npm run sandbox:smoke`, `npm run sandbox:seed`, and `npm run sandbox:seed -- --link-woo <order>` (README → "Use the real PayPal sandbox"). Without credentials, smoke and seed print `NO CREDENTIALS`, make no network call, and exit 2.
+- PayPal API calls made by this work on the shared app are counted (`mcp-server/src/paypal/callLog.ts`); the total is in `docs/FACTS_PAYPAL_SANDBOX.md` §8.
 
 ## New vs existing (Submission Period)
 The official rules (https://paypalaihackathon.devpost.com/rules, fetched 2026-10-25) define the period as: "Submission Period: Thursday Oct 1, 2026 (9:15 am Pacific Time) – Thursday Nov 12, 2026 (12:00 pm Pacific Time)". 9:15 am PDT is **2026-10-01 16:15 UTC**.
@@ -166,7 +173,7 @@ Later commits (licence facts, sandbox seed, live evidence) are listed by `git lo
 - Deterministic data plus "quote, don't compute" makes AI analytics trustworthy.
 
 ## What's next
-- Run `sandbox:smoke` and `sandbox:seed`, and the Money Desk, against real PayPal sandbox data once credentials exist.
+- Move the Money Desk analytics from the mock ledger to real data on a non-shared PayPal app (`PAYPAL_LEDGER=sandbox`), and read refund reasons from Woo order notes.
 - Add anomaly alerts for disputes.
 
 ## Built with
@@ -181,7 +188,7 @@ TypeScript, Node.js, GitHub Copilot SDK, Model Context Protocol (`@modelcontextp
 - Gallery images (3:2, real UI) and a 1280x720 thumbnail: `docs/devpost/` (made by `video/scripts/devpost-media.js`).
 - Testing instructions for judges:
   - No PayPal account is needed in mock mode.
-  - For sandbox, create a free PayPal developer sandbox app and run `scripts/save-paypal-sandbox-creds.sh`, then `cd mcp-server && npm run sandbox:smoke && npm run sandbox:seed`. See README → "Use the real PayPal sandbox".
+  - For the real sandbox, either `cd mcp-server && npm run sandbox:public-creds` (PayPal's public default sandbox credentials, a shared app) or their own app via `scripts/save-paypal-sandbox-creds.sh`. Then `npm run sandbox:smoke && npm run sandbox:seed && npm run sandbox:seed -- --link-woo <order>`. See README → "Use the real PayPal sandbox".
 
 ## Licences and third-party terms
 - AG Studio's `package.json` says `"license": "Commercial"`. It is an npm dependency and is not vendored into this repo.
