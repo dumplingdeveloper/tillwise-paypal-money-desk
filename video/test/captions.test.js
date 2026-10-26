@@ -27,6 +27,19 @@ test('captions break at sentence and clause boundaries, not mid-phrase', () => {
   assert.ok(!segments.some((s) => s.endsWith('who still')));
 });
 
+test('a list is not left hanging after its first item', () => {
+  assert.deepEqual(splitCaption('If you run a small WooCommerce shop on PayPal, refunds, disputes and unpaid invoices sit in separate screens, and one wrong refund costs real money.', 2, 34), [
+    'If you run a small WooCommerce shop on PayPal,',
+    'refunds, disputes and unpaid invoices sit in separate screens,',
+    'and one wrong refund costs real money.',
+  ]);
+  assert.deepEqual(splitCaption('Under the hood, every MCP tool call is visible: the preview, the confirmation, then the refund call to PayPal mock mode, and its audit row.', 2, 34), [
+    'Under the hood, every MCP tool call is visible:',
+    'the preview, the confirmation,',
+    'then the refund call to PayPal mock mode, and its audit row.',
+  ]);
+});
+
 test('a single clause longer than a card is the only case split between words', () => {
   const long = 'one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen';
   const segments = splitCaption(long, 2, 20);
