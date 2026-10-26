@@ -47,7 +47,8 @@ test('MCP live preview apply undo flow negotiates 2025-11-25', { timeout: 120000
   if (!env.WP_APPLICATION_PASSWORD) throw new Error('Run scripts/seed-local.sh before npm test so mcp-server/.env exists.');
   // A free ephemeral port (3338 + random collided with a running MCP server on 3338/3339/3348).
   const port = await freePort();
-  const started = await startHttpServer({ ...process.env, ...env, MCP_PORT: port, MCP_HOST: '127.0.0.1' });
+  // Pinned to mock: with ~/.config/tillwise/paypal-sandbox.env present the default would be the real sandbox.
+  const started = await startHttpServer({ ...process.env, ...env, PAYPAL_MODE: 'mock', MCP_PORT: port, MCP_HOST: '127.0.0.1' });
   try {
     const transport = new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp`));
     const client = new Client({ name: 'tillwise-e2e', version: '0.1.0' }, { capabilities: {} });
