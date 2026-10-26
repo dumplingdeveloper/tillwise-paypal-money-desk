@@ -7,7 +7,7 @@ import { loadAllEnvFiles } from './env.js';
 import { PUBLIC_DIR } from './config.js';
 import { cardFromStructured } from './cards.js';
 import { classifyConfirmationReply } from './permissionGate.js';
-import { loadMoneyDeskLedger, MONEY_DESK_SOURCES } from './moneyDesk.js';
+import { loadMoneyDeskLedger, loadPayPalMode, moneyDeskSources } from './moneyDesk.js';
 import { PayPalMcpReadClient, READ_ONLY_PAYPAL_TOOLS } from './paypalMcp.js';
 import { StudioBridge, createCopilotSessionFactory, type SessionFactory, type StudioRoundRequest } from './studioBridge.js';
 
@@ -81,10 +81,11 @@ export async function startSimulator(host = process.env.SIM_HOST || '127.0.0.1',
     try {
       if (!checkHostOrigin(req, host, port)) return json(res, 403, { error: 'Forbidden' });
       const url = new URL(req.url || '/', `http://${host}:${port}`);
+      if (req.method === 'GET' && url.pathname === '/api/paypal-mode') return json(res, 200, await loadPayPalMode(paypalRead));
       if (req.method === 'GET' && url.pathname === '/api/money-desk-data') {
         // Rows come from the MCP server's read-only paypal_ledger_export tool, never from this file.
         const { ledger, source } = await loadMoneyDeskLedger(paypalRead);
-        return json(res, 200, { ledger, source, sources: MONEY_DESK_SOURCES, licenseKey: process.env.AG_STUDIO_LICENSE_KEY || null, agent: { model: studioBridge.model, llm: runtime.byok ? runtime.byok.label : 'GitHub Copilot SDK (logged-in Copilot account)', readOnlyPayPalTools: READ_ONLY_PAYPAL_TOOLS } });
+        return json(res, 200, { ledger, source, sources: moneyDeskSources(ledger), licenseKey: process.env.AG_STUDIO_LICENSE_KEY || null, agent: { model: studioBridge.model, llm: runtime.byok ? runtime.byok.label : 'GitHub Copilot SDK (logged-in Copilot account)', readOnlyPayPalTools: READ_ONLY_PAYPAL_TOOLS } });
       }
       if (req.method === 'POST' && url.pathname === '/api/studio-agent/run') {
         const body = await readJson(req, 4 * 1024 * 1024);

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright-core';
 import { startSimulator } from '../src/server.js';
-import type { SessionFactory } from '../src/studioBridge.js';
+import { STUDIO_AGENT_SYSTEM_MESSAGE, type SessionFactory } from '../src/studioBridge.js';
 import { askStudioPanel, canvasGeometry, canvasHasText, canvasWidgetCount, noOverlaysOverStudio, openMoneyDesk } from './moneyDeskHarness.js';
 
 /**
@@ -28,10 +28,12 @@ const scriptedFakeModel: SessionFactory = async ({ invoke, onEvent }) => ({
       results.push(await invoke('configure_value', { op: 'patch', widgetId: 'plumbing-kpi', value: { type: 'value', dataMapping: { value: [{ id: 'invoices.amount_due', aggregation: 'sum' }] }, format: title('Outstanding on invoices') } }, 'fake-call-6'));
       results.push(await invoke('place_widget', { widgetId: 'plumbing-grid', type: 'grid' }, 'fake-call-7'));
       results.push(await invoke('configure_grid', { op: 'patch', widgetId: 'plumbing-grid', value: { type: 'grid', dataMapping: { cols: [{ id: 'receivables.customer' }, { id: 'receivables.invoice_number' }, { id: 'receivables.status' }, { id: 'receivables.due_date' }, { id: 'receivables.days_overdue' }, { id: 'receivables.amount_due' }] }, format: title('Plumbing check grid') } }, 'fake-call-8'));
-      // Refund drill-down shape: one column per day (date bucket field id ::day), stacked by reason, last 14 days.
+      // add_widget_filter still works on a widget (a relative date filter on the segment chart).
+      results.push(await invoke('add_widget_filter', { op: 'append', widgetId: 'plumbing-chart', value: { field: { id: 'captures.date' }, model: { operator: 'inRelativeRange', value: { type: 'last', value: 30, unit: 'day', includeToday: true } } } }, 'fake-call-9'));
+      // Refund drill-down shape: one column per day (date bucket field id ::day), stacked by reason, over the
+      // recent_refunds table, which already holds exactly the last 14 ledger days (no filter step to forget).
       results.push(await invoke('place_widget', { widgetId: 'plumbing-daily', type: 'column-chart-stacked' }, 'fake-call-10'));
-      results.push(await invoke('configure_column_chart_stacked', { op: 'patch', widgetId: 'plumbing-daily', value: { type: 'column-chart-stacked', dataMapping: { categoryKey: [{ id: 'refunds.date::day' }], valueKey: [{ id: 'refunds.amount', aggregation: 'sum' }], legendKey: [{ id: 'refunds.reason' }] }, format: title('Refunds per day by reason · last 14 days') } }, 'fake-call-11'));
-      results.push(await invoke('add_widget_filter', { op: 'append', widgetId: 'plumbing-daily', value: { field: { id: 'refunds.date' }, model: { operator: 'inRelativeRange', value: { type: 'last', value: 14, unit: 'day', includeToday: true } } } }, 'fake-call-12'));
+      results.push(await invoke('configure_column_chart_stacked', { op: 'patch', widgetId: 'plumbing-daily', value: { type: 'column-chart-stacked', dataMapping: { categoryKey: [{ id: 'recent_refunds.date::day' }], valueKey: [{ id: 'recent_refunds.amount', aggregation: 'sum' }], legendKey: [{ id: 'recent_refunds.reason' }] }, format: title('Refunds per day by reason · last 14 days') } }, 'fake-call-11'));
       onEvent({ type: 'text_delta', messageId: 'fake-2', delta: `[offline scripted fake] results: ${results.map((r) => r.slice(0, 60)).join(' | ')}` });
       onEvent({ type: 'idle' });
       } catch (error) { onEvent({ type: 'error', message: (error as Error).message }); }
@@ -101,7 +103,18 @@ test('offline plumbing: AI panel → client tool runner → bridge → Studio ex
     assert.deepEqual(added['plumbing-kpi'].layout, { xTrack: 12, yTrack: 70, xSpan: 12, ySpan: 12 });
     assert.deepEqual(added['plumbing-grid'].layout, { xTrack: 0, yTrack: 82, xSpan: 24, ySpan: 18 });
     assert.deepEqual(added['plumbing-daily'].layout, { xTrack: 0, yTrack: 100, xSpan: 24, ySpan: 20 });
-    assert.deepEqual(added['plumbing-daily'].dataMapping?.categoryKey.map((c) => c.id), ['refunds.date::day']);
+    assert.deepEqual(added['plumbing-daily'].dataMapping?.categoryKey.map((c) => c.id), ['recent_refunds.date::day']);
+    // recent_refunds (what the drill-down charts) is exactly the 14 days of the tool's daily series, day by day in EUR.
+    const daily = (anomaly as unknown as { daily: Array<{ date: string; refunded: number }> }).daily;
+    const recent = await page.evaluate(() => ({ rows: (window as any).__moneyDesk.ledger.recent_refunds as Array<{ date: string; amount: number }>, window: (window as any).__moneyDesk.ledger.recent_window }));
+    assert.equal(daily.length, 14);
+    assert.deepEqual([recent.window.start, recent.window.end], [daily[0].date, daily.at(-1)!.date]);
+    const cents = (n: number) => Math.round(n * 100);
+    const perDay = new Map<string, number>();
+    for (const r of recent.rows) perDay.set(r.date, (perDay.get(r.date) || 0) + cents(r.amount));
+    assert.deepEqual(daily.map((d) => [d.date, perDay.get(d.date) || 0]), daily.map((d) => [d.date, cents(d.refunded)]));
+    assert.ok(promptsSeen[0].includes(`- recent_refunds (The same rows as refunds, already limited to the last 14 ledger days: ${recent.window.label} (${daily[0].date} to ${daily.at(-1)!.date})`), 'the agent sees the exact 14-day dates');
+    assert.match(STUDIO_AGENT_SYSTEM_MESSAGE, /use the recent_refunds table: it already holds exactly those 14 days/);
     assert.equal(await canvasWidgetCount(page), canvasBefore + 5);
     assert.equal(await canvasHasText(page, 'Plumbing check grid'), true);
     const tileText = await page.evaluate(() => [...document.querySelectorAll('#myStudio .tw-refund-rate')].map((el) => (el.textContent || '').replace(/\s+/g, ' ').trim()));
@@ -119,13 +132,13 @@ test('offline plumbing: AI panel → client tool runner → bridge → Studio ex
     const hostHeight = await page.evaluate(() => document.getElementById('myStudio')!.getBoundingClientRect().height);
     assert.ok(hostHeight >= 100 * 16, `the Studio host grows with the canvas (${hostHeight}px for 100 tracks)`);
     const kinds = result.turnEvents.map((e) => `${e.kind}${e.name ? `:${e.name}` : ''}`).filter((k) => k.startsWith('TOOL_CALL_EMITTED') || k.startsWith('STUDIO_TOOL_RESULT'));
-    assert.deepEqual(kinds.filter((k) => k.startsWith('TOOL_CALL_EMITTED')), ['place_widget', 'configure_column_chart_grouped', 'place_widget', 'configure_refund_rate_tile', 'place_widget', 'configure_value', 'place_widget', 'configure_grid', 'place_widget', 'configure_column_chart_stacked', 'add_widget_filter'].map((n) => `TOOL_CALL_EMITTED:${n}`));
+    assert.deepEqual(kinds.filter((k) => k.startsWith('TOOL_CALL_EMITTED')), ['place_widget', 'configure_column_chart_grouped', 'place_widget', 'configure_refund_rate_tile', 'place_widget', 'configure_value', 'place_widget', 'configure_grid', 'add_widget_filter', 'place_widget', 'configure_column_chart_stacked'].map((n) => `TOOL_CALL_EMITTED:${n}`));
     const studioResults = result.turnEvents.filter((e) => e.kind === 'STUDIO_TOOL_RESULT').map((e) => String(e.result));
     assert.equal(studioResults.length, 11);
-    // Health once the 14-day filter is applied: no density/variance hints (the M3 one-bar driver chart had one).
+    // Health of the 14-day drill-down: no missing-field issues (the M3 one-bar driver chart had a density hint).
     const dailyHealth = await page.evaluate(async () => (await (window as any).__moneyDesk.studioApi.getAiContext().health.widget('plumbing-daily')).issues.map((i: { code: string; description: string }) => `${i.code}: ${i.description}`));
     assert.equal(dailyHealth.some((i: string) => i.startsWith('data_mapping_complete')), false, `fields mapped: ${dailyHealth}`);
-    // Studio's own density check counts the categories it plots: one per day with refunds in the 14-day filter, not one bar.
+    // Studio's own density check counts the categories it plots: one per day with refunds in the 14 days, not one bar.
     const categories = Number(/category_density: (\d+) categories/.exec(dailyHealth.join('\n'))?.[1]);
     const ledgerDays = new Set((anomaly as unknown as { daily: Array<{ date: string; refunds: number }> }).daily.filter((d) => d.refunds > 0).map((d) => d.date)).size;
     assert.equal(categories, ledgerDays, `one column per refund day in the last 14 days: ${dailyHealth}`);

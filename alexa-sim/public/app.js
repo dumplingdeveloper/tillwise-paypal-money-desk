@@ -39,3 +39,4 @@ $('#send').onclick=()=>send($('#text').value); $('#text').addEventListener('keyd
 const SR=globalThis.webkitSpeechRecognition||globalThis.SpeechRecognition; let rec; function startAutoListen(){ if(!rec)return; try{rec.start();}catch{} }
 if(SR){ rec=new SR(); rec.continuous=false; rec.interimResults=false; rec.onstart=()=>{ if(!pendingConfirmation)state('listening'); }; rec.onresult=e=>send(e.results[0][0].transcript); rec.onend=()=>{ if(!pendingConfirmation)state('idle'); }; $('#talk').onmousedown=()=>rec.start(); $('#talk').onmouseup=()=>rec.stop(); } else { $('#talk').disabled=true; $('#talk').textContent='Speech unavailable'; }
 ensureConversation();
+fetch('/api/paypal-mode').then(r=>r.ok?r.json():Promise.reject(new Error(`HTTP ${r.status}`))).then(m=>{ $('#paypalMode').textContent=m.label; note('paypal_mode',m); }).catch(e=>{ $('#paypalMode').textContent='PayPal: mode unavailable'; note('paypal_mode',{error:String(e?.message||e)}); });

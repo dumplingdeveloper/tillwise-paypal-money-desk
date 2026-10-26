@@ -226,17 +226,20 @@ test('LIVE AG Studio Money Desk: prompts typed into the AI panel build real widg
       assert.deepEqual(unsourced, [], `every € / % figure in the reply must appear in the paypal_refund_anomaly output`);
       assert.ok(result.turnText.includes(data.breakdowns.product[0].key) || result.turnText.includes(data.breakdowns.reason[0].key), 'the reply names the top product or reason from the data');
       for (const [id, widget] of Object.entries(result.added)) {
-        assert.ok(fieldIds(widget).some((f) => f.startsWith('refunds.')), `anomaly widget ${id} should read refunds: ${fieldIds(widget).join(', ')}`);
+        assert.ok(fieldIds(widget).some((f) => /^(recent_)?refunds\./.test(f)), `anomaly widget ${id} should read refunds: ${fieldIds(widget).join(', ')}`);
         assertFullWidth('anomaly', id, result.after);
       }
       // The drill-down chart must show the spike against the days before it: a refunds time axis with several categories
       // (Studio's own density check reports how many it plots), not a single bar for the spike window.
-      const timeline = Object.entries(result.added).find(([, w]) => (w.dataMapping?.categoryKey || []).some((f) => /^refunds\.(date|refunded_at)(::|$)/.test(f.id)));
+      const timeline = Object.entries(result.added).find(([, w]) => (w.dataMapping?.categoryKey || []).some((f) => /^(recent_)?refunds\.(date|refunded_at)(::|$)/.test(f.id)));
       assert.ok(timeline, `the anomaly answer should add a refunds-over-time chart: ${JSON.stringify(Object.fromEntries(Object.entries(result.added).map(([id, w]) => [id, w.dataMapping])))}`);
       const health = await page.evaluate(async (id) => (await (window as any).__moneyDesk.studioApi.getAiContext().health.widget(id)).issues.map((i: { code: string; description: string }) => `${i.code}: ${i.description}`), timeline[0]);
       const plotted = Number(/category_density: (\d+) categories/.exec(health.join('\n'))?.[1] || 0);
       console.log(`MONEY_DESK_LIVE anomaly timeline=${timeline[0]} plottedCategories=${plotted} health=${JSON.stringify(health)}`);
       assert.ok(plotted >= 2, `the drill-down chart should plot several days, got ${plotted}: ${health.join(' | ')}`);
+      // ...and no more than the 14 days of the tool's daily series (the M5 draft video showed a "last 14 days" chart over all 45 days).
+      const refundDays = (data as unknown as { daily: Array<{ refunds: number }> }).daily.filter((d) => d.refunds > 0).length;
+      assert.ok(plotted <= refundDays, `the drill-down chart should cover only the last 14 days (${refundDays} refund days), got ${plotted}: ${health.join(' | ')}`);
       assertCanvasPolish('anomaly', geometry);
     }
 
