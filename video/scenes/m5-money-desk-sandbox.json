@@ -1,0 +1,132 @@
+{
+  "projectName": "Tillwise × PayPal",
+  "tagline": "For small WooCommerce shops on PayPal: refunds, disputes and unpaid invoices in one conversation, and no money moves without the owner’s yes.",
+  "introNote": "PayPal runs on the real PayPal sandbox in this video (PayPal's public default sandbox app). The Money Desk analytics use labelled mock data.",
+  "github": "",
+  "subtitleBandHeight": 140,
+  "dynamicWordsPerAsk": 28,
+  "tailMs": 1600,
+  "maxSilenceMs": 5000,
+  "selectors": {
+    "input": "#text",
+    "send": "#send",
+    "confirm": ".confirm:not(.hidden)",
+    "hood": "#hoodToggle"
+  },
+  "steps": [
+    {
+      "action": "goto",
+      "url": "/?demo=1",
+      "waitUntil": "load"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#text",
+      "timeout": 20000
+    },
+    {
+      "action": "say",
+      "voice": "NARRATOR",
+      "text": "If you run a small WooCommerce shop on PayPal, refunds, disputes and unpaid invoices sit in separate screens, and one wrong refund costs real money. Tillwise is a store agent you simply talk to. It shows you the numbers, and it moves money only after you confirm. Here, refunds go to the real PayPal sandbox."
+    },
+    {
+      "action": "ask",
+      "text": "Refund order {{ORDER_ID}}.",
+      "voice": "OWNER",
+      "timeout": 60000
+    },
+    {
+      "action": "say",
+      "voice": "NARRATOR",
+      "text": "Money never moves on a guess. The refund is previewed first, and when the owner says go ahead, the host asks once more before the PayPal call is made."
+    },
+    {
+      "action": "ask",
+      "text": "Yes, go ahead.",
+      "voice": "OWNER",
+      "timeout": 60000
+    },
+    {
+      "action": "confirm",
+      "text": "Yes.",
+      "timeout": 60000
+    },
+    {
+      "action": "openHood",
+      "selector": "#hoodToggle",
+      "waitMs": 800
+    },
+    {
+      "action": "say",
+      "voice": "NARRATOR",
+      "text": "Under the hood, every MCP tool call is visible: the preview, the confirmation, then the refund call to the PayPal sandbox, and its audit row with PayPal's refund ID."
+    },
+    {
+      "action": "goto",
+      "url": "/money-desk.html",
+      "waitUntil": "load"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#myStudio .tw-refund-rate",
+      "timeout": 30000
+    },
+    {
+      "action": "say",
+      "voice": "NARRATOR",
+      "text": "This is the Money Desk, built inside AG Studio. The grid at the top is live: every PayPal sandbox object Tillwise created, with the refund we just made at the top. Below it, built-in charts sit next to three custom widgets: refund rate, who still owes us, and dispute deadlines. Those analytics run on a labelled mock ledger."
+    },
+    {
+      "action": "type",
+      "selector": "#myStudio textarea[aria-label=\"Message input\"]",
+      "text": "Why are refunds spiking?",
+      "delayMs": 45
+    },
+    {
+      "action": "say",
+      "voice": "OWNER",
+      "text": "Why are refunds spiking?"
+    },
+    {
+      "action": "click",
+      "selector": "#myStudio [aria-label=\"Send message\"]"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#myStudio .ag-studio-layout-canvas .ag-studio-layout-widget >> nth=8",
+      "timeout": 90000
+    },
+    {
+      "action": "scrollTo",
+      "selector": "#myStudio .ag-studio-layout-canvas .ag-studio-layout-widget >> nth=8",
+      "block": "center",
+      "waitMs": 1200
+    },
+    {
+      "action": "say",
+      "voice": "NARRATOR",
+      "text": "Studio's AI panel runs on the GitHub Copilot SDK. The model reads a read-only refund anomaly tool on that mock ledger, quotes its figures, and adds a chart of refunds per day by reason, so the damaged mug shipments stand out against the week before."
+    },
+    {
+      "action": "pause",
+      "ms": 2000
+    },
+    {
+      "action": "say",
+      "voice": "NARRATOR",
+      "text": "The Studio agent is read-only: it has no tool that moves money. Refunds happen only in the voice flow, after a preview and the owner’s yes."
+    },
+    {
+      "action": "say",
+      "voice": "NARRATOR",
+      "text": "Tillwise and PayPal. Talk to your shop, see your money, and stay in control of every refund."
+    },
+    {
+      "action": "pause",
+      "ms": 1000
+    }
+  ],
+  "cardEyebrow": "PayPal AI Hackathon · real PayPal sandbox",
+  "outroSub": "Talk to your shop, see your money, confirm every refund.",
+  "outroNote": "The refund ran on the real PayPal sandbox (PayPal's public default sandbox credentials). Money Desk analytics use a labelled mock ledger. The Alexa+ experience simulator is an unofficial demo, not an Amazon product."
+}
