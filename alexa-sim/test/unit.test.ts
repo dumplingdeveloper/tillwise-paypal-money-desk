@@ -6,7 +6,7 @@ import { mapSessionEvent, sanitizePlainText } from '../src/eventMapper.js';
 import { cardFromStructured } from '../src/cards.js';
 import { assertAllowedLogin } from '../src/env.js';
 import { checkHostOrigin, isJsonContentType } from '../src/server.js';
-import { buildSessionConfig, finalFromSendResult, upcomingWeekdayDates } from '../src/copilotAgent.js';
+import { buildSessionConfig, confirmationQuestion, finalFromSendResult, upcomingWeekdayDates } from '../src/copilotAgent.js';
 
 function mcp(toolName: string) {
   return { kind: 'mcp', serverName: 'tillwise', toolName, args: {}, readOnly: AUTO_APPROVED_TOOLS.has(toolName), toolTitle: toolName } as never;
@@ -190,4 +190,23 @@ test('low-stock card shows up to 10 rows and then a more row', () => {
   assert.equal(card?.rows?.length, 11);
   assert.equal(card?.rows?.[9].product, 'Item 10');
   assert.equal(card?.rows?.[10].product, '+2 more');
+});
+
+test('the host asks a plain-language question for each human-gated PayPal tool', () => {
+  const previews = new Map<string, Record<string, unknown>>([
+    ['p-refund', { data: { preview_id: 'p-refund', order_id: 360, amount: '31.00', currency: 'EUR' } }],
+    ['p-invoice', { data: { preview_id: 'p-invoice', total: '220.00', currency: 'EUR', recipient_email: 'billing@corkoffice.example.test' } }],
+    ['p-dispute', { data: { preview_id: 'p-dispute', dispute_id: 'PP-D-MOCK-1', amount: '18.00', currency: 'EUR' } }],
+  ]);
+  const ask = (tool: string, args: Record<string, unknown>) => confirmationQuestion(tool, args, previews)?.question;
+  assert.equal(ask('paypal_refund_apply', { preview_id: 'p-refund' }), 'Refund €31.00 for order 360 through PayPal?');
+  assert.equal(ask('paypal_invoice_create_apply', { preview_id: 'p-invoice' }), 'Create a PayPal invoice draft for €220.00 to billing@corkoffice.example.test?');
+  assert.equal(ask('paypal_invoice_send_apply', { invoice_id: 'INV2-MOCK-1' }), 'Send PayPal invoice INV2-MOCK-1 to its recipient?');
+  assert.equal(ask('paypal_tracking_add_apply', { order_id: 360, carrier: 'AN_POST', tracking_number: 'CE123' }), 'Add AN_POST tracking CE123 to order 360 in PayPal?');
+  assert.equal(ask('paypal_dispute_accept_claim_apply', { preview_id: 'p-dispute' }), 'Accept PayPal dispute PP-D-MOCK-1 and let PayPal refund €18.00 to the buyer?');
+  // Without a matching preview the question still names no tool id and invents no amount.
+  assert.equal(ask('paypal_refund_apply', { preview_id: 'unknown' }), 'Apply the previewed PayPal refund?');
+  for (const tool of ['paypal_refund_apply', 'paypal_invoice_create_apply', 'paypal_invoice_send_apply', 'paypal_tracking_add_apply', 'paypal_dispute_accept_claim_apply']) {
+    assert.doesNotMatch(String(ask(tool, {})), /_apply|paypal refund apply/);
+  }
 });

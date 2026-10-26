@@ -138,6 +138,25 @@ function confirmationFor(toolName: string, args: unknown, state: ToolState): Con
     return { question: 'Undo the last applied price change and restore the previous prices?', summary: 'Undo price change', card: { type: 'confirmation', action: 'undo', question: 'Undo the last applied price change?' } };
   }
   if (toolName === 'guardrails_update') return { question: 'Update the store guardrails?', summary: 'Guardrail update', card: { type: 'confirmation', action: 'guardrails', question: 'Update guardrails?' } };
+  return paypalConfirmation(toolName, a, state);
+}
+
+/** Plain-language host questions for the human-gated PayPal tools, built from the MCP preview the model is applying. */
+function paypalConfirmation(toolName: string, a: Record<string, unknown>, state: ToolState): ConfirmationView | undefined {
+  const preview = state.previews.get(String(a.preview_id || ''))?.data as Record<string, unknown> | undefined;
+  const eur = (key = 'amount') => money(preview?.[key], String(preview?.currency || 'EUR'));
+  const view = (question: string, summary: string, action: string) => ({ question, summary, card: { type: 'confirmation', action, question } });
+  if (toolName === 'paypal_refund_apply') return view(preview ? `Refund ${eur()} for order ${preview.order_id} through PayPal?` : 'Apply the previewed PayPal refund?', 'PayPal refund', 'paypal-refund');
+  if (toolName === 'paypal_invoice_create_apply') return view(preview ? `Create a PayPal invoice draft for ${eur('total')} to ${preview.recipient_email}?` : 'Create the previewed PayPal invoice draft?', 'PayPal invoice draft', 'paypal-invoice-create');
+  if (toolName === 'paypal_invoice_send_apply') return view(a.invoice_id ? `Send PayPal invoice ${a.invoice_id} to its recipient?` : 'Send the PayPal invoice to its recipient?', 'Send PayPal invoice', 'paypal-invoice-send');
+  if (toolName === 'paypal_tracking_add_apply') return view(a.tracking_number && a.order_id ? `Add ${a.carrier || 'carrier'} tracking ${a.tracking_number} to order ${a.order_id} in PayPal?` : 'Add this shipment tracking in PayPal?', 'PayPal shipment tracking', 'paypal-tracking');
+  if (toolName === 'paypal_dispute_accept_claim_apply') return view(preview ? `Accept PayPal dispute ${preview.dispute_id} and let PayPal refund ${eur()} to the buyer?` : 'Accept the previewed PayPal dispute claim?', 'Accept PayPal dispute', 'paypal-dispute-accept');
+  return undefined;
+}
+
+/** Exported for unit tests: the host question shown and spoken before a human-gated tool runs. */
+export function confirmationQuestion(toolName: string, args: unknown, previews: ToolState['previews'] = new Map()) {
+  return confirmationFor(toolName, args, { calls: new Map(), previews });
 }
 
 export function buildSessionConfig(params: {
