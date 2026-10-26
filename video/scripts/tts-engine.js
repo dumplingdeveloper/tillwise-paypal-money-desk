@@ -2,6 +2,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { KokoroTTS, env } from 'kokoro-js';
 import { CACHE_DIR, MODEL_ID, VOICES, clipPath, ensureDirs, wavDurationSeconds } from './common.js';
+import { speakableText } from './speakable.js';
 
 let modelPromise;
 
@@ -21,7 +22,7 @@ export async function ensureClip(voiceRole, text) {
   const file = clipPath(voiceRole, text);
   if (!fs.existsSync(file)) {
     const tts = await getTts();
-    const audio = await tts.generate(text, { voice: VOICES[voiceRole] });
+    const audio = await tts.generate(speakableText(text), { voice: VOICES[voiceRole] });
     await audio.save(file);
   }
   return { file, durationSeconds: wavDurationSeconds(file), voiceName: VOICES[voiceRole] };

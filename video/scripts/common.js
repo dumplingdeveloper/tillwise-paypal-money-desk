@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { speakableText } from './speakable.js';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const CACHE_DIR = path.join(ROOT, '.cache');
@@ -44,7 +45,8 @@ export function readScene(scenePath) {
 }
 
 export function clipId(voiceRole, text) {
-  return crypto.createHash('sha256').update(`${voiceRole}\0${VOICES[voiceRole] || voiceRole}\0${text}`).digest('hex').slice(0, 20);
+  // Keyed on the spoken form, so a change in speakableText() regenerates the affected clips.
+  return crypto.createHash('sha256').update(`${voiceRole}\0${VOICES[voiceRole] || voiceRole}\0${speakableText(text)}`).digest('hex').slice(0, 20);
 }
 
 export function clipPath(voiceRole, text) {

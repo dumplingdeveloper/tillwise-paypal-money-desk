@@ -3,6 +3,7 @@ import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { KokoroTTS, env } from 'kokoro-js';
 import { AUDIO_DIR, CACHE_DIR, HF_MODEL_API, MODEL_ID, OUT_DIR, VOICES, clipId, collectSayLines, ensureDirs, parseArgs, readScene, rel } from './common.js';
+import { speakableText } from './speakable.js';
 
 const PERMISSIVE = new Set(['apache-2.0', 'mit', 'bsd-2-clause', 'bsd-3-clause', 'isc', 'cc0-1.0']);
 
@@ -84,7 +85,7 @@ async function main() {
       continue;
     }
     const start = performance.now();
-    const audio = await tts.generate(line.text, { voice: line.voiceName });
+    const audio = await tts.generate(speakableText(line.text), { voice: line.voiceName });
     await audio.save(line.path);
     const seconds = (performance.now() - start) / 1000;
     const dur = wavDurationSeconds(line.path);
@@ -103,7 +104,7 @@ async function main() {
     uncachedGenerationSeconds: genSeconds,
     uncachedRealtimeFactor: audioSeconds ? genSeconds / audioSeconds : 0,
     cacheDir: rel(CACHE_DIR),
-    clips: generated.map(g => ({ index: g.index, id: g.id, voice: g.voice, voiceName: g.voiceName, text: g.text, path: rel(g.path), cached: g.cached, durationSeconds: g.durationSeconds, generationSeconds: g.generationSeconds, realtimeFactor: g.realtimeFactor }))
+    clips: generated.map(g => ({ index: g.index, id: g.id, voice: g.voice, voiceName: g.voiceName, text: g.text, spokenText: speakableText(g.text), path: rel(g.path), cached: g.cached, durationSeconds: g.durationSeconds, generationSeconds: g.generationSeconds, realtimeFactor: g.realtimeFactor }))
   };
   fs.writeFileSync(path.join(OUT_DIR, 'tts-report.json'), JSON.stringify(report, null, 2));
   console.log(`TTS report: ${rel(path.join(OUT_DIR, 'tts-report.json'))}`);

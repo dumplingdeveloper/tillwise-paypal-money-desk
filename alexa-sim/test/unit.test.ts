@@ -210,3 +210,17 @@ test('the host asks a plain-language question for each human-gated PayPal tool',
     assert.doesNotMatch(String(ask(tool, {})), /_apply|paypal refund apply/);
   }
 });
+
+test('the voice sim speaks money as words with the same helper as the video pipeline', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { resolve } = await import('node:path');
+  const { pathToFileURL } = await import('node:url');
+  const { PUBLIC_DIR, PROJECT_ROOT } = await import('../src/config.js');
+  const browserCopy = resolve(PUBLIC_DIR, 'speakable.js');
+  assert.equal(readFileSync(browserCopy, 'utf8'), readFileSync(resolve(PROJECT_ROOT, 'video', 'scripts', 'speakable.js'), 'utf8'), 'alexa-sim/public/speakable.js must stay identical to video/scripts/speakable.js');
+  const { speakableText } = await import(pathToFileURL(browserCopy).href) as { speakableText: (t: string) => string };
+  assert.equal(speakableText('Refund of EUR 31 for order 360 completed.'), 'Refund of 31 euros for order 360 completed.');
+  const app = readFileSync(resolve(PUBLIC_DIR, 'app.js'), 'utf8');
+  assert.ok(app.startsWith("import { speakableText } from '/speakable.js';"));
+  assert.ok(app.includes('new SpeechSynthesisUtterance(speakableText(text))'), 'browser TTS speaks the speakable form; the transcript keeps the original');
+});
