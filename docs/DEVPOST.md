@@ -160,7 +160,7 @@ Built for the PayPal AI Hackathon, from `git log` (short hash, author date):
 | `3ffda79`, `7180693`, `2319ee1`, `210b844` | 2026-10-26 | Real PayPal sandbox: call counting, run tags, live activity grid, `LIVE_PAYPAL` voice-refund test, judge path A/B |
 | `3568bc9`, `de2d913`, `8c5e0c8` | 2026-10-26 | Sandbox video scene; Transaction Search facts |
 | `cf15710`, `159b2a6`, `d27eb7d` | 2026-10-27 | PayPal response/debug-id log; one sandbox activity cache per server (fixes a stale Money Desk after a voice refund); "Real PayPal sandbox" grid title |
-| `289bae2` and the final-take commit | 2026-10-27 | Sandbox video: the scene waits for the revenue chart and scrolls to the widgets it names; final take, frames, chapters, Devpost gallery from the same run |
+| `289bae2`, `4893ff4` | 2026-10-27 | Sandbox video: the scene waits for the revenue chart and scrolls to the widgets it names; final take, frames, chapters, Devpost gallery from the same run |
 
 All PayPal code (`mcp-server/src/paypal/`, the PayPal abilities in the WordPress plugin) and all AG Studio code (`alexa-sim/public/money-desk*.js`, `alexa-sim/src/studioBridge.ts`, `alexa-sim/src/moneyDesk.ts`, `alexa-sim/src/paypalMcp.ts`) are new in this period.
 
