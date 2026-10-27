@@ -54,10 +54,11 @@ A one-person WooCommerce shop that takes PayPal payments spreads its money quest
 - `alexa-sim/` is the browser voice/text simulator and the GitHub Copilot SDK (`@github/copilot-sdk`) runtime, plus:
   - the Money Desk page, which runs on AG Studio 3.0.0;
   - the Studio bridge, `alexa-sim/src/studioBridge.ts`, which uses parked promises per tool call, honours aborts, emits `RUN_ERROR` instead of throwing, and expires idle sessions.
-- Tests:
-  - `mcp-server npm test`: 31 tests;
-  - `alexa-sim npm test`: 44 tests, of which 36 pass and 8 are gated live tests that are skipped;
-  - PHP integration tests: 80/80;
+- Tests (counts measured 2026-10-27):
+  - `mcp-server npm test`: 54/54;
+  - `alexa-sim npm test`: 50 tests, of which 41 pass and 9 are gated live tests that are skipped;
+  - `video npm test`: 7/7;
+  - PHP integration tests: 80/80 (2026-10-25; the plugin has not changed since);
   - a live acceptance test, `alexa-sim/test/moneyDeskLive.test.ts`, which types each prompt into Studio's panel and checks `studioApi.getState()` before and after.
 
 ### AG Grid / AG Studio usage (for "Best Use of AG Grid")

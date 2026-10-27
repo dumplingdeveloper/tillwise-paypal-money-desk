@@ -1,8 +1,13 @@
-# Tillwise Store Agent
+# Tillwise × PayPal
 
-Tillwise Store Agent is an Alexa+ track hackathon project for WooCommerce store owners. It exposes safe, stateful store operations through WordPress Abilities, a self-hosted MCP server over Streamable HTTP, Agent Skills, and an unofficial browser-based Alexa+ experience simulator.
+A voice store agent for small WooCommerce shops on PayPal. It reads PayPal money, explains refund spikes on an AG Studio Money Desk, and never moves money without a preview and the owner's "yes". Built for the PayPal AI Hackathon on Devpost.
 
-Phase B adds the PayPal AI Hackathon fork, “Tillwise × PayPal”: the same safety model now wraps PayPal sandbox money tools in mock-first mode, with explicit confirmation before any mutation.
+- **Real PayPal sandbox:** the voice flow's money tools (refund, invoice create/send, tracking, dispute accept) call `api-m.sandbox.paypal.com` as preview → owner confirmation → apply, with an audit row in WordPress. The refund is verified end to end on the sandbox; the other three use the same client but have not been run live (`docs/FACTS_PAYPAL_SANDBOX.md`). The Money Desk grid "Real PayPal sandbox · objects Tillwise created" reads those objects back from PayPal.
+- **Mock data, labelled "· mock data" on every widget:** the Money Desk analytics (KPIs, revenue chart, refund rate, who still owes us, disputes, the refund drill-down). On the shared public sandbox app, Transaction Search returns other users' traffic, so the analytics run on a deterministic mock ledger. Details: `docs/DEVPOST.md` → "PayPal integration and mock vs sandbox".
+- **Two agents, both on the GitHub Copilot SDK:** the voice agent can move money only through the gated tools; the AG Studio AI panel agent is read-only.
+- **Devpost write-up:** `docs/DEVPOST.md`. To run it yourself, see "Judge quick start" below (mock mode by default; no PayPal account needed).
+
+This repository started as "Tillwise Store Agent", an Alexa+ track hackathon project for WooCommerce store owners: safe, stateful store operations through WordPress Abilities, a self-hosted MCP server over Streamable HTTP, Agent Skills, and an unofficial browser-based Alexa+ experience simulator. The PayPal money tools, the AG Studio Money Desk and the Copilot SDK Studio bridge were added during the PayPal AI Hackathon; `docs/DEVPOST.md` → "New vs existing" lists those commits.
 
 ## Architecture
 
