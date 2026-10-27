@@ -77,7 +77,10 @@ export class PayPalService {
     // PAYPAL_LEDGER=sandbox computes them from Transaction Search instead (own app only).
     const ledger = env.PAYPAL_LEDGER || 'mock';
     if (ledger !== 'mock' && ledger !== 'sandbox') throw new Error('PAYPAL_LEDGER must be mock or sandbox.');
-    return new PayPalService(wp, new LivePayPalClient(creds), { analytics: ledger === 'mock' ? new MockPayPalClient() : null });
+    // TILLWISE_SANDBOX_ACTIVITY_TTL_MS: how long the by-id read of our own sandbox objects is cached (default 20 s;
+    // money-moving applies invalidate it at once). Longer values spare a shared app during recordings.
+    const ttl = Number(env.TILLWISE_SANDBOX_ACTIVITY_TTL_MS);
+    return new PayPalService(wp, new LivePayPalClient(creds), { analytics: ledger === 'mock' ? new MockPayPalClient() : null, ...(Number.isFinite(ttl) && ttl > 0 ? { activityTtlMs: ttl } : {}) });
   }
 
   private preview(kind: string, payload: Record<string, unknown>): Preview {
