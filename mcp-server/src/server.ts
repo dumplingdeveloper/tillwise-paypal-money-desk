@@ -8,7 +8,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { LATEST_PROTOCOL_VERSION, isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { WpAbilityClient } from './wpClient.js';
 import { registerTillwiseTools } from './tools.js';
-import { PayPalService } from './paypal/service.js';
+import { PayPalService, type SharedActivityCache } from './paypal/service.js';
 import { registerPayPalTools } from './paypal/tools.js';
 import { installPayPalCallLog } from './paypal/callLog.js';
 
@@ -35,10 +35,12 @@ function readBody(req: IncomingMessage): Promise<unknown> {
   });
 }
 
-export function createServer(wp: Pick<WpAbilityClient, 'run'>, env: Env = process.env) {
+// `activityShared` is one object per HTTP server: every MCP session's PayPalService reads the same sandbox activity
+// cache, so a refund applied in the voice session is not hidden from the Money Desk session by a stale entry.
+export function createServer(wp: Pick<WpAbilityClient, 'run'>, env: Env = process.env, activityShared?: SharedActivityCache) {
   const server = new McpServer({ name: 'tillwise-store-agent', version: '0.1.0' });
   registerTillwiseTools(server, wp);
-  registerPayPalTools(server, PayPalService.fromEnv(wp, env));
+  registerPayPalTools(server, PayPalService.fromEnv(wp, env, activityShared));
 
   const root = dirname(dirname(fileURLToPath(import.meta.url)));
   for (const skillName of ['woocommerce-safe-price-changes', 'woocommerce-daily-briefing']) {
@@ -69,6 +71,7 @@ export async function startHttpServer(env: Env = process.env) {
   const host = env.MCP_HOST || '127.0.0.1';
   const port = Number(env.MCP_PORT || '3338');
   const wp = new WpAbilityClient(env.WP_BASE_URL || 'http://127.0.0.1:8098', env.WP_USERNAME || 'shopmanager', env.WP_APPLICATION_PASSWORD || '');
+  const activityShared: SharedActivityCache = {};
   const transports = new Map<string, StreamableHTTPServerTransport>();
   const sessions = new Map<string, NegotiatedSession>();
 
@@ -125,7 +128,7 @@ export async function startHttpServer(env: Env = process.env) {
             return;
           }
           transport = makeTransport();
-          const mcp = createServer(wp, env);
+          const mcp = createServer(wp, env, activityShared);
           await mcp.connect(transport);
         }
         if (init) {

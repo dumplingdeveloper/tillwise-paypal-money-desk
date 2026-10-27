@@ -126,6 +126,24 @@ test('sandbox mode refuses a refund preview for a Woo order without a real linke
   assert.equal(loads, 2, 'a refund invalidates the cache so the Money Desk shows it at once');
 });
 
+test('sandbox activity: a refund applied in one MCP session invalidates the cache another session reads (shared per server)', async () => {
+  let loads = 0;
+  const live = fakeLive([]);
+  const activityShared = {};
+  const activity = async () => { loads += 1; return activityFrom(live)(); };
+  // One service per MCP session, as createServer builds them; a long TTL so only invalidation can force a reload.
+  const voice = new PayPalService(fakeWp('CAPWOO'), live, { analytics: new MockPayPalClient(), activity, activityShared, activityTtlMs: 15 * 60_000 });
+  const desk = new PayPalService(fakeWp('CAPWOO'), live, { analytics: new MockPayPalClient(), activity, activityShared, activityTtlMs: 15 * 60_000 });
+  await desk.ledgerExport({});
+  await voice.ledgerExport({});
+  assert.equal(loads, 1, 'both sessions share one cached read');
+  const preview = await voice.refundPreview({ order_id: 416 });
+  await voice.refundApply({ preview_id: String(preview.data.preview_id) });
+  await desk.ledgerExport({});
+  assert.equal(loads, 2, 'the Money Desk session re-reads after the voice session refunded');
+  await assert.rejects(desk.refundApply({ preview_id: String(preview.data.preview_id) }), 'previews stay per session');
+});
+
 test('readSeedManifest reads the seed manifest path from TILLWISE_PAYPAL_SEED_MANIFEST and tolerates a missing file', () => {
   const dir = mkdtempSync(join(tmpdir(), 'tw-manifest-'));
   const path = join(dir, 'm.json');

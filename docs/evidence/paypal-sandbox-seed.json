@@ -6,7 +6,7 @@
     {
       "step": "oauth token",
       "ok": true,
-      "detail": "access token issued, expires in 31469s"
+      "detail": "access token issued, expires in 30958s"
     },
     {
       "step": "capture TW-DEMO-FWFMVM-CAP-01 (Retail, Aoife Byrne)",
@@ -34,14 +34,14 @@
       "detail": "already exists: INV2-R8BR-T37A-MD59-WJ3U status UNPAID (EUR 180.00, sent with send_to_recipient=false)"
     },
     {
-      "step": "capture for Woo order 472",
+      "step": "capture for Woo order 474",
       "ok": true,
-      "detail": "created via card: order 3HB851226J4458101, capture 01U40313L4797293A COMPLETED EUR 31.00"
+      "detail": "created via card: order 2WA29940028880628, capture 3KH53287DG893982N COMPLETED EUR 39.00"
     },
     {
-      "step": "link Woo order 472",
+      "step": "link Woo order 474",
       "ok": true,
-      "detail": "Woo order 472 now points at sandbox capture 01U40313L4797293A (EUR 31.00); audited as paypal_sandbox_seed"
+      "detail": "Woo order 474 now points at sandbox capture 3KH53287DG893982N (EUR 39.00); audited as paypal_sandbox_seed"
     }
   ],
   "manifest": {
@@ -86,6 +86,15 @@
         "capture_status": "COMPLETED",
         "woo_order_id": 472,
         "linked": true
+      },
+      "TW-DEMO-FWFMVM-WOO-474-3900": {
+        "order_id": "2WA29940028880628",
+        "status": "COMPLETED",
+        "amount": "39.00",
+        "capture_id": "3KH53287DG893982N",
+        "capture_status": "COMPLETED",
+        "woo_order_id": 474,
+        "linked": true
       }
     },
     "invoices": {
@@ -104,8 +113,8 @@
       }
     },
     "run_tag": "FWFMVM",
-    "updated_at": "2026-10-26T14:15:40.796Z"
+    "updated_at": "2026-10-27T21:24:11.826Z"
   },
-  "startedAt": "2026-10-26T14:15:32.250Z",
-  "finishedAt": "2026-10-26T14:15:40.796Z"
+  "startedAt": "2026-10-27T21:24:03.675Z",
+  "finishedAt": "2026-10-27T21:24:11.827Z"
 }

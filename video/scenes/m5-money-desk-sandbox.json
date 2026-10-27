@@ -2,11 +2,11 @@
   "projectName": "Tillwise × PayPal",
   "tagline": "For small WooCommerce shops on PayPal: refunds, disputes and unpaid invoices in one conversation, and no money moves without the owner’s yes.",
   "introNote": "PayPal runs on the real PayPal sandbox in this video (PayPal's public default sandbox app). The Money Desk analytics use labelled mock data.",
-  "github": "",
+  "github": "https://github.com/dumplingdeveloper/tillwise-paypal-money-desk",
   "subtitleBandHeight": 140,
   "dynamicWordsPerAsk": 28,
   "tailMs": 1600,
-  "maxSilenceMs": 5000,
+  "maxSilenceMs": 4000,
   "selectors": {
     "input": "#text",
     "send": "#send",
@@ -59,7 +59,7 @@
     {
       "action": "say",
       "voice": "NARRATOR",
-      "text": "Under the hood, every MCP tool call is visible: the preview, the confirmation, then the refund call to the PayPal sandbox, and its audit row with PayPal's refund ID."
+      "text": "Under the hood, every step is logged with its timing: the refund preview, the owner's voice confirmation, then the refund call to the PayPal sandbox."
     },
     {
       "action": "goto",
@@ -127,6 +127,6 @@
     }
   ],
   "cardEyebrow": "PayPal AI Hackathon · real PayPal sandbox",
-  "outroSub": "Talk to your shop, see your money, confirm every refund.",
+  "outroSub": "Talk to your shop, see your money, confirm every refund.<br>github.com/dumplingdeveloper/tillwise-paypal-money-desk",
   "outroNote": "The refund ran on the real PayPal sandbox (PayPal's public default sandbox credentials). Money Desk analytics use a labelled mock ledger. The Alexa+ experience simulator is an unofficial demo, not an Amazon product."
 }

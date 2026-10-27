@@ -25,9 +25,13 @@ type ServiceOptions = {
   /** Sandbox mode: the live rows of objects Tillwise created (default: read by id via the seed manifest). */
   activity?: () => Promise<SandboxActivity>;
   activityTtlMs?: number;
+  /** Shared between the per-session services of one MCP server, so an apply in one session invalidates every reader. */
+  activityShared?: SharedActivityCache;
 };
 
 type OrderContext = { order: { id: number; total: number; currency: string; billing_email?: string; items?: Array<{ name: string; quantity: number; total: number }> }; paypal: { paypal_capture_id?: string; paypal_order_id?: string; paypal_invoice_id?: string } };
+
+export type SharedActivityCache = { entry?: { at: number; value: Promise<SandboxActivity> } };
 
 export class PayPalService {
   private previews = new Map<string, Preview>();
@@ -36,7 +40,7 @@ export class PayPalService {
   private readonly analytics: Pick<PayPalClient, 'ledger'> | null;
   private readonly activityLoader: (() => Promise<SandboxActivity>) | null;
   private readonly activityTtlMs: number;
-  private activityCache?: { at: number; value: Promise<SandboxActivity> };
+  private readonly activityShared: SharedActivityCache;
   constructor(private readonly wp: Pick<WpAbilityClient, 'run'>, private readonly client: PayPalClient, options: ServiceOptions = {}) {
     this.previewTtlMs = options.previewTtlMs ?? 10 * 60 * 1000;
     this.now = options.now ?? (() => Date.now());
@@ -44,19 +48,22 @@ export class PayPalService {
     const live = client.getOrder && client.getInvoice ? { getOrder: client.getOrder.bind(client), getInvoice: client.getInvoice.bind(client) } : null;
     this.activityLoader = options.activity ?? (client.mode === 'sandbox' && live ? () => loadSandboxActivity(live, readSeedManifest()) : null);
     this.activityTtlMs = options.activityTtlMs ?? 20_000;
+    this.activityShared = options.activityShared ?? {};
   }
 
   /** Live sandbox rows (cached briefly: the Money Desk, the badge and the agent may all ask within seconds). Null in mock mode. */
   private sandboxActivity(): Promise<SandboxActivity> | null {
     if (!this.activityLoader) return null;
-    if (!this.activityCache || this.now() - this.activityCache.at > this.activityTtlMs) {
+    const shared = this.activityShared;
+    if (!shared.entry || this.now() - shared.entry.at > this.activityTtlMs) {
       const value = this.activityLoader();
-      value.catch(() => { this.activityCache = undefined; });
-      this.activityCache = { at: this.now(), value };
+      const entry = { at: this.now(), value };
+      value.catch(() => { if (shared.entry === entry) shared.entry = undefined; });
+      shared.entry = entry;
     }
-    return this.activityCache.value;
+    return shared.entry.value;
   }
-  private invalidateActivity() { this.activityCache = undefined; }
+  private invalidateActivity() { this.activityShared.entry = undefined; }
   private async sandboxApp() { return this.client.appId ? sandboxAppLabel(await this.client.appId()) : null; }
   /** On the shared sandbox app most disputes belong to other users: only disputes on our own captures are shown or acted on. */
   private async ownedDisputes(disputes: PayPalDispute[]): Promise<{ disputes: PayPalDispute[]; hidden: number }> {
@@ -66,7 +73,7 @@ export class PayPalService {
     return { disputes: owned, hidden: disputes.length - owned.length };
   }
 
-  static fromEnv(wp: Pick<WpAbilityClient, 'run'>, env: Record<string, string | undefined> = process.env) {
+  static fromEnv(wp: Pick<WpAbilityClient, 'run'>, env: Record<string, string | undefined> = process.env, activityShared?: SharedActivityCache) {
     const creds = readSandboxCredentials();
     const mode = env.PAYPAL_MODE || (creds ? 'sandbox' : 'mock');
     if (mode !== 'mock' && mode !== 'sandbox') throw new Error('PAYPAL_MODE must be mock or sandbox.');
@@ -80,7 +87,7 @@ export class PayPalService {
     // TILLWISE_SANDBOX_ACTIVITY_TTL_MS: how long the by-id read of our own sandbox objects is cached (default 20 s;
     // money-moving applies invalidate it at once). Longer values spare a shared app during recordings.
     const ttl = Number(env.TILLWISE_SANDBOX_ACTIVITY_TTL_MS);
-    return new PayPalService(wp, new LivePayPalClient(creds), { analytics: ledger === 'mock' ? new MockPayPalClient() : null, ...(Number.isFinite(ttl) && ttl > 0 ? { activityTtlMs: ttl } : {}) });
+    return new PayPalService(wp, new LivePayPalClient(creds), { analytics: ledger === 'mock' ? new MockPayPalClient() : null, activityShared, ...(Number.isFinite(ttl) && ttl > 0 ? { activityTtlMs: ttl } : {}) });
   }
 
   private preview(kind: string, payload: Record<string, unknown>): Preview {
