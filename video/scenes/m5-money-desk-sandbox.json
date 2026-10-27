@@ -72,9 +72,25 @@
       "timeout": 30000
     },
     {
+      "action": "waitFor",
+      "selector": "#myStudio .ag-studio-layout-widget canvas >> nth=0",
+      "timeout": 60000
+    },
+    {
       "action": "say",
       "voice": "NARRATOR",
-      "text": "This is the Money Desk, built inside AG Studio. The grid at the top reads the real PayPal sandbox: every object Tillwise created, with the refund we just made at the top. Below it, built-in charts sit next to three custom widgets: refund rate, who still owes us, and dispute deadlines. Those analytics run on a labelled mock ledger."
+      "text": "This is the Money Desk, built inside AG Studio. The grid at the top reads the real PayPal sandbox: every object Tillwise created, with the refund we just made at the top."
+    },
+    {
+      "action": "scrollTo",
+      "selector": "#myStudio .tw-disputes",
+      "block": "end",
+      "waitMs": 1200
+    },
+    {
+      "action": "say",
+      "voice": "NARRATOR",
+      "text": "Below it, AG Studio's built-in tiles, chart and grid sit next to three custom widgets: refund rate, who still owes us, and dispute deadlines. Those analytics run on a labelled mock ledger."
     },
     {
       "action": "type",
@@ -105,7 +121,7 @@
     {
       "action": "say",
       "voice": "NARRATOR",
-      "text": "Studio's AI panel runs on the GitHub Copilot SDK. The model reads a read-only refund anomaly tool on that mock ledger, quotes its figures, and adds a chart of refunds per day by reason, so the damaged mug shipments stand out against the week before."
+      "text": "Studio's AI panel runs on the GitHub Copilot SDK. The model answers from the mock ledger with read-only tools, quotes its figures, and adds a chart of refunds per day by reason, so the damaged mug shipments stand out against the week before."
     },
     {
       "action": "pause",
