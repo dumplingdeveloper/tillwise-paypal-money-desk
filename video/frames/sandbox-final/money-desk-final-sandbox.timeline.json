@@ -1,0 +1,770 @@
+{
+  "video": "video/out/money-desk-final-sandbox.mp4",
+  "durationSeconds": 172.566667,
+  "introSeconds": 4,
+  "outroSeconds": 4,
+  "timeline": [
+    {
+      "start": 4.528,
+      "end": 26.703,
+      "role": "NARRATOR",
+      "text": "If you run a small WooCommerce shop on \u2026"
+    },
+    {
+      "start": 26.956,
+      "end": 29.531,
+      "role": "OWNER",
+      "text": "Refund order 481."
+    },
+    {
+      "start": 33.531,
+      "end": 40.181,
+      "role": "assistant",
+      "text": "A refund of 45 euros for order 481 is r\u2026"
+    },
+    {
+      "start": 42.994,
+      "end": 53.394,
+      "role": "NARRATOR",
+      "text": "Money never moves on a guess. The refun\u2026"
+    },
+    {
+      "start": 53.644,
+      "end": 55.144,
+      "role": "OWNER",
+      "text": "Yes, go ahead."
+    },
+    {
+      "start": 58.519,
+      "end": 63.569,
+      "role": "host",
+      "text": "Refund \u20ac45.00 for order 481 through Pay\u2026"
+    },
+    {
+      "start": 65.566,
+      "end": 66.641,
+      "role": "OWNER",
+      "text": "Yes."
+    },
+    {
+      "start": 70.641,
+      "end": 75.541,
+      "role": "assistant",
+      "text": "Refund of 45 euros for order 481 comple\u2026"
+    },
+    {
+      "start": 78.791,
+      "end": 89.141,
+      "role": "NARRATOR",
+      "text": "Under the hood, every step is logged wi\u2026"
+    },
+    {
+      "start": 93.141,
+      "end": 106.266,
+      "role": "NARRATOR",
+      "text": "This is the Money Desk, built inside AG\u2026"
+    },
+    {
+      "start": 107.75,
+      "end": 121.65,
+      "role": "NARRATOR",
+      "text": "Below it, AG Studio's built-in tiles, c\u2026"
+    },
+    {
+      "start": 123.247,
+      "end": 125.172,
+      "role": "OWNER",
+      "text": "Why are refunds spiking?"
+    },
+    {
+      "start": 129.172,
+      "end": 146.522,
+      "role": "NARRATOR",
+      "text": "Studio's AI panel runs on the GitHub Co\u2026"
+    },
+    {
+      "start": 148.777,
+      "end": 158.827,
+      "role": "NARRATOR",
+      "text": "The Studio agent is read-only: it has n\u2026"
+    },
+    {
+      "start": 159.079,
+      "end": 165.704,
+      "role": "NARRATOR",
+      "text": "Tillwise and PayPal. Talk to your shop,\u2026"
+    }
+  ],
+  "speedBadges": [
+    {
+      "id": "speed-badge-1",
+      "start": 29.531,
+      "end": 33.531,
+      "path": "out/speed-badge-1.png",
+      "text": "\u23e9 fast-forward",
+      "bbox": {
+        "x": 28,
+        "y": 43,
+        "width": 203.359375,
+        "height": 54
+      },
+      "segment": {
+        "type": "silence",
+        "originalStart": 29.531,
+        "originalEnd": 38.878,
+        "originalDuration": 9.347000000000001,
+        "compressedDuration": 4,
+        "factor": 2.3367500000000003,
+        "spedUp": true,
+        "compressedStart": 29.531,
+        "compressedEnd": 33.531
+      }
+    },
+    {
+      "id": "speed-badge-2",
+      "start": 66.641,
+      "end": 70.641,
+      "path": "out/speed-badge-2.png",
+      "text": "\u23e9 fast-forward",
+      "bbox": {
+        "x": 28,
+        "y": 43,
+        "width": 203.359375,
+        "height": 54
+      },
+      "segment": {
+        "type": "silence",
+        "originalStart": 71.988,
+        "originalEnd": 78.621,
+        "originalDuration": 6.632999999999996,
+        "compressedDuration": 4,
+        "factor": 1.658249999999999,
+        "spedUp": true,
+        "compressedStart": 66.641,
+        "compressedEnd": 70.641
+      }
+    },
+    {
+      "id": "speed-badge-3",
+      "start": 89.141,
+      "end": 93.141,
+      "path": "out/speed-badge-3.png",
+      "text": "\u23e9 fast-forward",
+      "bbox": {
+        "x": 28,
+        "y": 43,
+        "width": 203.359375,
+        "height": 54
+      },
+      "segment": {
+        "type": "silence",
+        "originalStart": 97.121,
+        "originalEnd": 108.673,
+        "originalDuration": 11.552000000000007,
+        "compressedDuration": 4,
+        "factor": 2.8880000000000017,
+        "spedUp": true,
+        "compressedStart": 89.141,
+        "compressedEnd": 93.141
+      }
+    },
+    {
+      "id": "speed-badge-4",
+      "start": 125.17200000000001,
+      "end": 129.17200000000003,
+      "path": "out/speed-badge-4.png",
+      "text": "\u23e9 fast-forward",
+      "bbox": {
+        "x": 28,
+        "y": 43,
+        "width": 203.359375,
+        "height": 54
+      },
+      "segment": {
+        "type": "silence",
+        "originalStart": 140.704,
+        "originalEnd": 150.767,
+        "originalDuration": 10.062999999999988,
+        "compressedDuration": 4,
+        "factor": 2.515749999999997,
+        "spedUp": true,
+        "compressedStart": 125.17200000000001,
+        "compressedEnd": 129.17200000000003
+      }
+    }
+  ],
+  "subtitles": "out/subtitles.srt",
+  "temporalChecks": {
+    "originalAudioNoOverlap": [
+      {
+        "previous": "audio-1",
+        "current": "audio-2",
+        "gapSeconds": 0.253,
+        "ok": true
+      },
+      {
+        "previous": "audio-2",
+        "current": "audio-3",
+        "gapSeconds": 9.347,
+        "ok": true
+      },
+      {
+        "previous": "audio-3",
+        "current": "audio-4",
+        "gapSeconds": 2.813,
+        "ok": true
+      },
+      {
+        "previous": "audio-4",
+        "current": "audio-5",
+        "gapSeconds": 0.25,
+        "ok": true
+      },
+      {
+        "previous": "audio-5",
+        "current": "audio-6",
+        "gapSeconds": 3.375,
+        "ok": true
+      },
+      {
+        "previous": "audio-6",
+        "current": "audio-7",
+        "gapSeconds": 1.997,
+        "ok": true
+      },
+      {
+        "previous": "audio-7",
+        "current": "audio-8",
+        "gapSeconds": 6.633,
+        "ok": true
+      },
+      {
+        "previous": "audio-8",
+        "current": "audio-9",
+        "gapSeconds": 3.25,
+        "ok": true
+      },
+      {
+        "previous": "audio-9",
+        "current": "audio-10",
+        "gapSeconds": 11.552,
+        "ok": true
+      },
+      {
+        "previous": "audio-10",
+        "current": "audio-11",
+        "gapSeconds": 1.484,
+        "ok": true
+      },
+      {
+        "previous": "audio-11",
+        "current": "audio-12",
+        "gapSeconds": 1.597,
+        "ok": true
+      },
+      {
+        "previous": "audio-12",
+        "current": "audio-13",
+        "gapSeconds": 10.063,
+        "ok": true
+      },
+      {
+        "previous": "audio-13",
+        "current": "audio-14",
+        "gapSeconds": 2.255,
+        "ok": true
+      },
+      {
+        "previous": "audio-14",
+        "current": "audio-15",
+        "gapSeconds": 0.252,
+        "ok": true
+      }
+    ],
+    "audioNoOverlap": [
+      {
+        "previous": "audio-1",
+        "current": "audio-2",
+        "gapSeconds": 0.253,
+        "ok": true
+      },
+      {
+        "previous": "audio-2",
+        "current": "audio-3",
+        "gapSeconds": 4,
+        "ok": true
+      },
+      {
+        "previous": "audio-3",
+        "current": "audio-4",
+        "gapSeconds": 2.813,
+        "ok": true
+      },
+      {
+        "previous": "audio-4",
+        "current": "audio-5",
+        "gapSeconds": 0.25,
+        "ok": true
+      },
+      {
+        "previous": "audio-5",
+        "current": "audio-6",
+        "gapSeconds": 3.375,
+        "ok": true
+      },
+      {
+        "previous": "audio-6",
+        "current": "audio-7",
+        "gapSeconds": 1.997,
+        "ok": true
+      },
+      {
+        "previous": "audio-7",
+        "current": "audio-8",
+        "gapSeconds": 4,
+        "ok": true
+      },
+      {
+        "previous": "audio-8",
+        "current": "audio-9",
+        "gapSeconds": 3.25,
+        "ok": true
+      },
+      {
+        "previous": "audio-9",
+        "current": "audio-10",
+        "gapSeconds": 4,
+        "ok": true
+      },
+      {
+        "previous": "audio-10",
+        "current": "audio-11",
+        "gapSeconds": 1.484,
+        "ok": true
+      },
+      {
+        "previous": "audio-11",
+        "current": "audio-12",
+        "gapSeconds": 1.597,
+        "ok": true
+      },
+      {
+        "previous": "audio-12",
+        "current": "audio-13",
+        "gapSeconds": 4,
+        "ok": true
+      },
+      {
+        "previous": "audio-13",
+        "current": "audio-14",
+        "gapSeconds": 2.255,
+        "ok": true
+      },
+      {
+        "previous": "audio-14",
+        "current": "audio-15",
+        "gapSeconds": 0.252,
+        "ok": true
+      }
+    ],
+    "captionsNoOverlap": [
+      {
+        "previous": "subtitle-1",
+        "current": "subtitle-2",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-2",
+        "current": "subtitle-3",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-3",
+        "current": "subtitle-4",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-4",
+        "current": "subtitle-5",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-5",
+        "current": "subtitle-6",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-6",
+        "current": "subtitle-7",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-7",
+        "current": "subtitle-8",
+        "gapSeconds": 0.253,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-8",
+        "current": "subtitle-9",
+        "gapSeconds": 4,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-9",
+        "current": "subtitle-10",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-10",
+        "current": "subtitle-11",
+        "gapSeconds": 2.813,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-11",
+        "current": "subtitle-12",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-12",
+        "current": "subtitle-13",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-13",
+        "current": "subtitle-14",
+        "gapSeconds": 0.25,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-14",
+        "current": "subtitle-15",
+        "gapSeconds": 3.375,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-15",
+        "current": "subtitle-16",
+        "gapSeconds": 1.997,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-16",
+        "current": "subtitle-17",
+        "gapSeconds": 3.925,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-17",
+        "current": "subtitle-18",
+        "gapSeconds": 3.25,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-18",
+        "current": "subtitle-19",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-19",
+        "current": "subtitle-20",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-20",
+        "current": "subtitle-21",
+        "gapSeconds": 4,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-21",
+        "current": "subtitle-22",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-22",
+        "current": "subtitle-23",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-23",
+        "current": "subtitle-24",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-24",
+        "current": "subtitle-25",
+        "gapSeconds": 1.484,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-25",
+        "current": "subtitle-26",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-26",
+        "current": "subtitle-27",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-27",
+        "current": "subtitle-28",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-28",
+        "current": "subtitle-29",
+        "gapSeconds": 1.597,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-29",
+        "current": "subtitle-30",
+        "gapSeconds": 4,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-30",
+        "current": "subtitle-31",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-31",
+        "current": "subtitle-32",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-32",
+        "current": "subtitle-33",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-33",
+        "current": "subtitle-34",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-34",
+        "current": "subtitle-35",
+        "gapSeconds": 2.255,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-35",
+        "current": "subtitle-36",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-36",
+        "current": "subtitle-37",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-37",
+        "current": "subtitle-38",
+        "gapSeconds": 0.252,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-38",
+        "current": "subtitle-39",
+        "gapSeconds": 0,
+        "ok": true
+      },
+      {
+        "previous": "subtitle-39",
+        "current": "subtitle-40",
+        "gapSeconds": 0,
+        "ok": true
+      }
+    ],
+    "captionsWithinClips": [
+      {
+        "id": "subtitle-1",
+        "ok": true
+      },
+      {
+        "id": "subtitle-2",
+        "ok": true
+      },
+      {
+        "id": "subtitle-3",
+        "ok": true
+      },
+      {
+        "id": "subtitle-4",
+        "ok": true
+      },
+      {
+        "id": "subtitle-5",
+        "ok": true
+      },
+      {
+        "id": "subtitle-6",
+        "ok": true
+      },
+      {
+        "id": "subtitle-7",
+        "ok": true
+      },
+      {
+        "id": "subtitle-8",
+        "ok": true
+      },
+      {
+        "id": "subtitle-9",
+        "ok": true
+      },
+      {
+        "id": "subtitle-10",
+        "ok": true
+      },
+      {
+        "id": "subtitle-11",
+        "ok": true
+      },
+      {
+        "id": "subtitle-12",
+        "ok": true
+      },
+      {
+        "id": "subtitle-13",
+        "ok": true
+      },
+      {
+        "id": "subtitle-14",
+        "ok": true
+      },
+      {
+        "id": "subtitle-15",
+        "ok": true
+      },
+      {
+        "id": "subtitle-16",
+        "ok": true
+      },
+      {
+        "id": "subtitle-17",
+        "ok": true
+      },
+      {
+        "id": "subtitle-18",
+        "ok": true
+      },
+      {
+        "id": "subtitle-19",
+        "ok": true
+      },
+      {
+        "id": "subtitle-20",
+        "ok": true
+      },
+      {
+        "id": "subtitle-21",
+        "ok": true
+      },
+      {
+        "id": "subtitle-22",
+        "ok": true
+      },
+      {
+        "id": "subtitle-23",
+        "ok": true
+      },
+      {
+        "id": "subtitle-24",
+        "ok": true
+      },
+      {
+        "id": "subtitle-25",
+        "ok": true
+      },
+      {
+        "id": "subtitle-26",
+        "ok": true
+      },
+      {
+        "id": "subtitle-27",
+        "ok": true
+      },
+      {
+        "id": "subtitle-28",
+        "ok": true
+      },
+      {
+        "id": "subtitle-29",
+        "ok": true
+      },
+      {
+        "id": "subtitle-30",
+        "ok": true
+      },
+      {
+        "id": "subtitle-31",
+        "ok": true
+      },
+      {
+        "id": "subtitle-32",
+        "ok": true
+      },
+      {
+        "id": "subtitle-33",
+        "ok": true
+      },
+      {
+        "id": "subtitle-34",
+        "ok": true
+      },
+      {
+        "id": "subtitle-35",
+        "ok": true
+      },
+      {
+        "id": "subtitle-36",
+        "ok": true
+      },
+      {
+        "id": "subtitle-37",
+        "ok": true
+      },
+      {
+        "id": "subtitle-38",
+        "ok": true
+      },
+      {
+        "id": "subtitle-39",
+        "ok": true
+      },
+      {
+        "id": "subtitle-40",
+        "ok": true
+      }
+    ],
+    "toleranceSeconds": 0.05
+  }
+}

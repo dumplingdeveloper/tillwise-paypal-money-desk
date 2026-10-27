@@ -198,6 +198,25 @@ Money-moving calls (ids from the seed output, the Woo order meta and the Money D
 | 2026-10-27 21:24:11 | `POST /v2/checkout/orders` (card capture, tag `TW-DEMO-FWFMVM-WOO-474-3900`) for Woo order 474 | 201, capture `COMPLETED` €39.00 | order `2WA29940028880628`, capture `3KH53287DG893982N` | `ca514c40dcd01` |
 | 2026-10-27 21:28:33 | `POST /v2/payments/captures/3KH53287DG893982N/refund` (voice: "Refund order 474" → preview → "Yes, go ahead" → host confirm "Yes") | 201, refund `COMPLETED` €39.00; the capture then reads `REFUNDED` | refund `7HT09013T9850053S` (Woo meta `_tillwise_paypal_refund_ids`) | `ca514ca736f24` |
 
+**PayPal API calls for M5 (2026-10-27, final sandbox video take):** **25**, all logged, requests and responses.
+Milestone total 25 + 25 = **50** of 60; running total 121 + 25 = **146** of 250.
+
+| Calls | Source | Endpoint |
+| --- | --- | --- |
+| 1 + 2 | seed, MCP server | `POST /v1/oauth2/token` |
+| 3 + 14 | seed, MCP server | `GET /v2/checkout/orders/{id}` (seed rerun checks; Money Desk activity reads) |
+| 1 | seed | `POST /v2/invoicing/search-invoices` |
+| 2 | MCP server | `GET /v2/invoicing/invoices/{id}` |
+| 1 | seed `--link-woo 481` | `POST /v2/checkout/orders` → 201 |
+| 1 | MCP server (voice flow) | `POST /v2/payments/captures/{id}/refund` → 201 |
+
+The gallery capture right after the recording made no PayPal call: the shared activity cache (`159b2a6`) was still warm.
+
+| When (UTC) | Call | Result | PayPal ids | `paypal-debug-id` |
+| --- | --- | --- | --- | --- |
+| 2026-10-27 22:21:09 | `POST /v2/checkout/orders` (card capture, tag `TW-DEMO-FWFMVM-WOO-481-4500`) for Woo order 481 | 201, capture `COMPLETED` €45.00 (PayPal fee €2.23) | order `3T232280XN893500D`, capture `8RH99162HA9261302` | `f2888126a2df1` |
+| 2026-10-27 22:23:59 | `POST /v2/payments/captures/8RH99162HA9261302/refund` (voice: "Refund order 481" → preview → "Yes, go ahead" → host confirm "Yes") | 201, refund `COMPLETED` €45.00; the capture then reads `REFUNDED` | refund `01567521794782012` (shown on top of the Money Desk grid) | `f560177e160bc` |
+
 **Still unverified:**
 1. When our own captures become searchable in Transaction Search, and their T-codes. They were still absent 1 h 26 min after capture.
 2. Voice-flow invoice create/send, tracking and dispute accept against the real sandbox. They use the same client as the verified refund but were not run live.

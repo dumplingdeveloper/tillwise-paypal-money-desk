@@ -1,6 +1,8 @@
 // Devpost gallery (3:2, 1500x1000 or larger) and a 1280x720 YouTube thumbnail, made only from the real UI:
 // a fresh Playwright capture of the seeded Money Desk, plus crops of frames of a rendered demo video.
 // Usage: node scripts/devpost-media.js --video out/money-desk-final-mock.mp4 --url http://127.0.0.1:4189 --out ../docs/devpost
+// --moneyDeskOnly writes only 01 and the thumbnail (run it right after recording, so 01 shows the same mock figures as
+// the take); --skipCapture later crops 02-05 from the composed video and keeps that 01.
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -30,6 +32,7 @@ async function captureMoneyDesk(file) {
     await page.goto(new URL('/money-desk.html', baseUrl).href, { waitUntil: 'load' });
     await page.locator('#myStudio .tw-refund-rate').waitFor({ timeout: 30000 });
     await page.locator('#myStudio .ag-studio-layout-canvas .ag-studio-layout-widget >> nth=6').waitFor({ timeout: 30000 });
+    await page.locator('#myStudio .ag-studio-layout-widget canvas >> nth=0').waitFor({ timeout: 60000 });
     await page.waitForTimeout(2500); // chart entry animations
     await page.screenshot({ path: path.join(outDir, file) });
   } finally {
@@ -39,11 +42,15 @@ async function captureMoneyDesk(file) {
 
 const times = { confirm: Number(args.confirmAt || 66), hood: Number(args.hoodAt || 86), drill: Number(args.drillAt || 132) };
 
-await captureMoneyDesk('01-money-desk.png');
-frame(times.confirm, fit32(), '02-voice-refund-confirmation.png');
-frame(times.hood, fit32(), '03-under-the-hood.png');
-frame(times.drill, crop32(0), '04-why-are-refunds-spiking.png');
-frame(times.drill, crop32(450), '05-refunds-per-day-by-reason.png');
-// Thumbnail: the top 16:9 of the fresh Money Desk capture (title, refund-spike tile, every seeded widget).
-ffmpeg('-i', path.join(outDir, '01-money-desk.png'), '-vf', 'crop=1920:1080:0:0,scale=1280:720:flags=lanczos', path.join(outDir, 'youtube-thumbnail.png'));
+if (!args.skipCapture) {
+  await captureMoneyDesk('01-money-desk.png');
+  // Thumbnail: the top 16:9 of the fresh Money Desk capture (title, refund-spike tile, every seeded widget).
+  ffmpeg('-i', path.join(outDir, '01-money-desk.png'), '-vf', 'crop=1920:1080:0:0,scale=1280:720:flags=lanczos', path.join(outDir, 'youtube-thumbnail.png'));
+}
+if (!args.moneyDeskOnly) {
+  frame(times.confirm, fit32(), '02-voice-refund-confirmation.png');
+  frame(times.hood, fit32(), '03-under-the-hood.png');
+  frame(times.drill, crop32(0), '04-why-are-refunds-spiking.png');
+  frame(times.drill, crop32(450), '05-refunds-per-day-by-reason.png');
+}
 console.log(`Wrote Devpost media to ${outDir}`);
