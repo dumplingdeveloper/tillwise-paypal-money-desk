@@ -1,3 +1,84 @@
+# Sandbox-mode video (2026-10-27): take 1 recorded and rejected; final take pending
+
+The submission video is to be `video/out/money-desk-final-sandbox.mp4`, recorded from `video/scenes/m5-money-desk-sandbox.json`
+on the **real PayPal sandbox** (PayPal's public default sandbox credentials, shared app `APP-80W284485P519543T`). The
+Money Desk analytics stay on the labelled mock ledger ("· mock data" on every analytics title).
+
+## Sandbox take 1 (rejected: do not upload)
+
+| | |
+| --- | --- |
+| File (gitignored) | `video/out/money-desk-sandbox-take1.mp4` (renamed from `money-desk-final-sandbox.mp4` once rejected) |
+| md5 | `0235199d1f3a2c23f8b83a2a6aba80f1` |
+| Size | 8,003,918 bytes |
+| ffprobe | duration 171.633333 s (2:51.6); video 1920×1080, 30 fps; audio stream present |
+| compose checks | `temporalChecks`: 105 checks, 0 failures; `pixelChecks`: 11, 0 failures; 4 silences fast-forwarded with the on-screen "⏩ fast-forward" badge (×2.23, ×1.48, ×1.15, ×2.83) |
+| Timeline | `video/out/money-desk-sandbox-take1.timeline.json` (also `.compose-report.json`, `.srt`) |
+| Frames | 17 frames at each scene start, the preview, both "yes", the host confirmation, the refund result, the hood, the Money Desk, the drill-down and the end card: `video/out/frames-sandbox-take1/` (gitignored, kept as evidence of the defect) |
+| Order | Woo order 474 (€39.00, Coffee Lover Gift Box), linked with `sandboxSeed.js --link-woo 474` |
+| PayPal | capture `3KH53287DG893982N` (order `2WA29940028880628`, debug id `ca514c40dcd01`); voice refund `7HT09013T9850053S` `COMPLETED` €39.00 (debug id `ca514ca736f24`); see `docs/FACTS_PAYPAL_SANDBOX.md` §8 |
+| Model calls | 8 of 12: 4 × `gpt-6-luna` (voice), 4 × `claude-sonnet-5` (Studio), counted from `assistant.message` events in `alexa-sim/.copilot-sdk-state/.state/events.jsonl` since 21:24:33Z. No retry. |
+| PayPal calls | 25 for the whole milestone (seed link 6, Money Desk/voice reads and the refund 19); running total 121 of 250 |
+| Power / courtesy | `pmset -g batt` "AC Power" before the recording (21:27Z) and before both compose runs; the entry-2 busy check was clear each time |
+
+**Why it was rejected (found by viewing the frames):**
+1. **Stale live grid (1:35–2:00).** The Money Desk's "LIVE PayPal sandbox" grid showed capture `3KH53287DG893982N` as
+   `COMPLETED` and no refund row, while the narration said "with the refund we just made at the top". Cause: each MCP
+   session had its own `PayPalService`, so the voice session's refund invalidated only its own activity cache, and
+   the Money Desk session kept the entry it read 3 minutes earlier (made worse by a 15-minute TTL set for the
+   recording). Fixed in `159b2a6`: one activity cache per MCP server, previews still per session; regression test in
+   `mcp-server/test/sandboxActivity.test.ts`. A fresh read afterwards shows refund `7HT09013T9850053S` on top and the
+   capture `REFUNDED` (`docs/devpost/01-money-desk.png`).
+2. **Hood narration claimed more than the hood shows** ("its audit row with PayPal's refund ID"). The scene now says
+   "every step is logged with its timing: the refund preview, the owner's voice confirmation, then the refund call to
+   the PayPal sandbox"; the refund id is shown by the Money Desk grid.
+3. "LIVE PayPal sandbox" could be read as PayPal's production environment ("Live"). The grid is now titled
+   "Real PayPal sandbox · objects Tillwise created" (`d27eb7d`), and the narration says "reads the real PayPal sandbox".
+
+Not done on purpose: no splicing of a re-recorded Money Desk segment into take 1, and no editing of the recorded
+manifest's narration. The final video should be one honest take.
+
+**What the final take needs:** one more full recording (about 4 voice + 4 Studio model calls). Only 4 of this
+milestone's 12 model calls are left, so it was **not** started. Everything else is ready: the scene (end card with the
+planned repo URL, `maxSilenceMs` 4000, corrected narration, `chapters`), the fix, and the commands below.
+
+Commands (take 1; the final take is the same with a new order id and the output copied to `money-desk-final-sandbox.*`):
+
+```bash
+cd mcp-server && set -a && . ./.env && set +a && PAYPAL_MODE=sandbox MCP_PORT=3338 TILLWISE_PAYPAL_CALL_LOG=<log> node dist/src/server.js &
+cd mcp-server && TILLWISE_PAYPAL_CALL_LOG=<log> node dist/src/sandboxSeed.js --link-woo 474
+cd alexa-sim && SIM_PORT=4189 EXPECTED_GITHUB_LOGIN=<login> TILLWISE_PAYPAL_CALL_LOG=<log> node dist/src/server.js &
+cd video && node scripts/resolve-scene.js --scene scenes/m5-money-desk-sandbox.json --order 474
+export HF_HOME=$PWD/.cache/hf TRANSFORMERS_CACHE=$PWD/.cache/hf
+caffeinate -i node scripts/tts.js --scene out/m5-money-desk-sandbox.resolved.json
+caffeinate -i node scripts/record.js --scene out/m5-money-desk-sandbox.resolved.json --url http://127.0.0.1:4189
+caffeinate -i node scripts/compose.js --scene out/m5-money-desk-sandbox.resolved.json
+node scripts/chapters.js --timeline out/<video>.timeline.json --scene scenes/m5-money-desk-sandbox.json
+```
+
+The first compose (scene `maxSilenceMs` 5000) stopped with "Demo is 175.233333s, not under 175s" (the pipeline's own
+margin under 3:00); with 4000 it gave 171.63 s. The order was picked with the WooCommerce REST API (completed, ≤ €100,
+no `_tillwise_paypal_refund_ids`), not with `scripts/demo-reset.sh`, because that script uses `docker compose exec` and
+this milestone allowed no Docker use.
+
+### Devpost media (2026-10-27)
+`node scripts/devpost-media.js --video out/money-desk-sandbox-take1.mp4 --url http://127.0.0.1:4189 --out ../docs/devpost --confirmAt 62 --hoodAt 90 --drillAt 138`
+
+| File | Size | md5 |
+| --- | --- | --- |
+| `01-money-desk.png` (1920×1280, fresh capture after the fix) | 328,230 | `16d61920548b8e0e8025b4ac7ffca219` |
+| `02-voice-refund-confirmation.png` (1500×1000) | 239,388 | `e4a1090f33bbdf826aa59a04f95c5d9d` |
+| `03-under-the-hood.png` (1500×1000) | 265,388 | `17b504f54d0b1212fc588c67e639d0be` |
+| `04-why-are-refunds-spiking.png` (1500×1000) | 569,660 | `5d70a6a19d02536f65077bfd62702403` |
+| `05-refunds-per-day-by-reason.png` (1500×1000) | 455,672 | `5cbd37efac6a23c150c4d7384148eb9e` |
+| `youtube-thumbnail.png` (1280×720) | 311,051 | `a4238f6c2f58999ce26783d62ea31cf9` |
+
+- Labels: 01 and the thumbnail show "Real PayPal sandbox · objects Tillwise created" with refund `7HT09013T9850053S` on top, and every analytics widget titled "· mock data"; 02/03 carry the voice-sim badge "PayPal: REAL sandbox · api-m.sandbox.paypal.com · PayPal's public default sandbox app (shared)"; 04/05 show the drill-down titled "· mock data" and the agent's text "Using the mock ledger".
+- Known inconsistency: 04/05 (take 1, 21:3xZ) quote a 35.2% refund rate, 01 (21:59Z) shows 34.9%. The mock ledger is anchored on the current time and gained one capture between the two.
+- **Power-gate deviation:** this step ran at 21:59Z although `pmset -g batt` printed "Battery Power" in the same command (the check and the step were chained, and the step did not stop on it). It was one Playwright capture and five single-frame ffmpeg extractions, no recording or render. No heavy step ran on battery after that.
+
+---
+
 # Demo video: render record (final mock-mode render)
 
 The final mock-mode video was rendered on 2026-10-26 with this repo's own `video/` pipeline from `video/scenes/m5-money-desk.json`. PayPal runs in **mock mode**.

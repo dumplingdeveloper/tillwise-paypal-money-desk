@@ -126,6 +126,16 @@
       "ms": 1000
     }
   ],
+  "chapters": [
+    { "title": "Who it's for and the problem", "startsWith": "" },
+    { "title": "Voice refund on the real PayPal sandbox", "startsWith": "Refund order" },
+    { "title": "Preview first, then the owner's yes", "startsWith": "Money never moves" },
+    { "title": "Under the hood", "startsWith": "Under the hood" },
+    { "title": "The Money Desk in AG Studio", "startsWith": "This is the Money Desk" },
+    { "title": "Why are refunds spiking? (AG Studio AI panel)", "startsWith": "Why are refunds spiking" },
+    { "title": "The Studio agent is read-only", "startsWith": "The Studio agent is read-only" },
+    { "title": "Recap", "startsWith": "Tillwise and PayPal" }
+  ],
   "cardEyebrow": "PayPal AI Hackathon · real PayPal sandbox",
   "outroSub": "Talk to your shop, see your money, confirm every refund.<br>github.com/dumplingdeveloper/tillwise-paypal-money-desk",
   "outroNote": "The refund ran on the real PayPal sandbox (PayPal's public default sandbox credentials). Money Desk analytics use a labelled mock ledger. The Alexa+ experience simulator is an unofficial demo, not an Amazon product."

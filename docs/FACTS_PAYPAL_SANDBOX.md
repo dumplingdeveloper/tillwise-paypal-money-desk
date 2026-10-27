@@ -178,6 +178,26 @@ By endpoint (logged calls):
 | 2 | `GET /v2/payments/refunds/{id}` |
 | 1 | `POST /v2/invoicing/invoices/{id}/send` |
 
+**PayPal API calls for M5 (2026-10-27, sandbox video take 1):** **25**, all logged (requests in
+`paypal-calls.jsonl`; since `cf15710` every response is logged too, with HTTP status and the `paypal-debug-id`
+header, in `paypal-calls.responses.jsonl`). Running total: 96 + 25 = **121** of 250.
+
+| Calls | Source | Endpoint |
+| --- | --- | --- |
+| 1 + 4 | seed, MCP server | `POST /v1/oauth2/token` |
+| 3 + 12 | seed, MCP server | `GET /v2/checkout/orders/{id}` (seed rerun checks; Money Desk activity reads) |
+| 1 | seed | `POST /v2/invoicing/search-invoices` |
+| 2 | MCP server | `GET /v2/invoicing/invoices/{id}` |
+| 1 | seed `--link-woo 474` | `POST /v2/checkout/orders` → 201 |
+| 1 | MCP server (voice flow) | `POST /v2/payments/captures/{id}/refund` → 201 |
+
+Money-moving calls (ids from the seed output, the Woo order meta and the Money Desk grid; debug ids from the response log):
+
+| When (UTC) | Call | Result | PayPal ids | `paypal-debug-id` |
+| --- | --- | --- | --- | --- |
+| 2026-10-27 21:24:11 | `POST /v2/checkout/orders` (card capture, tag `TW-DEMO-FWFMVM-WOO-474-3900`) for Woo order 474 | 201, capture `COMPLETED` €39.00 | order `2WA29940028880628`, capture `3KH53287DG893982N` | `ca514c40dcd01` |
+| 2026-10-27 21:28:33 | `POST /v2/payments/captures/3KH53287DG893982N/refund` (voice: "Refund order 474" → preview → "Yes, go ahead" → host confirm "Yes") | 201, refund `COMPLETED` €39.00; the capture then reads `REFUNDED` | refund `7HT09013T9850053S` (Woo meta `_tillwise_paypal_refund_ids`) | `ca514ca736f24` |
+
 **Still unverified:**
 1. When our own captures become searchable in Transaction Search, and their T-codes. They were still absent 1 h 26 min after capture.
 2. Voice-flow invoice create/send, tracking and dispute accept against the real sandbox. They use the same client as the verified refund but were not run live.

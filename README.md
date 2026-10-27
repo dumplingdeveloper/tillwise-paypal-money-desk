@@ -37,7 +37,7 @@ skills/ contains Agent Skills loaded by the Copilot SDK and exposed by the MCP s
 Needs Docker, Node 22 (`^20.19.0 || >=22.12.0` for the Copilot SDK) and Google Chrome. PayPal runs in **mock mode** by default (a deterministic ledger in `mcp-server/src/paypal/mockLedger.ts`); no PayPal account is needed.
 
 ```bash
-git clone <this repo> tillwise-paypal && cd tillwise-paypal
+git clone https://github.com/dumplingdeveloper/tillwise-paypal-money-desk.git tillwise-paypal && cd tillwise-paypal
 docker compose up -d --wait               # WordPress + WooCommerce on http://127.0.0.1:8098 (project "tillwise-paypal")
 ./scripts/seed-local.sh                   # installs WooCommerce, seeds the demo store, writes .env + mcp-server/.env
 (cd mcp-server && npm ci && npm run build)

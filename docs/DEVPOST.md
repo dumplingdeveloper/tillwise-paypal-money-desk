@@ -8,8 +8,8 @@ Required by the rules, and where each is covered:
 | --- | --- |
 | Text description of features and functionality | "What it does", "How we built it" |
 | A functional demo that judges can run | "Try it out" and the README "Judge quick start" |
-| A public repo with a detectable open-source licence | `LICENSE` (GNU GPL); repo URL still to fill in |
-| A video under 3 minutes on YouTube | Mock-mode render, 2:42 (`docs/VIDEO_RENDER.md`, script in `docs/VIDEO_SCRIPT.md`); YouTube URL still to fill in |
+| A public repo with a detectable open-source licence | `LICENSE` (GNU GPL v2); planned public repo https://github.com/dumplingdeveloper/tillwise-paypal-money-desk (not published yet) |
+| A video under 3 minutes on YouTube | Submission video: `video/out/money-desk-final-sandbox.mp4`, recorded on the real PayPal sandbox. **Not final yet:** take 1 (2026-10-27) was rejected, see `docs/VIDEO_RENDER.md` → "Sandbox take 1". Fallback: the mock-mode render, 2:42. YouTube URL still to fill in ("YouTube upload" below) |
 | For a project that existed before the Submission Period, an explanation of how it was significantly updated | "New vs existing" |
 | PayPal integration that is central, using the free sandbox | "PayPal integration", "Mock vs sandbox" |
 | Third-party tools used within their terms | "Built with" and "Licences" |
@@ -150,6 +150,16 @@ Built for the PayPal AI Hackathon, from `git log` (short hash, author date):
 | `ea94db7`, `9f5258a`, `d172e71`, `dedb7f5` | 2026-10-25 | Refund drill-down per day by reason, calendar-week dates, de-duplication of the "this week" tile |
 | `a96ba0d` | 2026-10-25 | Video script and scene |
 | `ccba904`, `9dcbaa3` | 2026-10-25 | Devpost draft; M3.1 evidence notes |
+| `0704c0d` | 2026-10-25 | Submission Period facts and AG Studio licence facts |
+| `71223ab`, `56dfb22` | 2026-10-25 | `npm run sandbox:seed`; sandbox facts, judge sandbox steps, provenance label |
+| `f3f2927` | 2026-10-25 | M3.1 live run (claude-sonnet-5), screenshots and evidence |
+| `cddc806`, `fd2c9a2`, `3c526c4` | 2026-10-25/26 | Outstanding-invoice view, chart legend, one shared ledger window, 14-day refunds table, PayPal mode badge |
+| `adc7c51` | 2026-10-26 | Plain-language host questions for PayPal apply tools |
+| `640e2f6`, `c6c037f`, `8fd0516`, `ba42b34`, `ab6150a`, `384d8d9`, `59fa7e7` | 2026-10-26 | Video pipeline: spoken currency, caption splitting, mock-mode renders, Devpost gallery |
+| `044b324` | 2026-10-26 | mcp e2e pinned to mock |
+| `3ffda79`, `7180693`, `2319ee1`, `210b844` | 2026-10-26 | Real PayPal sandbox: call counting, run tags, live activity grid, `LIVE_PAYPAL` voice-refund test, judge path A/B |
+| `3568bc9`, `de2d913`, `8c5e0c8` | 2026-10-26 | Sandbox video scene; Transaction Search facts |
+| `cf15710`, `159b2a6`, `d27eb7d` | 2026-10-27 | PayPal response/debug-id log; one sandbox activity cache per server (fixes a stale Money Desk after a voice refund); "Real PayPal sandbox" grid title |
 
 All PayPal code (`mcp-server/src/paypal/`, the PayPal abilities in the WordPress plugin) and all AG Studio code (`alexa-sim/public/money-desk*.js`, `alexa-sim/src/studioBridge.ts`, `alexa-sim/src/moneyDesk.ts`, `alexa-sim/src/paypalMcp.ts`) are new in this period.
 
@@ -180,15 +190,56 @@ Later commits (licence facts, sandbox seed, live evidence) are listed by `git lo
 TypeScript, Node.js, GitHub Copilot SDK, Model Context Protocol (`@modelcontextprotocol/sdk`), PayPal REST APIs and `@paypal/paypal-server-sdk` (sandbox), APIMatic PayPal SDK context plugin (reference), AG Studio 3 (AG Grid), WordPress Abilities API, WooCommerce, PHP, Docker, Playwright (tests).
 
 ## Try it out
-- Repo: **TODO, public URL** (the licence is GPL, `LICENSE` at the root).
+- Repo: https://github.com/dumplingdeveloper/tillwise-paypal-money-desk (planned public URL; not published yet; GPL v2, `LICENSE` at the root).
 - Setup and run: README → "Judge quick start" (mock by default; Copilot login or BYOK; ports 8098 / 3338 / 4179 by default).
-- Video: **TODO, YouTube URL**.
-  - The mock-mode render (2:42) is recorded in `docs/VIDEO_RENDER.md`; the script is in `docs/VIDEO_SCRIPT.md`.
-  - The video states on screen and in the narration that PayPal runs in mock mode.
-- Gallery images (3:2, real UI) and a 1280x720 thumbnail: `docs/devpost/` (made by `video/scripts/devpost-media.js`).
+- Video: **TODO, YouTube URL**. The submission video is `video/out/money-desk-final-sandbox.mp4` (real PayPal sandbox; see "YouTube upload" below).
+  - It is **not recorded yet**: sandbox take 1 was rejected (stale Money Desk grid, now fixed); `docs/VIDEO_RENDER.md` → "Sandbox take 1".
+  - Fallback: the mock-mode render (2:42), which says on screen and in the narration that PayPal runs in mock mode.
+- Gallery images (3:2, real UI) and a 1280x720 thumbnail: `docs/devpost/` (made by `video/scripts/devpost-media.js`, 2026-10-27). 01 and the thumbnail are a fresh capture of the Money Desk in sandbox mode ("Real PayPal sandbox" grid with the voice refund on top; analytics titled "· mock data"); 02–05 are frames of sandbox take 1 (voice confirmation, under the hood, the refund drill-down on the mock ledger).
 - Testing instructions for judges:
   - No PayPal account is needed in mock mode.
   - For the real sandbox, either `cd mcp-server && npm run sandbox:public-creds` (PayPal's public default sandbox credentials, a shared app) or their own app via `scripts/save-paypal-sandbox-creds.sh`. Then `npm run sandbox:smoke && npm run sandbox:seed && npm run sandbox:seed -- --link-woo <order>`. See README → "Use the real PayPal sandbox".
+
+## YouTube upload (ready to paste once the final take exists)
+Upload **after** the repo is published; the description links to it.
+
+| Field | Value |
+|---|---|
+| File | `video/out/money-desk-final-sandbox.mp4`, **not recorded yet** (take 1 rejected; `docs/VIDEO_RENDER.md` → "Sandbox take 1"). Fill in md5, bytes and duration from `docs/VIDEO_RENDER.md` after the final take. |
+| Title (94 characters) | `Tillwise × PayPal: talk to your shop, refunds on the real PayPal sandbox, AG Studio Money Desk` |
+| Thumbnail | `docs/devpost/youtube-thumbnail.png` (1280×720, 311,051 bytes, md5 `a4238f6c2f58999ce26783d62ea31cf9`) |
+| Audience | Made for kids: **No** |
+| Visibility | **Public** |
+
+Description (the first two lines carry the pitch; no `<` or `>` characters):
+
+```text
+Small WooCommerce shops on PayPal juggle refunds, disputes and unpaid invoices in separate screens, and one wrong refund costs real money.
+Tillwise is a store agent you talk to: it shows the numbers in an AG Studio Money Desk and moves money only after the owner says yes.
+
+Recorded on the real PayPal sandbox API (PayPal's public default sandbox credentials, no real money): the refund in this video is a real sandbox refund. The Money Desk analytics (refund rate, who still owes us, disputes, the refund drill-down) run on a labelled mock ledger. Both agents run on the GitHub Copilot SDK; the AG Studio agent is read-only. Silent waits are fast-forwarded where the on-screen badge says so. The Alexa+ experience simulator is an unofficial demo, not an Amazon product.
+
+Chapters
+00:00 Who it's for and the problem
+00:26 Voice refund on the real PayPal sandbox
+00:44 Preview first, then the owner's yes
+01:21 Under the hood
+01:37 The Money Desk in AG Studio
+02:01 Why are refunds spiking? (AG Studio AI panel)
+02:27 The Studio agent is read-only
+02:38 Recap
+
+Code (GPL v2): https://github.com/dumplingdeveloper/tillwise-paypal-money-desk
+Built for the PayPal AI Hackathon on Devpost.
+```
+
+The chapter times above are **provisional**: they are computed from sandbox take 1 (171.6 s), whose structure the final take
+keeps. After the final take, recompute them and paste the output:
+`cd video && node scripts/chapters.js --timeline out/money-desk-final-sandbox.timeline.json --scene scenes/m5-money-desk-sandbox.json`.
+The script takes each chapter's start from the compose timeline (`timeline[].start`, rounded down; the anchors are in the
+scene's `chapters`) and enforces YouTube's rules from https://support.google.com/youtube/answer/9884579: the first
+timestamp is 00:00, at least three timestamps in ascending order, each chapter at least 10 s. On take 1 the shortest
+chapter is 11 s ("The Studio agent is read-only").
 
 ## Licences and third-party terms
 - AG Studio's `package.json` says `"license": "Commercial"`. It is an npm dependency and is not vendored into this repo.
