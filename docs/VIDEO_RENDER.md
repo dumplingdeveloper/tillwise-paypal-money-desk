@@ -58,6 +58,26 @@ Honest notes:
   agent ("Copilot SDK bridge · GitHub Copilot SDK") while the top of the page is visible (1:33–1:46).
 - ASR was not run by me for this take.
 
+### Independent checks and YouTube upload (2026-10-27, after the take)
+- **ASR** (faster-whisper `base.en` on the whole mp4, about 22:41Z): 277 script words, 310 heard, ratio 0.917. Every
+  narrated line is heard in order; the extra words are the dynamic voice-flow lines (owner, assistant and host). The
+  other differences were ASR slips ("blow" for "below", "walk" for "talk", "for" for "the"). Re-transcribing only those
+  windows (81.5–94.5 s, 107.5–115.5 s, 160.5–166.5 s) gives "The refund preview", "Below it" and "Talk to your shop".
+  The amount is heard as "45 euros" three times, matching the €45.00 refund.
+- **PayPal read-back** (same public sandbox credentials; 3 calls: token + 2 GETs, running total 149 of 250):
+  - `GET /v2/payments/refunds/01567521794782012` → 200, `COMPLETED`, EUR 45.00, `create_time`
+    2026-10-27T15:23:57-07:00 (22:23:57Z), `invoice_id` `TW-DEMO-FWFMVM-WOO-481-4500`, `up` link to capture
+    `8RH99162HA9261302`; debug id `f725338512570`.
+  - `GET /v2/payments/captures/8RH99162HA9261302` → 200, `REFUNDED`, EUR 45.00, `up` link to order
+    `3T232280XN893500D`; debug id `f867038e45b2c`.
+- **Tests:** mcp-server 54/54, alexa-sim 50 (41 pass, 9 gated skipped, 0 fail), video 7/7.
+- **Frames:** my own extractions from the mp4 at 2, 37, 73, 85, 100, 115, 138, 153 and 170 s match the table above.
+- **YouTube:** https://youtu.be/6BcqSqFvBf4 (Public, Made for kids: No), uploaded about 22:48Z with the title and
+  description from `docs/DEVPOST.md` → "YouTube upload". The browser-side file had the same SHA-256 as the local mp4
+  (`dcf26d161781a6919e355c210257053499158923e504612c3f3adbd1fac3fd3a`) before upload. Anonymous check: title and
+  description byte-identical, `lengthSeconds` 173, `isPrivate` false, `isUnlisted` false. The custom thumbnail is not set
+  (the channel is not verified), so YouTube shows an auto-generated frame.
+
 Commands (as run; `<log>` is the PayPal call log outside the repo):
 
 ```bash

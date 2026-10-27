@@ -2,6 +2,7 @@
 
 A voice store agent for small WooCommerce shops on PayPal. It reads PayPal money, explains refund spikes on an AG Studio Money Desk, and never moves money without a preview and the owner's "yes". Built for the PayPal AI Hackathon on Devpost.
 
+- **Demo video (2:53):** https://youtu.be/6BcqSqFvBf4, recorded on the real PayPal sandbox (no real money). The refund in it is a real sandbox refund, `01567521794782012` (€45.00, `COMPLETED`).
 - **Real PayPal sandbox:** the voice flow's money tools (refund, invoice create/send, tracking, dispute accept) call `api-m.sandbox.paypal.com` as preview → owner confirmation → apply, with an audit row in WordPress. The refund is verified end to end on the sandbox; the other three use the same client but have not been run live (`docs/FACTS_PAYPAL_SANDBOX.md`). The Money Desk grid "Real PayPal sandbox · objects Tillwise created" reads those objects back from PayPal.
 - **Mock data, labelled "· mock data" on every widget:** the Money Desk analytics (KPIs, revenue chart, refund rate, who still owes us, disputes, the refund drill-down). On the shared public sandbox app, Transaction Search returns other users' traffic, so the analytics run on a deterministic mock ledger. Details: `docs/DEVPOST.md` → "PayPal integration and mock vs sandbox".
 - **Two agents, both on the GitHub Copilot SDK:** the voice agent can move money only through the gated tools; the AG Studio AI panel agent is read-only.

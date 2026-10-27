@@ -8,8 +8,8 @@ Required by the rules, and where each is covered:
 | --- | --- |
 | Text description of features and functionality | "What it does", "How we built it" |
 | A functional demo that judges can run | "Try it out" and the README "Judge quick start" |
-| A public repo with a detectable open-source licence | `LICENSE` (GNU GPL v2); planned public repo https://github.com/dumplingdeveloper/tillwise-paypal-money-desk (not published yet) |
-| A video under 3 minutes on YouTube | Submission video: `video/out/money-desk-final-sandbox.mp4` (2:52.6), one take on the real PayPal sandbox; record in `docs/VIDEO_RENDER.md` → "Final take". YouTube URL still to fill in ("YouTube upload" below) |
+| A public repo with a detectable open-source licence | `LICENSE` (GNU GPL v2); public repo https://github.com/dumplingdeveloper/tillwise-paypal-money-desk (published 2026-10-27; GitHub detects GPL-2.0) |
+| A video under 3 minutes on YouTube | https://youtu.be/6BcqSqFvBf4 (Public, 2:53): `video/out/money-desk-final-sandbox.mp4` (2:52.6), one take on the real PayPal sandbox; record in `docs/VIDEO_RENDER.md` → "Final take" |
 | For a project that existed before the Submission Period, an explanation of how it was significantly updated | "New vs existing" |
 | PayPal integration that is central, using the free sandbox | "PayPal integration", "Mock vs sandbox" |
 | Third-party tools used within their terms | "Built with" and "Licences" |
@@ -192,16 +192,16 @@ Later commits (licence facts, sandbox seed, live evidence) are listed by `git lo
 TypeScript, Node.js, GitHub Copilot SDK, Model Context Protocol (`@modelcontextprotocol/sdk`), PayPal REST APIs and `@paypal/paypal-server-sdk` (sandbox), APIMatic PayPal SDK context plugin (reference), AG Studio 3 (AG Grid), WordPress Abilities API, WooCommerce, PHP, Docker, Playwright (tests).
 
 ## Try it out
-- Repo: https://github.com/dumplingdeveloper/tillwise-paypal-money-desk (planned public URL; not published yet; GPL v2, `LICENSE` at the root).
+- Repo: https://github.com/dumplingdeveloper/tillwise-paypal-money-desk (public since 2026-10-27; GPL v2, `LICENSE` at the root).
 - Setup and run: README → "Judge quick start" (mock by default; Copilot login or BYOK; ports 8098 / 3338 / 4179 by default).
-- Video: **TODO, YouTube URL**. The submission video is `video/out/money-desk-final-sandbox.mp4` (2:52.6, real PayPal sandbox refund; Money Desk analytics on the labelled mock ledger; see "YouTube upload" below and `docs/VIDEO_RENDER.md` → "Final take").
+- Video: https://youtu.be/6BcqSqFvBf4 (YouTube, Public). It is `video/out/money-desk-final-sandbox.mp4` (2:52.6, real PayPal sandbox refund; Money Desk analytics on the labelled mock ledger; see "YouTube upload" below and `docs/VIDEO_RENDER.md` → "Final take").
 - Gallery images (3:2, real UI) and a 1280x720 thumbnail: `docs/devpost/` (made by `video/scripts/devpost-media.js`, 2026-10-27). All come from the final take's run: 01 and the thumbnail were captured right after the recording, from the same servers ("Real PayPal sandbox" grid with the voice refund `01567521794782012` on top; analytics titled "· mock data"); 02–05 are frames of the final video (voice confirmation, under the hood, the refund drill-down on the mock ledger). The mock figures match across all of them (refund rate 34.9 %).
 - Testing instructions for judges:
   - No PayPal account is needed in mock mode.
   - For the real sandbox, either `cd mcp-server && npm run sandbox:public-creds` (PayPal's public default sandbox credentials, a shared app) or their own app via `scripts/save-paypal-sandbox-creds.sh`. Then `npm run sandbox:smoke && npm run sandbox:seed && npm run sandbox:seed -- --link-woo <order>`. See README → "Use the real PayPal sandbox".
 
 ## YouTube upload (ready to paste)
-Upload **after** the repo is published; the description links to it.
+Uploaded 2026-10-27 (about 22:48Z), after the repo was published, as **https://youtu.be/6BcqSqFvBf4** on the YouTube channel "Dumpling". Anonymous check right after (oEmbed and the watch page, no login): title and description byte-identical to the values below, `lengthSeconds` 173, `isPrivate` false, `isUnlisted` false, playability OK. The custom thumbnail is **not set**: YouTube's help (https://support.google.com/youtube/answer/72431) says "Your account must be verified to use this feature", and on this channel Studio's thumbnail upload leads to `youtube.com/verify_phone_number` (feature `CHANNEL_FEATURES_FEATURE_CUSTOM_THUMBNAILS`), so YouTube shows an auto-generated frame.
 
 | Field | Value |
 |---|---|
