@@ -74,7 +74,7 @@
     {
       "action": "say",
       "voice": "NARRATOR",
-      "text": "This is the Money Desk, built inside AG Studio. The grid at the top is live: every PayPal sandbox object Tillwise created, with the refund we just made at the top. Below it, built-in charts sit next to three custom widgets: refund rate, who still owes us, and dispute deadlines. Those analytics run on a labelled mock ledger."
+      "text": "This is the Money Desk, built inside AG Studio. The grid at the top reads the real PayPal sandbox: every object Tillwise created, with the refund we just made at the top. Below it, built-in charts sit next to three custom widgets: refund rate, who still owes us, and dispute deadlines. Those analytics run on a labelled mock ledger."
     },
     {
       "action": "type",

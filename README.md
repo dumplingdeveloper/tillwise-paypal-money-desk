@@ -133,7 +133,7 @@ cd ../alexa-sim && ALLOW_ANY_GITHUB_LOGIN=1 npm run demo
 ```
 - The voice page badge then reads `PayPal: REAL sandbox · api-m.sandbox.paypal.com · PayPal's public default sandbox app (shared)`, or `… your own PayPal sandbox app`.
 - Say or type "Refund order 136" and confirm with "yes". The voice reply confirms the refund, and the WordPress audit row stores the PayPal refund id.
-- The Money Desk's top grid "LIVE PayPal sandbox · objects Tillwise created" shows the new refund.
+- The Money Desk's top grid "Real PayPal sandbox · objects Tillwise created" shows the new refund.
 
 **Opt-in end-to-end test** against the real sandbox. It needs the MCP server running in sandbox mode, Chrome and a Copilot login. It makes one real refund, uses about 4 model calls and about 20 PayPal calls:
 ```bash

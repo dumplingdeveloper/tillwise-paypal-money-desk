@@ -136,7 +136,7 @@ In sandbox mode the analytics ledger stays on mock data unless `PAYPAL_LEDGER=sa
 | --- | --- | --- |
 | Voice "Refund order N" → preview → owner confirms → apply | **Live** `POST /v2/payments/captures/{id}/refund`, audited in WordPress with the PayPal refund id. It needs a real capture linked to that Woo order (`npm run sandbox:seed -- --link-woo N`); otherwise the preview refuses, and never falls back to a mock capture | Voice badge: "PayPal: REAL sandbox · api-m.sandbox.paypal.com · PayPal's public default sandbox app (shared)" |
 | Voice invoice create/send, tracking, dispute accept | **Live** calls (same preview → confirm → apply). Dispute accept only works on our own disputes. Not exercised by the opt-in test | same badge |
-| Money Desk grid "LIVE PayPal sandbox · objects Tillwise created" | **Live**: seed captures, refunds, invoice and voice refunds, read by id (§5) | the title itself |
+| Money Desk grid "Real PayPal sandbox · objects Tillwise created" | **Live**: seed captures, refunds, invoice and voice refunds, read by id (§5) | the title itself |
 | Money Desk KPIs, revenue chart, refund-rate tile, "Who still owes us", dispute countdown, refunds grid | **Mock ledger** (`mockLedger.ts`, ~45 days, 3 segments, the "damaged in transit" mug spike) | every title ends in "· mock data"; header "analytics: mock ledger (demo data, not PayPal)" |
 | `paypal_refund_anomaly`, "Why are refunds spiking?" | **Mock ledger** (Transaction Search has no refund reasons and lags ~2 h; the shared app has ~377 foreign transactions per day) | the agent is told to end new titles with "· mock data" or "· live sandbox" |
 

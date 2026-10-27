@@ -133,7 +133,7 @@ test('LIVE PayPal sandbox: voice refund of a real sandbox capture, audited, and 
     assert.deepEqual(deskState.layout, { xTrack: 0, yTrack: 0, xSpan: 24, ySpan: 14 });
     assert.ok(deskState.cols.includes('sandbox_activity.paypal_id'));
     assert.deepEqual(deskState.sort, [{ field: { id: 'sandbox_activity.created_at' }, direction: 'desc' }], 'newest live PayPal object first');
-    assert.equal(deskState.titles['sandbox-activity'], 'LIVE PayPal sandbox · objects Tillwise created');
+    assert.equal(deskState.titles['sandbox-activity'], 'Real PayPal sandbox · objects Tillwise created');
     for (const [id, text] of Object.entries(deskState.titles)) if (id !== 'sandbox-activity') assert.match(String(text), / · mock data$/, `${id} names its mock source`);
     const row = deskState.activity.find((r: Record<string, unknown>) => r.paypal_id === refundId);
     assert.deepEqual({ kind: row?.kind, order: row?.order_id, amount: row?.amount, status: row?.status }, { kind: 'refund', order: orderId, amount: Number(before.total), status: 'COMPLETED' });

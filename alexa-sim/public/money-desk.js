@@ -282,7 +282,7 @@
     page.widgets['dispute-clock'].format.title.text = 'Disputes · mock data';
     Object.assign(page.widgetLayout['dispute-clock'], { xSpan: 8 });
     Object.assign(page.widgetLayout['refunds-grid'], { xTrack: 8, xSpan: 16 });
-    page.widgets['sandbox-activity'] = { type: 'grid', dataMapping: { cols: ['created_at', 'kind', 'paypal_id', 'order_id', 'customer', 'amount', 'fee', 'status', 'tag'].map((f) => ({ id: `sandbox_activity.${f}` })) }, format: title('LIVE PayPal sandbox · objects Tillwise created'), sort: [{ field: { id: 'sandbox_activity.created_at' }, direction: 'desc' }] };
+    page.widgets['sandbox-activity'] = { type: 'grid', dataMapping: { cols: ['created_at', 'kind', 'paypal_id', 'order_id', 'customer', 'amount', 'fee', 'status', 'tag'].map((f) => ({ id: `sandbox_activity.${f}` })) }, format: title('Real PayPal sandbox · objects Tillwise created'), sort: [{ field: { id: 'sandbox_activity.created_at' }, direction: 'desc' }] };
     page.widgetLayout['sandbox-activity'] = { xTrack: 0, yTrack: 0, xSpan: 24, ySpan: SANDBOX_ROWS };
     return state;
   }

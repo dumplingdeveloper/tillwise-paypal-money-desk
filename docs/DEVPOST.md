@@ -95,7 +95,7 @@ Limits:
     - it checks that the WordPress audit row stores the PayPal refund id and that the AG Studio Money Desk shows it in its live grid (`getState()`).
     - Evidence: `docs/evidence/paypal-sandbox-voice-refund.json`, `alexa-sim/screenshots/sandbox/`.
 - **What is live and what is mock in sandbox mode** (matrix in `docs/FACTS_PAYPAL_SANDBOX.md` §6):
-  - **Live sandbox:** the voice flow's money actions (refund, invoice create/send, tracking, dispute accept; preview → confirm → apply, audited), and the Money Desk grid "LIVE PayPal sandbox · objects Tillwise created", read by id from Orders v2 and Invoicing v2.
+  - **Live sandbox:** the voice flow's money actions (refund, invoice create/send, tracking, dispute accept; preview → confirm → apply, audited), and the Money Desk grid "Real PayPal sandbox · objects Tillwise created", read by id from Orders v2 and Invoicing v2.
   - **Mock ledger, labelled "· mock data" on every widget:** the analytics. These are the KPIs, revenue chart, refund-rate tile, owed scoreboard, dispute countdown, and the refund-spike story behind "Why are refunds spiking?".
   - Why: on the shared app, Transaction Search returns other users' traffic (377 transactions in 24 h; a 30-day query fails with `RESULTSET_TOO_LARGE`), has no tag filter, and lagged about 2 h. The 3 disputes on the app belong to other users; Tillwise ignores them.
 - **Mock mode** is still the default when no credentials file exists. Every PayPal tool then returns deterministic, PayPal-shaped data from `mcp-server/src/paypal/mockLedger.ts`, and the voice badge says mock.
